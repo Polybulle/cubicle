@@ -50,7 +50,7 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
   (* module Int = *)
   (*   struct *)
   (*     type t = int *)
-  (*     let compare = Pervasives.compare *)
+  (*     let compare = Stdlib.compare *)
   (*     let hash = Hashtbl.hash *)
   (*     let equal = (=) *)
   (*   end *)

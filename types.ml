@@ -70,7 +70,7 @@ module Var = struct
     let compare x y =
       match x, y with
       | V(a1,s1), V(a2, s2) ->
-	 let c = Pervasives.compare s1 s2 in
+	 let c = Stdlib.compare s1 s2 in
 	 if c <> 0 then c
 	 else Hstring.compare a1 a2
 
@@ -107,7 +107,7 @@ let is_int_const = function
      Hstring.equal (snd (Smt.Symbol.type_of n)) Smt.Type.type_int
 
 
-let compare_constants = MConst.compare Pervasives.compare 
+let compare_constants = MConst.compare Stdlib.compare 
 
 
 let num_of_const = function
@@ -197,13 +197,13 @@ module Term = struct
     | Read (p1, v1, vi1), Read (p2, v2, vi2) ->
        let c = Hstring.compare p1 p2 in if c<>0 then c else
        (* let c = Hstring.compare v1 v2 in if c<>0 then c else *)
-       let c = Pervasives.compare (Hstring.view v1) (Hstring.view v2) in if c <> 0 then c else
+       let c = Stdlib.compare (Hstring.view v1) (Hstring.view v2) in if c <> 0 then c else
        Hstring.compare_list vi1 vi2
      | Read (_, _, _), _ -> -1 | _, Read (_, _, _) -> 1
     | Write (p1, v1, vi1, rr1), Write (p2, v2, vi2, rr2) ->
        let c = Hstring.compare p1 p2 in if c<>0 then c else
        (* let c = Hstring.compare v1 v2 in if c<>0 then c else *)
-       let c = Pervasives.compare (Hstring.view v1) (Hstring.view v2) in if c <> 0 then c else
+       let c = Stdlib.compare (Hstring.view v1) (Hstring.view v2) in if c <> 0 then c else
        let c = Hstring.compare_list vi1 vi2 in if c<>0 then c else
        Hstring.compare_list rr1 rr2
      | Write (_, _, _, _), _ -> -1 | _, Write (_, _, _, _) -> 1
@@ -378,7 +378,7 @@ end = struct
 	  let c1 = Term.compare x1 x2 in
 	  if c1 <> 0  then c1 
 	  else 
-	    let c0 = Pervasives.compare op1 op2 in
+	    let c0 = Stdlib.compare op1 op2 in
 	    if c0 <> 0 then c0 
 	    else 
 	      let c2 = Term.compare y1 y2 in c2
@@ -634,7 +634,7 @@ module ArrayAtom = struct
     !cpt + (n1 - !i1)
 
   let compare_nb_diff a p1 p2 =
-    Pervasives.compare (nb_diff p1 a) (nb_diff p2 a)
+    Stdlib.compare (nb_diff p1 a) (nb_diff p2 a)
 
 
   let nb_common a1 a2 =
@@ -655,7 +655,7 @@ module ArrayAtom = struct
 
 
   let compare_nb_common a p1 p2 =
-    Pervasives.compare (nb_common p2 a) (nb_common p1 a)
+    Stdlib.compare (nb_common p2 a) (nb_common p1 a)
 
   let diff a1 a2 =
     let n1 = Array.length a1 in
