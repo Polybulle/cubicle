@@ -154,6 +154,12 @@ type pupdate = {
   pup_swts : pswts;
 }
 
+type ptcall = {
+    ptc_loc : loc;
+    ptc_name : Hstring.t;
+    ptc_args : Variable.t list;
+}
+
 type ptransition = {
   ptr_lets : (Hstring.t * term) list;
   ptr_name : Hstring.t;
@@ -163,6 +169,9 @@ type ptransition = {
   ptr_upds : pupdate list;
   ptr_nondets : Hstring.t list;
   ptr_loc : loc;
+  ptr_nexts : ptcall list;
+  ptr_is_triggered : bool;
+  ptr_may_continue : bool;
 }
 
 type psystem = {
@@ -574,22 +583,31 @@ let encode_pupdate {pup_loc; pup_arr; pup_arg; pup_swts} =
 
 let encode_ptransition
     {ptr_lets; ptr_name; ptr_args; ptr_reqs; ptr_assigns;
-     ptr_upds; ptr_nondets; ptr_loc;} =
+     ptr_upds; ptr_nondets; ptr_loc;
+     ptr_is_triggered; ptr_may_continue; ptr_nexts} =
   let dguards = guard_of_formula ptr_args ptr_reqs in
   let tr_assigns = List.map (fun (i, pgu) ->
       (i, encode_pglob_update pgu)) ptr_assigns in
   let tr_upds = List.map encode_pupdate ptr_upds in
   let tr_lets = List.map (fun (x, t) -> (x, encode_term t)) ptr_lets in
+  let tr_nexts = List.map
+      (fun tc -> {tc_name = tc.ptc_name;
+                  tc_args = tc.ptc_args;
+                  tc_loc = tc.ptc_loc})
+      ptr_nexts in
   List.rev_map (fun (req, ureq) ->
       {  tr_name = ptr_name;
          tr_args = ptr_args;
          tr_reqs = req;
          tr_ureq = ureq;
-	 tr_lets = tr_lets;
+         tr_lets = tr_lets;
          tr_assigns;
          tr_upds;
          tr_nondets = ptr_nondets;
-         tr_loc = ptr_loc }
+         tr_loc = ptr_loc;
+         tr_is_triggered = ptr_is_triggered;
+         tr_may_continue = ptr_may_continue;
+         tr_nexts}
     ) dguards
 
 

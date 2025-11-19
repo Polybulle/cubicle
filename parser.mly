@@ -245,6 +245,9 @@ transition:
 	    ptr_assigns = assigns; 
 	    ptr_nondets = nondets; 
 	    ptr_upds = upds;
+            ptr_may_continue = true;
+            ptr_is_triggered = false;
+            ptr_nexts = [];
             ptr_loc = loc ();
           }
       }

@@ -78,6 +78,12 @@ type pupdate = {
   pup_swts : pswts;
 }
 
+type ptcall = {
+    ptc_loc : loc;
+    ptc_name : Hstring.t;
+    ptc_args : Variable.t list;
+}
+
 type ptransition = {
   ptr_lets : (Hstring.t * term) list;
   ptr_name : Hstring.t;
@@ -87,6 +93,9 @@ type ptransition = {
   ptr_upds : pupdate list;
   ptr_nondets : Hstring.t list;
   ptr_loc : loc;
+  ptr_nexts : ptcall list;
+  ptr_is_triggered : bool;
+  ptr_may_continue : bool;
 }
 
 type psystem = {
