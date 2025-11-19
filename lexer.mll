@@ -24,6 +24,10 @@
       [ "type", TYPE;
 	"init", INIT;
 	"transition", TRANSITION;
+    "triggered", TRIGGERED;
+    "next", NEXT;
+    "or", OORR;
+    "continue", CONTINUE;
 	"invariant", INVARIANT;
 	"requires", REQUIRE;
         "array", ARRAY;
