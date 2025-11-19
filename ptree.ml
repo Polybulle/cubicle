@@ -793,12 +793,31 @@ let print_updates fmt tr_upds =
 let print_nondets fmt =
   List.iter (fprintf fmt "%a = ?;@," Hstring.print)
 
+let print_triggered_annot fmt is_triggered =
+  if is_triggered then fprintf fmt "triggered "
+
+let print_tcall fmt {tc_name; tc_args} =
+  fprintf fmt "%a(%a)" Hstring.print tc_name Variable.print_vars tc_args
+
+let print_tcalls =
+  let pp_or fmt () = fprintf fmt " or " in
+  pp_print_list ~pp_sep:pp_or print_tcall
+
+let print_next_clause fmt = function
+  | (true, []) -> ()
+  | (false, []) -> failwith "empty next clause without continue"
+  | (true, calls) ->
+     fprintf fmt "next %a or continue" print_tcalls calls
+  | (false, calls) ->
+     fprintf fmt "next %a" print_tcalls calls
+
 let print_trans fmt =
   List.iter
     (fun { tr_name; tr_args; tr_reqs; tr_ureq; tr_lets;
-           tr_assigns; tr_upds; tr_nondets } ->
+           tr_assigns; tr_upds; tr_nondets;
+           tr_is_triggered; tr_may_continue; tr_nexts } ->
       fprintf fmt
-        "@[<v>@{<fg_magenta>transition@} @{<fg_cyan_b>%a@} (%a)@,\
+        "@[<v>@{<fg_magenta>%atransition@} @{<fg_cyan_b>%a@} (%a)@,\
          %a\
          {@[<v 2>@,\
          %a\
@@ -806,7 +825,9 @@ let print_trans fmt =
          %a\
          %a\
          @]}\
-         @,@,@]"
+         @,
+         %a@,@,@]"
+        print_triggered_annot tr_is_triggered
         Hstring.print tr_name
         Variable.print_vars tr_args
         print_reqs (tr_reqs, tr_ureq)
@@ -814,6 +835,7 @@ let print_trans fmt =
         print_assigns tr_assigns
         print_updates tr_upds
         print_nondets tr_nondets
+        print_next_clause (tr_may_continue, tr_nexts)
     )
 
 
