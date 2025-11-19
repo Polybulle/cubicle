@@ -46,6 +46,13 @@ type update = {
 }
 (** conditionnal updates with cases, ex. [A[j] := case | C : t | _ ...] *)
 
+type transition_call = {
+  tc_name : Hstring.t; (** name of called transition *)
+  tc_args : Variable.t list; (** parameters of the call *)
+  tc_loc : loc; (** position information *)
+}
+(** Call to a transition *)
+
 type transition_info = {
   tr_name : Hstring.t; (** name of the transition *)
   tr_args : Variable.t list;
@@ -59,6 +66,9 @@ type transition_info = {
   tr_nondets : Hstring.t list;
   (** non deterministic updates (only for global variables) *)
   tr_loc : loc; (** location information *)
+  tr_is_triggered : bool; (** [triggered] mark (defaults to [false]) *)
+  tr_may_continue : bool; (** [continue] mark (defaults to [true]) *)
+  tr_nexts : transition_call list; (** calls to [next] transitions (defaults to [[]]) *)
 }
 (** type of parameterized transitions *)
 
