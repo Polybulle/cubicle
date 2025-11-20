@@ -38,7 +38,9 @@ module Debug = struct
 end
 
 
-
+let assert_stable n =
+  if Node.has_future n then
+    failwith (sprintf "Fixpoint of unstable node %n" n.tag)
 
 
 (* TODO ici *)
@@ -119,6 +121,7 @@ end = struct
 
 
   let pure_smt_check s nodes =
+    assert_stable s;
     try
       check_fixpoint ~pure_smt:true s nodes;
       None
@@ -131,6 +134,7 @@ end = struct
 
   let check s visited =
     Debug.unsafe s;
+    assert_stable s;
     TimeFix.start ();
     let r = 
       match easy_fixpoint s visited with
@@ -262,6 +266,7 @@ end = struct
     r
 
   let useful_instances s visited =
+    assert_stable s;
     let env = {
         hid_cubes = Hashtbl.create (3 * (List.length visited));
         cur_id = s.tag
@@ -366,11 +371,13 @@ end = struct
 
   
   let easy_fixpoint s nodes =
+    assert_stable s;
     if delete && (s.deleted || Node.has_deleted_ancestor s)
     then Some []
     else Cubetrie.mem_array (Node.array s) nodes
 
   let medium_fixpoint s visited  =
+    assert_stable s;
     let vars, s_array = Node.variables s, Node.array s in
     let substs = Variable.all_permutations vars vars in
     let substs = List.tl substs in (* Drop 'identity' permutation. 
@@ -386,6 +393,7 @@ end = struct
     with Fixpoint uc -> Some uc
 
   let hard_fixpoint s nodes =
+    assert_stable s;
     try
       check_fixpoint s nodes;
       None
@@ -401,6 +409,7 @@ end = struct
 
   let check s nodes =
     Debug.unsafe s;
+    assert_stable s;
     TimeFix.start ();
     let r =
       match easy_fixpoint s nodes with
@@ -473,6 +482,7 @@ end = struct
 
   let check s nodes =
     Debug.unsafe s;
+    assert_stable s;
     TimeFix.start ();
     let r = hard_fixpoint s nodes in
     (*   match easy_fixpoint s nodes with *)

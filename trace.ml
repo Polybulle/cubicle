@@ -2196,6 +2196,10 @@ module Selected : S = struct
 
   (* Sort nodes first *)
   let certificate s visited =
+    if Options.triggers && Options.trace <> NoTrace then begin
+      printf "Options -triggers is incompatible with -trace";
+      exit 1
+    end;
     if Options.trace <> NoTrace then begin
         Util.TimeCertificate.start ();
         let visited = List.fast_sort Node.compare_by_breadth visited in

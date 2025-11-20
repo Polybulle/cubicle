@@ -55,6 +55,8 @@ let mu_cmd = ref "mu"
 let mu_opts = ref ""
 let cpp_cmd = ref "g++ -O4"
 
+let triggers = ref false
+
 let brab = ref (-1)
 let brab_up_to = ref false
 let forward_depth = ref (-1)
@@ -161,6 +163,7 @@ let specs =
     "-mu-opt", Arg.Set_string mu_opts,
     " Murphi compiler options (passed as is, no options by default)";
     "-cpp", Arg.Set_string cpp_cmd, " C++ compiler command line (default: g++ -O4)";
+    "-triggers", Arg.Set triggers, "Enable semi-deterministic system support (default: false)";
     "-forward-depth", Arg.Set_int forward_depth,
     "<d> Limit the depth of the forward exploration to at most d";
     "-max-forward", Arg.Set_int max_forward,
@@ -247,6 +250,8 @@ let murphi_uopts = !murphi_uopts
 let mu_cmd = !mu_cmd
 let mu_opts = !mu_opts
 let cpp_cmd = !cpp_cmd
+
+let triggers = !triggers
 
 let max_cands = !max_cands
 let max_forward = !max_forward

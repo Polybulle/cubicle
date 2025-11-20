@@ -45,6 +45,7 @@ val mu_cmd : string
 val mu_opts : string
 val cpp_cmd : string
 
+val triggers : bool
 
 val limit_forward_depth : bool
 val forward_depth : int
