@@ -91,6 +91,22 @@ else
   fi
 fi
 
+#looking for num library
+
+if test "$USEOCAMLFIND" = yes; then
+  NUMLIB=$(ocamlfind query -i-format num)
+fi
+
+if test -n "NUMLIB";then
+  echo "ocamlfind found num in $NUMLIB"
+  FUNCTORYLD=yes
+else
+  AC_CHECK_FILE($OCAMLLIB/num/nums.cma,NUMLD=yes,NUMLD=no)
+  if test "NUMLD" = no ; then
+      AC_MSG_ERROR(Cannot find num library.)
+  fi
+fi
+
 
 #looking for Z3 ocaml bindings
 
@@ -145,6 +161,7 @@ AC_SUBST(OCAMLVERSION)
 AC_SUBST(OCAMLLIB)
 AC_SUBST(ALTERGOLIB)
 AC_SUBST(FUNCTORYLIB)
+AC_SUBST(NUMLIB)
 AC_SUBST(Z3LIB)
 AC_SUBST(Z3CCFLAGS)
 AC_SUBST(OCAMLWIN32)
