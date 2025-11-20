@@ -27,10 +27,12 @@ type error =
   | DuplicateAssign of Hstring.t
   | DuplicateName of Hstring.t 
   | DuplicateUpdate of Hstring.t
+  | DuplicateTransition of Hstring.t
   | UnknownArray of Hstring.t
   | UnknownName of Hstring.t
   | DuplicateInit of Hstring.t
   | NoMoreThanOneArray
+  | HasTriggers of Hstring.t
   | ClashParam of Hstring.t
   | MustBeAnArray of Hstring.t
   | MustBeOfType of Hstring.t * Hstring.t
@@ -59,6 +61,10 @@ let report fmt = function
       fprintf fmt 
 	"duplicate array update for %a (You may want to use a case construct)"
 	Hstring.print s
+  | DuplicateTransition t ->
+     fprintf fmt
+       "duplicate transition name %a (incompatible with -triggers option)"
+       Hstring.print t
   | UnknownVar x ->
       fprintf fmt "unknown variable %a" Hstring.print x
   | UnknownArray a ->
@@ -71,6 +77,9 @@ let report fmt = function
       fprintf fmt "duplicate initialization for %a" Hstring.print a
   | NoMoreThanOneArray ->
       fprintf fmt "sorry, no more than one array"
+  | HasTriggers t ->
+      fprintf fmt "transition %a requires the -triggers option"
+      Hstring.print t
   | ClashParam x ->
       fprintf fmt "%a already used as a transition's parameter" Hstring.print x
   | MustBeAnArray s ->
@@ -271,6 +280,42 @@ let check_lets loc args l =
      let _ = term loc args t in ()
     ) l
 	       
+let unique_transition_names trs =
+  ignore (List.fold_left (fun names t ->
+      if List.mem t.tr_name names then
+        error (DuplicateTransition t.tr_name) t.tr_loc;
+      (t.tr_name :: names))
+    [] trs)
+
+let next trs tr ({tc_name; tc_args; tc_loc}) =
+  (* are proc arguments in scope ? *)
+  List.iter (fun p ->
+      if not (List.mem p tr.tr_args)
+      then error (UnknownName p) tc_loc)
+    tc_args;
+  (* are proc arguments a cube ? *)
+  unique (fun p -> error (DuplicateName p) tc_loc) tc_args;
+  (* does called transition exists ? *)
+  match List.find_opt (fun t -> t.tr_name = tc_name) trs with
+  | None ->  error (UnknownName tc_name) tc_loc
+  | Some called ->
+     (* correct number of args ? *)
+     let expected = List.length called.tr_args in
+     if List.length tc_args <> expected then
+       error (WrongNbArgs (tc_name, expected)) tc_loc
+
+let nexts trs ({tr_nexts} as t) = List.iter (next trs t) tr_nexts
+
+let triggers s =
+  unique_transition_names s.trans;
+  List.iter (nexts s.trans) s.trans;
+
+let no_triggers s =
+  List.iter (fun t ->
+      if not t.tr_may_continue || t.tr_is_triggered || t.tr_nexts <> [] then
+        error (HasTriggers t.tr_name) t.tr_loc)
+    s.trans
+
 let transitions = 
   List.iter 
     (fun ({tr_args = args; tr_loc = loc} as t) -> 
@@ -518,6 +563,7 @@ let system s =
   if not Options.notyping then List.iter unsafe s.unsafe;
   if not Options.notyping then List.iter unsafe (List.rev s.invs);
   if not Options.notyping then transitions s.trans;
+  if Options.triggers then triggers s else no_triggers s;
   if Options.(subtyping && not murphi) then begin
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();
