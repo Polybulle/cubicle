@@ -33,6 +33,7 @@ type error =
   | DuplicateInit of Hstring.t
   | NoMoreThanOneArray
   | HasTriggers of Hstring.t
+  | CycleInTriggers of Hstring.t list
   | ClashParam of Hstring.t
   | MustBeAnArray of Hstring.t
   | MustBeOfType of Hstring.t * Hstring.t
@@ -80,6 +81,10 @@ let report fmt = function
   | HasTriggers t ->
       fprintf fmt "transition %a requires the -triggers option"
       Hstring.print t
+  | CycleInTriggers names ->
+    fprintf fmt "Found a cycle of triggers within transitions (forbidden). Cycle \
+                 involves those transitions:\n  %a"
+      (pp_print_list ~pp_sep:pp_print_space Hstring.print) names
   | ClashParam x ->
       fprintf fmt "%a already used as a transition's parameter" Hstring.print x
   | MustBeAnArray s ->
@@ -306,9 +311,30 @@ let next trs tr ({tc_name; tc_args; tc_loc}) =
 
 let nexts trs ({tr_nexts} as t) = List.iter (next trs t) tr_nexts
 
+let ensure_triggers_dag ts =
+  let nodes = Array.of_list ts in
+  let module G = struct
+    type node = transition_info
+    type edge = transition_call
+    let nodes = nodes
+    let is_input tr = not tr.tr_is_triggered
+    let is_output tr = tr.tr_may_continue
+    let edges_from tr = tr.tr_nexts
+    let dest_node tc = List.find (fun t -> t.tr_name = tc.tc_name) ts
+  end in
+  try
+    let module G = Graph.Make(G) in
+    if not G.is_acyclic then failwith "invariant break"
+  with
+  | Graph.Cycle involved ->
+    let involved = List.map (fun i -> nodes.(i).tr_name) involved in
+    let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
+    error (CycleInTriggers involved) dummy_loc
+
 let triggers s =
   unique_transition_names s.trans;
   List.iter (nexts s.trans) s.trans;
+  ensure_triggers_dag s.trans
 
 let no_triggers s =
   List.iter (fun t ->
