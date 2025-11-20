@@ -82,6 +82,12 @@ type transition = {
   tr_reset : unit -> unit;
 }
 
+(** Type of paths through triggered transitions. *)
+(**  Parameter [tr] is the transition info type *)
+type 'tr tc_path =
+  | Tcp_one of 'tr
+  | Tcp_step of 'tr * transition_call * ('tr tc_path)
+
 type system = {
   globals : (loc * Hstring.t * Smt.Type.t) list;
   consts : (loc * Hstring.t * Smt.Type.t) list;
