@@ -44,7 +44,7 @@ OCAMLWIN32 = @OCAMLWIN32@
 EXE = @EXE@
 
 INCLPATHS = $(FUNCTORYLIB) $(Z3LIB) $(NUMLIB) -I common/ -I smt/
-INCLUDES = $(INCLPATHS) $(Z3CCFLAGS)
+INCLUDES = $(INCLPATHS) $(Z3CCFLAGS) -I +unix
 
 BFLAGS = -dtypes -g $(INCLUDES) -annot
 OFLAGS = -dtypes -g $(INCLUDES) -annot
