@@ -302,12 +302,15 @@ let make_cubes_new (ls, post) rargs s tr cnp =
 (* Pre-image of an unsafe formula w.r.t a transition *)
 (*****************************************************)
 
-let pre { tr_info = tri; tr_tau = tau; tr_reset = reset } unsafe =
+let pre_unsafe tr unsafe =
+    (* Take the union of the transition's prerequisites... *)
+    SAtom.union tr.tr_info.tr_reqs
+      (* With, for each cube, its pullback through the actions *)
+      (SAtom.fold (fun a -> SAtom.add (pre_atom tr.tr_tau a)) unsafe SAtom.empty)
+
+let pre ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t) unsafe =
   (* let tau = tr.tr_tau in *)
-  let pre_unsafe = 
-    SAtom.union tri.tr_reqs 
-      (SAtom.fold (fun a -> SAtom.add (pre_atom tau a)) unsafe SAtom.empty)
-  in
+  let pre_unsafe = pre_unsafe t unsafe in
   let pre_u = Cube.create_normal pre_unsafe in
   if debug && verbose > 0 then Debug.pre tri pre_unsafe;
   reset();
@@ -320,9 +323,19 @@ let pre { tr_info = tri; tr_tau = tau; tr_reset = reset } unsafe =
     else tri, pre_u, nargs
 
 
+(* TODO Add debug info *)
+let rec path_pre p unsafe =
+  match p with
+  | Tcp_one t -> pre t unsafe
+  | Tcp_step (t,e,p) ->
+    let unsafe = pre_unsafe t unsafe in
+    let is = t.tr_info.tr_args in
+    let js = e.tc_args in
+    let subst = List.combine is js in
+    (* TODO Use ArrayAtom instead ? *)
+    let unsafe = SAtom.map (Atom.subst subst) unsafe in
+    path_pre p unsafe
 
-let path_pre sys s =
-  failwith "not_implemented"
 
 (*********************************************************************)
 (* Pre-image of a system s : computing the cubes gives a list of new *)
@@ -334,15 +347,20 @@ let pre_image sys s =
   Debug.unsafe s;
   let u = Node.litterals s in
   let ls, post = 
-    List.fold_left
-    (fun acc tr ->
-       let trinfo, pre_u, info_args = pre tr u in
-       make_cubes acc info_args s trinfo pre_u) 
-    ([], []) 
+    if Options.triggers then
+      List.fold_left
+        (fun acc p ->
+           let trinfo, pre_u, info_args = path_pre p u in
+           make_cubes acc info_args s trinfo pre_u)
+        ([], [])
+        sys.t_trigger_paths
+    else
+      List.fold_left
+        (fun acc tr ->
+           let trinfo, pre_u, info_args = pre tr u in
+           make_cubes acc info_args s trinfo pre_u)
+        ([], [])
     sys.t_trans
   in
-  let path_ls, path_post =
-    if Options.triggers then path_pre sys s else [],[] in
   TimePre.pause ();
-  let ls, post = List.rev ls, List.rev post in
-  List.rev_append path_ls ls, List.rev_append path_post post
+  List.rev ls, List.rev post
