@@ -320,12 +320,16 @@ let pre { tr_info = tri; tr_tau = tau; tr_reset = reset } unsafe =
     else tri, pre_u, nargs
 
 
+
+let path_pre sys s =
+  failwith "not_implemented"
+
 (*********************************************************************)
 (* Pre-image of a system s : computing the cubes gives a list of new *)
 (* systems							     *)
 (*********************************************************************)
 
-let pre_image trs s =
+let pre_image sys s =
   TimePre.start (); 
   Debug.unsafe s;
   let u = Node.litterals s in
@@ -335,7 +339,10 @@ let pre_image trs s =
        let trinfo, pre_u, info_args = pre tr u in
        make_cubes acc info_args s trinfo pre_u) 
     ([], []) 
-    trs 
+    sys.t_trans
   in
+  let path_ls, path_post =
+    if Options.triggers then path_pre sys s else [],[] in
   TimePre.pause ();
-  List.rev ls, List.rev post
+  let ls, post = List.rev ls, List.rev post in
+  List.rev_append path_ls ls, List.rev_append path_post post

@@ -155,5 +155,7 @@ type t_system = {
   (** unsafe formulas (in the form of cubes *)
   t_trans : transition list;
   (** transition relation in the form of a list of transitions *)
+  t_trigger_paths : transition tc_path list;
+  (** List of paths through triggered transitions *)
 }
 (** type of typed transition systems *)

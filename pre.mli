@@ -22,8 +22,8 @@ type reset_memo = unit -> unit
 val make_tau : transition_info -> transition_func * reset_memo
 (** functional form of transition *)
 
-val pre_image : transition list -> Node.t -> Node.t list * Node.t list
-(** [pre-image tau n] returns the pre-image of [n] by the transition relation
-    [tau] as a disjunction of cubes in the form of two lists of new nodes. The
-    second list is used to store nodes to postpone depending on a predefined
-    strategy. *)
+val pre_image : t_system -> Node.t -> Node.t list * Node.t list
+(** [pre-image sys n] returns the pre-image of [n] by the transition relation of
+    system [sys] as a disjunction of cubes in the form of two lists of new
+    nodes. The second list is used to store nodes to postpone depending on a
+    predefined strategy. *)
