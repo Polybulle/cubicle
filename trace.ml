@@ -1273,7 +1273,7 @@ module Why3 = struct
     if not quiet && verbose >= 1 then printf "@.";
     let hints = List.fold_left
       (fun hints phi ->
-       let ls, post = Pre.pre_image s.t_trans phi in
+       let ls, post = Pre.pre_image s phi in
        let used =
          List.fold_left
            (fun used p ->
@@ -2106,7 +2106,7 @@ module Why3_INST = struct
     if not quiet && verbose >= 1 then printf "@.";
     let hints = List.fold_left
       (fun hints phi ->
-       let ls, post = Pre.pre_image s.t_trans phi in
+       let ls, post = Pre.pre_image s phi in
        let used =
          List.fold_left
            (fun used p ->

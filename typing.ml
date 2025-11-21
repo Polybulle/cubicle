@@ -311,8 +311,12 @@ let next trs tr ({tc_name; tc_args; tc_loc}) =
 
 let nexts trs ({tr_nexts} as t) = List.iter (next trs t) tr_nexts
 
-let ensure_triggers_dag ts =
-  let nodes = Array.of_list ts in
+(* Validates the triggers if the option is enabled. Return the paths through
+   transition triggers. *)
+let triggers s =
+  unique_transition_names s.trans;
+  List.iter (nexts s.trans) s.trans;
+  let nodes = Array.of_list s.trans in
   let module G = struct
     type node = transition_info
     type edge = transition_call
@@ -320,27 +324,26 @@ let ensure_triggers_dag ts =
     let is_input tr = not tr.tr_is_triggered
     let is_output tr = tr.tr_may_continue
     let edges_from tr = tr.tr_nexts
-    let dest_node tc = List.find (fun t -> t.tr_name = tc.tc_name) ts
+    let dest_node tc = List.find (fun t -> t.tr_name = tc.tc_name) s.trans
   end in
   try
     let module G = Graph.Make(G) in
-    if not G.is_acyclic then failwith "invariant break"
+    if not G.is_acyclic then failwith "invariant break";
+    List.map Graph.path_rev G.paths
   with
   | Graph.Cycle involved ->
     let involved = List.map (fun i -> nodes.(i).tr_name) involved in
     let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
     error (CycleInTriggers involved) dummy_loc
 
-let triggers s =
-  unique_transition_names s.trans;
-  List.iter (nexts s.trans) s.trans;
-  ensure_triggers_dag s.trans
-
+(* Check that system doesn't use trigger features. Returns a dummy list of paths
+   through triggers. *)
 let no_triggers s =
   List.iter (fun t ->
       if not t.tr_may_continue || t.tr_is_triggered || t.tr_nexts <> [] then
         error (HasTriggers t.tr_name) t.tr_loc)
-    s.trans
+    s.trans;
+  []
 
 let transitions = 
   List.iter 
@@ -589,12 +592,16 @@ let system s =
   if not Options.notyping then List.iter unsafe s.unsafe;
   if not Options.notyping then List.iter unsafe (List.rev s.invs);
   if not Options.notyping then transitions s.trans;
-  if Options.triggers then triggers s else no_triggers s;
   if Options.(subtyping && not murphi) then begin
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();
   end;
 
+  let t_trans = List.map add_tau s.trans in
+  let t_trigger_paths =
+    let ps = if Options.triggers then triggers s else no_triggers s in
+    let find_t {tr_name} = List.find (fun t -> t.tr_info.tr_name = tr_name) t_trans in
+    List.map (Graph.path_map find_t) ps in
   let init_woloc = let _,v,i = s.init in v,i in
   let invs_woloc =
     List.map (fun (_,v,i) -> create_node_rename Inv v i) s.invs in
@@ -611,5 +618,6 @@ let system s =
     t_init_instances = init_instances;
     t_invs = invs_woloc;
     t_unsafe = unsafe_woloc;
-    t_trans = List.map add_tau s.trans;
+    t_trans;
+    t_trigger_paths;
   }
