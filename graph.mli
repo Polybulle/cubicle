@@ -6,7 +6,11 @@ type node = transition_info
 
 type edge = transition_call
 
-type 't path = 't Ast.tc_path
+(** Type of paths through triggered transitions. *)
+(**  Parameter [tr] is the transition info type *)
+type 'tr path =
+  | Tcp_one of 'tr
+  | Tcp_step of 'tr * Ast.transition_call * ('tr path)
 
 val print_path : ('t -> transition_info) -> Format.formatter -> 't path -> unit
 

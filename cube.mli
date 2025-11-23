@@ -37,7 +37,8 @@ val normal_form : t -> t
     necessary. *)
 
 val create_normal : SAtom.t -> t
-(** create a cube in normal form by finding the quantified variables *)
+(** create a cube in normal form by finding the quantified variables. *)
+
 
 val subst : Variable.subst -> t -> t
 (** apply a substitution on a cube *)

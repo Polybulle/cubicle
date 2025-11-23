@@ -100,15 +100,15 @@ let create_norma_sa_ar sa ar =
   if !size_proc <> 0 && List.length vars > !size_proc then
     cube_false
   else
-  let sigma = Variable.build_subst vars Variable.procs in
-  let new_vars = List.map snd sigma in
-  let new_ar = ArrayAtom.apply_subst sigma ar in
-  let new_sa = ArrayAtom.to_satom new_ar in
-  {
-    vars = new_vars;
-    litterals = new_sa;
-    array = new_ar;
-  }
+    let sigma = Variable.build_subst vars Variable.procs in
+    let new_vars = List.map snd sigma in
+    let new_ar = ArrayAtom.apply_subst sigma ar in
+    let new_sa = ArrayAtom.to_satom new_ar in
+    {
+      vars = new_vars;
+      litterals = new_sa;
+      array = new_ar;
+    }
 
 let create_normal sa = create_norma_sa_ar sa (ArrayAtom.of_satom sa)
 

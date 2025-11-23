@@ -65,15 +65,16 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
     try
       while not (Q.is_empty q) do
         let n = Q.pop q in
-        Safety.check system n;
+        if not (Node.is_midpath n) then Safety.check system n;
+        let fix = if Node.is_midpath n then None else Fixpoint.check n !visited in
         begin
-          match Fixpoint.check n !visited with
+          match fix with
           | Some db ->
              Stats.fixpoint n db
           | None ->
              Stats.check_limit n;
              Stats.new_node n;
-             let n = begin
+             let n = if Node.is_midpath n then n else begin
                  match Approx.good n with
                  | None -> n
                  | Some c ->
@@ -113,6 +114,7 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
 end
 
 
+(* TODO hector implémenter la backward parallèle *)
 
 module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
 
@@ -247,8 +249,9 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
          if not quiet && debug then eprintf "\nRECIEVED NO_FIX\n@."; 
          Stats.check_limit n;
          Stats.new_node n;
+         let good = if Node.has_future n then None else Approx.good n in
          let n = begin
-             match Approx.good n with
+             match good with
              | None -> n
              | Some c ->
                 try

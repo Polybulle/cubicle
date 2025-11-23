@@ -311,6 +311,26 @@ let next trs tr ({tc_name; tc_args; tc_loc}) =
 
 let nexts trs ({tr_nexts} as t) = List.iter (next trs t) tr_nexts
 
+let path_to_future p =
+  let open Graph in
+  let rec aux args = function
+    | Tcp_one t -> [(t, args)]
+    | Tcp_step (t,e,p) ->
+      let s = Variable.build_subst t.tr_args args in
+      let args = List.map (Variable.subst s) e.tc_args in
+      (t, args) :: aux args p in
+  match p with
+  | Tcp_one t -> t.tr_args, [(t,t.tr_args)]
+  | Tcp_step (t,e,p) -> t.tr_args, (t,t.tr_args) :: aux e.tc_args p
+
+let finalize_future trs
+  (globs, calls :  Variable.t list * (transition_info * Hstring.t list) list) =
+  match calls with
+  | [] -> failwith "Invariant break: empty path"
+  | (args,_)::_ ->
+    let find tri = List.find (fun t -> t.tr_info.tr_name = tri.tr_name) trs in
+    (globs, List.rev_map (fun (tri, args) -> (find tri, args)) calls)
+
 (* Validates the triggers if the option is enabled. Return the paths through
    transition triggers. *)
 let triggers s =
@@ -329,7 +349,7 @@ let triggers s =
   try
     let module G = Graph.Make(G) in
     if not G.is_acyclic then failwith "invariant break";
-    List.map Graph.path_rev G.paths
+    List.map path_to_future G.paths
   with
   | Graph.Cycle involved ->
     let involved = List.map (fun i -> nodes.(i).tr_name) involved in
@@ -598,10 +618,9 @@ let system s =
   end;
 
   let t_trans = List.map add_tau s.trans in
-  let t_trigger_paths =
+  let t_transactions =
     let ps = if Options.triggers then triggers s else no_triggers s in
-    let find_t {tr_name} = List.find (fun t -> t.tr_info.tr_name = tr_name) t_trans in
-    List.map (Graph.path_map find_t) ps in
+    List.map (finalize_future t_trans) ps in
   let init_woloc = let _,v,i = s.init in v,i in
   let invs_woloc =
     List.map (fun (_,v,i) -> create_node_rename Inv v i) s.invs in
@@ -619,5 +638,5 @@ let system s =
     t_invs = invs_woloc;
     t_unsafe = unsafe_woloc;
     t_trans;
-    t_trigger_paths;
+    t_transactions;
   }

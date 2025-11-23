@@ -82,12 +82,6 @@ type transition = {
   tr_reset : unit -> unit;
 }
 
-(** Type of paths through triggered transitions. *)
-(**  Parameter [tr] is the transition info type *)
-type 'tr tc_path =
-  | Tcp_one of 'tr
-  | Tcp_step of 'tr * transition_call * ('tr tc_path)
-
 type system = {
   globals : (loc * Hstring.t * Smt.Type.t) list;
   consts : (loc * Hstring.t * Smt.Type.t) list;
@@ -110,6 +104,11 @@ type kind =
   | Node   (** reguar node *)
   | Inv    (** or user supplied invariant*)
 
+type future_call = transition * (Hstring.t list)
+
+type transaction_path = future_call list
+
+type node_future = (Variable.subst * transaction_path)
 
 type node_cube =
     { 
@@ -122,6 +121,8 @@ type node_cube =
                                   simplification detects subsumption
                                   (see {! Cubetrie.delete_subsumed}) *)
       from : trace;           (** history of the node *)
+      toward : node_future option (** future of the node *)
+                                      (**  (only for -triggers option) *)
     }
 (** the type of nodes, i.e. cubes with extra information *)
 
@@ -155,7 +156,7 @@ type t_system = {
   (** unsafe formulas (in the form of cubes *)
   t_trans : transition list;
   (** transition relation in the form of a list of transitions *)
-  t_trigger_paths : transition tc_path list;
+  t_transactions : (Variable.t list * transaction_path) list;
   (** List of paths through triggered transitions *)
 }
 (** type of typed transition systems *)

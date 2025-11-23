@@ -85,7 +85,7 @@ let new_tag =
   | _ -> incr cpt_pos; !cpt_pos
 
 
-let create ?(kind=Node) ?(from=None) cube =
+let create ?(kind=Node) ?(from=None) ?(toward=None) cube =
   let hist =  match from with
     | None -> []
     | Some ((_, _, n) as f) -> f :: n.from in
@@ -96,6 +96,7 @@ let create ?(kind=Node) ?(from=None) cube =
     depth = List.length hist;
     deleted = false;
     from = hist;
+    toward;
   }
 
 let has_deleted_ancestor n =
@@ -117,10 +118,14 @@ let ancestor_of n s =
   (* List.exists (fun (_,_,anc) -> ArrayAtom.equal n.t_arru anc.t_arru) s.t_from *)
   List.exists (fun (_, _, ps) -> n.tag = ps.tag) s.from
 
+let is_midpath n = match n.toward with
+  | None | Some (_,[]) -> false
+  | _ -> true
 
 let subset n1 n2 = ArrayAtom.subset (array n1) (array n2)
        
 let print fmt n = Cube.print fmt n.cube
+
 
 module Latex = struct
 (* Latex printing of nodes, experimental - to rewrite *)
@@ -197,18 +202,31 @@ end
 (* let print = Latex.print *)
 
 let print_history fmt n =
-  let last = List.fold_left 
-    (fun last (tr, args, a) ->
-      if dmcmt then 
-	fprintf fmt "[%a%a]" Hstring.print tr.tr_name Variable.print_vars args
-      else 
-	fprintf fmt "%a(%a) ->@ " Hstring.print tr.tr_name
-                Variable.print_vars args;
-      a
-    ) n n.from in
+  if not dmcmt then begin
+    match n.toward with
+    | None | Some (_,[]) -> ()
+    | Some (subst,p) ->
+      let p = List.rev p in
+      List.iter
+        (fun (tr, args) ->
+           fprintf fmt "%a(%a) ->@ "
+             Hstring.print tr.tr_info.tr_name
+             Variable.print_vars (List.map (Variable.subst subst) args))
+        p;
+      fprintf fmt "[NOW] "
+  end;
+  let last = List.fold_left
+      (fun last (tr, args, a) ->
+         if dmcmt then
+	   fprintf fmt "[%a%a]" Hstring.print tr.tr_name Variable.print_vars args
+         else
+	   fprintf fmt "%a(%a) ->@ " Hstring.print tr.tr_name
+             Variable.print_vars args;
+         a
+      ) n n.from in
   if dmcmt then fprintf fmt "[0]  "
   else
-    if last.kind = Approx then 
-      fprintf fmt "@{<fg_blue>approx[%d]@}" last.tag
-    else 
-      fprintf fmt "@{<fg_magenta>unsafe[%d]@}" last.tag
+  if last.kind = Approx then
+    fprintf fmt "@{<fg_blue>approx[%d]@}" last.tag
+  else
+    fprintf fmt "@{<fg_magenta>unsafe[%d]@}" last.tag
