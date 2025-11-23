@@ -315,26 +315,12 @@ let pre ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t) unsafe =
   if debug && verbose > 0 then Debug.pre tri pre_unsafe;
   reset();
   let args = pre_u.Cube.vars in
-  if tri.tr_args = [] then tri, pre_u, args
+  if tri.tr_args = [] then pre_u, args
   else
     let nargs = Variable.append_extra_procs args tri.tr_args in
     if !size_proc <> 0 && List.length nargs > !size_proc then
-      tri, pre_u, args
-    else tri, pre_u, nargs
-
-
-(* TODO Add debug info *)
-let rec path_pre p unsafe =
-  match p with
-  | Tcp_one t -> pre t unsafe
-  | Tcp_step (t,e,p) ->
-    let unsafe = pre_unsafe t unsafe in
-    let is = t.tr_info.tr_args in
-    let js = e.tc_args in
-    let subst = List.combine is js in
-    (* TODO Use ArrayAtom instead ? *)
-    let unsafe = SAtom.map (Atom.subst subst) unsafe in
-    path_pre p unsafe
+      pre_u, args
+    else pre_u, nargs
 
 
 (*********************************************************************)
@@ -342,25 +328,49 @@ let rec path_pre p unsafe =
 (* systems							     *)
 (*********************************************************************)
 
-let pre_image sys s =
-  TimePre.start (); 
+
+let pre_image_path sys cube =
+  TimePre.start ();
+  Debug.unsafe cube;
+  let ls, post =
+    match cube.toward with
+    | Some (Tcp_one tr) ->
+      let cube = {cube with kind = Node} in
+      let u = Node.litterals cube in
+      let  pre_u, info_args = pre tr u in
+      make_cubes ([],[]) info_args cube tr.tr_info pre_u
+    | Some (Tcp_step (t,e,p)) ->
+      let u = Node.litterals cube in
+      let pre_u, info_args = pre t u in
+      let ls, post = make_cubes ([],[]) info_args cube t.tr_info pre_u in
+      let subst = List.combine e.tc_args t.tr_info.tr_args in
+      let subst n = { n with cube = Cube.subst subst n.cube } in
+      let ls, post =
+        List.map (fun c -> subst ({c with toward = Some p})) ls,
+        List.map (fun c -> subst ({c with toward = Some p})) post in
+      ls, post
+    | None ->
+      let cubes = List.map
+          (fun p -> {cube with toward = Some p})
+          sys.t_trigger_paths in
+      (cubes, []) in
+  TimePre.pause ();
+  List.rev ls, List.rev post
+
+let pre_image_normal sys s =
+  TimePre.start ();
   Debug.unsafe s;
   let u = Node.litterals s in
-  let ls, post = 
-    if Options.triggers then
-      List.fold_left
-        (fun acc p ->
-           let trinfo, pre_u, info_args = path_pre p u in
-           make_cubes acc info_args s trinfo pre_u)
-        ([], [])
-        sys.t_trigger_paths
-    else
-      List.fold_left
-        (fun acc tr ->
-           let trinfo, pre_u, info_args = pre tr u in
-           make_cubes acc info_args s trinfo pre_u)
-        ([], [])
-    sys.t_trans
+  let ls, post =
+    List.fold_left
+      (fun acc tr ->
+         let pre_u, info_args = pre tr u in
+         make_cubes acc info_args s tr.tr_info pre_u)
+      ([], [])
+      sys.t_trans
   in
   TimePre.pause ();
   List.rev ls, List.rev post
+
+let pre_image =
+  if Options.triggers then pre_image_path else pre_image_normal

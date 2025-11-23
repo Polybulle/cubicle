@@ -110,6 +110,7 @@ type kind =
   | Node   (** reguar node *)
   | Inv    (** or user supplied invariant*)
 
+type node_future = transition tc_path
 
 type node_cube =
     { 
@@ -122,6 +123,8 @@ type node_cube =
                                   simplification detects subsumption
                                   (see {! Cubetrie.delete_subsumed}) *)
       from : trace;           (** history of the node *)
+      toward : node_future option (** future of the node *)
+                                      (**  (only for -triggers option) *)
     }
 (** the type of nodes, i.e. cubes with extra information *)
 

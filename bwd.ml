@@ -65,15 +65,17 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
     try
       while not (Q.is_empty q) do
         let n = Q.pop q in
-        Safety.check system n;
+        if not (Node.is_midpath n) then Safety.check system n;
+        let fix = if Node.is_midpath n then None else Fixpoint.check n !visited in
         begin
-          match Fixpoint.check n !visited with
+          match fix with
           | Some db ->
              Stats.fixpoint n db
           | None ->
              Stats.check_limit n;
              Stats.new_node n;
-             let n = begin
+             (* TODO is it safe to approximate in the middle of a path? *)
+             let n = if Node.is_midpath n then n else begin
                  match Approx.good n with
                  | None -> n
                  | Some c ->

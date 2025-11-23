@@ -85,7 +85,7 @@ let new_tag =
   | _ -> incr cpt_pos; !cpt_pos
 
 
-let create ?(kind=Node) ?(from=None) cube =
+let create ?(kind=Node) ?(from=None) ?(toward=None) cube =
   let hist =  match from with
     | None -> []
     | Some ((_, _, n) as f) -> f :: n.from in
@@ -96,6 +96,7 @@ let create ?(kind=Node) ?(from=None) cube =
     depth = List.length hist;
     deleted = false;
     from = hist;
+    toward;
   }
 
 let has_deleted_ancestor n =
@@ -117,10 +118,20 @@ let ancestor_of n s =
   (* List.exists (fun (_,_,anc) -> ArrayAtom.equal n.t_arru anc.t_arru) s.t_from *)
   List.exists (fun (_, _, ps) -> n.tag = ps.tag) s.from
 
+let is_midpath n = Option.is_some n.toward
 
 let subset n1 n2 = ArrayAtom.subset (array n1) (array n2)
        
-let print fmt n = Cube.print fmt n.cube
+let print fmt n =
+  Cube.print fmt n.cube;
+  pp_print_newline fmt ();
+  if Options.triggers && is_midpath n then
+      Option.iter
+        (fun p ->
+           fprintf fmt "Remaining path: %a\n"
+             (Graph.print_path (fun t -> t.tr_info)) (Graph.path_rev p))
+        n.toward
+
 
 module Latex = struct
 (* Latex printing of nodes, experimental - to rewrite *)

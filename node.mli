@@ -37,7 +37,7 @@ val size : t -> int
 (** returns the size of the associated cube (see {! Cube.size}) *)
 
 val create :
-  ?kind:kind -> ?from:trace_step option -> Cube.t -> t
+  ?kind:kind -> ?from:trace_step option -> ?toward:node_future option -> Cube.t -> t
 (** given a cube creates a node with a given kind, and a history *)
 
 val compare_by_breadth : t -> t -> int
@@ -56,6 +56,9 @@ val has_deleted_ancestor : t -> bool
 
 val ancestor_of : t -> t -> bool
 (** [ancestor_of a b] returns [true] if [a] is an ancestor of [b] *)
+
+val is_midpath : t -> bool
+(** [is_midpath a] returns [true] when [a] has a set [towards] field *)
 
 val subset : t -> t -> bool
 (** returns true if the set of litterals of the cube associated with the first
