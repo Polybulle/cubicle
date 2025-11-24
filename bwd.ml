@@ -74,7 +74,7 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
           | None ->
              Stats.check_limit n;
              Stats.new_node n;
-             (* TODO is it safe to approximate in the middle of a path? *)
+             (* TODO hector is it safe to approximate in the middle of a path? *)
              let n = if Node.is_midpath n then n else begin
                  match Approx.good n with
                  | None -> n
@@ -115,6 +115,7 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
 end
 
 
+(* TODO hector implémenter la backward parallèle *)
 
 module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
 

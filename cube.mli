@@ -36,8 +36,10 @@ val normal_form : t -> t
     contiguous ([#1], [#2], [#3], ...). Performs variable renaming if
     necessary. *)
 
-val create_normal : SAtom.t -> t
-(** create a cube in normal form by finding the quantified variables *)
+val create_normal : ?skolem:bool -> SAtom.t -> t
+(** create a cube in normal form by finding the quantified variables. *)
+(** If [skolem] is set, existential variables are renamed to [#1], [#2], etc. *)
+
 
 val subst : Variable.subst -> t -> t
 (** apply a substitution on a cube *)

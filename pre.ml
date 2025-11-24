@@ -334,22 +334,18 @@ let pre_image_path sys cube =
   Debug.unsafe cube;
   let ls, post =
     match cube.toward with
-    | Some (Tcp_one tr) ->
-      let cube = {cube with kind = Node} in
-      let u = Node.litterals cube in
-      let  pre_u, info_args = pre tr u in
-      make_cubes ([],[]) info_args cube tr.tr_info pre_u
-    | Some (Tcp_step (t,e,p)) ->
+    | Some (glob, (t, args)::rest) ->
       let u = Node.litterals cube in
       let pre_u, info_args = pre t u in
+      (* whichever arguments are not free in the pre-image cube are replaced
+         with skolem variables. *)
       let ls, post = make_cubes ([],[]) info_args cube t.tr_info pre_u in
-      let subst = List.combine e.tc_args t.tr_info.tr_args in
-      let subst n = { n with cube = Cube.subst subst n.cube } in
+      (* make_cubes does whatever make_cubes does to the arguments *)
       let ls, post =
-        List.map (fun c -> subst ({c with toward = Some p})) ls,
-        List.map (fun c -> subst ({c with toward = Some p})) post in
+        List.map (fun c -> ({c with toward = Some (glob, rest)})) ls,
+        List.map (fun c -> ({c with toward = Some (glob, rest)})) post in
       ls, post
-    | None ->
+    | Some (_,[]) | None ->  (* no future *)
       let cubes = List.map
           (fun p -> {cube with toward = Some p})
           sys.t_trigger_paths in
