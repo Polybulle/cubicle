@@ -238,14 +238,14 @@ let add_array_to_list n l =
 let make_cubes (ls, post) rargs s tr cnp =
   let { cube = { Cube.vars = uargs; litterals = p}; tag = nb } = s in
   let nb_uargs = List.length uargs in
-  let args = cnp.Cube.vars in
+  let args = cnp.Cube.vars in (* NOTE args *)
   let cube acc sigma =
-    let tr_args = List.map (Variable.subst sigma) tr.tr_args in
+    let tr_args = List.map (Variable.subst sigma) tr.tr_args in (* NOTE tr_args *)
     let lnp = Cube.elim_ite_simplify (Cube.subst sigma cnp) in
     (* cubes are in normal form *)
     List.fold_left
       (fun (ls, post) cnp ->
-       let np, nargs = cnp.Cube.litterals, cnp.Cube.vars in
+       let np, nargs = cnp.Cube.litterals, cnp.Cube.vars in (* NOTE nargs *)
        let lureq = uguard sigma nargs tr_args tr.tr_ureq in
        List.fold_left 
 	 (fun (ls, post) ureq ->
@@ -259,7 +259,7 @@ let make_cubes (ls, post) rargs s tr cnp =
 		(ls, post)
 	      end
 	    else
-              let new_cube = Cube.create nargs np in
+              let new_cube = Cube.create nargs np in (* NOTE nargs *)
               let new_s = Node.create ~from:(Some (tr, tr_args, s)) new_cube in
 	      match post_strategy with
 	      | 0 -> add_list new_s ls, post
@@ -275,7 +275,7 @@ let make_cubes (ls, post) rargs s tr cnp =
 	  with Exit -> ls, post
 	 ) (ls, post) lureq ) acc lnp
   in
-  if List.length tr.tr_args > List.length rargs then
+  if List.length tr.tr_args > List.length rargs then (* NOTE rargs *)
     begin
       if !size_proc = 0 then assert false;
       (ls, post)
@@ -283,7 +283,7 @@ let make_cubes (ls, post) rargs s tr cnp =
   else
     (* let d_old = Variable.all_permutations tr.tr_args rargs in *)
     (* TODO: Benchmark this *)
-    let d = Variable.permutations_missing tr.tr_args args in
+    let d = Variable.permutations_missing tr.tr_args args in (* NOTE tr_args args *)
     (* assert (List.length d_old >= List.length d); *)
     List.fold_left cube (ls, post) d
 
@@ -317,7 +317,7 @@ let pre ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t) unsafe =
   let args = pre_u.Cube.vars in
   if tri.tr_args = [] then pre_u, args
   else
-    let nargs = Variable.append_extra_procs args tri.tr_args in
+    let nargs = Variable.append_extra_procs args tri.tr_args in (* NOTE nargs *)
     if !size_proc <> 0 && List.length nargs > !size_proc then
       pre_u, args
     else pre_u, nargs
