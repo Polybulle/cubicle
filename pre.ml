@@ -236,50 +236,53 @@ let add_array_to_list n l =
       n :: l
 
 let cube s tr cnp acc sigma =
-  let { cube = { Cube.vars = uargs; litterals = p}; tag = nb } = s in
-  let nb_uargs = List.length uargs in
+  (* Format.printf "\ncube/tr = %a(%a)\ncube/sigma = %a\ncube/cnp = %a\n" *)
+  (*   Hstring.print tr.tr_name Variable.print_vars tr.tr_args *)
+  (*   Variable.print_subst sigma *)
+  (*   Cube.print cnp; *)
+  let cnp =  (Cube.subst sigma cnp) in
+  let tr_args = List.map (Variable.subst sigma) tr.tr_args in
+  let lnp = Cube.elim_ite_simplify cnp in
+  ListLabels.fold_left lnp ~init:acc ~f:(
+    fun (ls, post) cnp ->
+      let np, nargs = cnp.Cube.litterals, cnp.Cube.vars in
+      let lureq = uguard sigma nargs tr_args tr.tr_ureq in
+      ListLabels.fold_left lureq ~init:(ls, post) ~f:(
+        fun (ls, post) ureq ->
+	      try
+	        let ureq = Cube.simplify_atoms_base np ureq in
+	        let np = SAtom.union ureq np in
+	        if debug && verbose > 0 then Debug.pre_cubes np nargs;
+	        if Cube.inconsistent_set np then
+              begin
+		        if debug && verbose > 0 then eprintf "(inconsistent)@.";
+		        (ls, post)
+	          end
+	        else
+              let new_cube = Cube.create nargs np in
+              let new_s = Node.create new_cube
+                  ~from:(Some (tr, tr_args, s))
+                  ~toward:(Node.step_future s) in
+	          match post_strategy with
+	          | 0 -> add_list new_s ls, post
+	          | 1 ->
+		        if List.length nargs > List.length s.cube.vars then
+		          ls, add_list new_s post
+		        else add_list new_s ls, post
+	          | 2 ->
+		        if not (SAtom.is_empty ureq) || postpone cnp.vars s.cube.litterals np
+		        then ls, add_list new_s post
+		        else add_list new_s ls, post
+	          | _ -> assert false
+	      with Exit -> ls, post))
+
+let make_cubes (ls, post) rargs s tr cnp =
   let args = cnp.Cube.vars in
-  
-  let cube acc sigma =
-    let tr_args = List.map (Variable.subst sigma) tr.tr_args in
-    let lnp = Cube.elim_ite_simplify (Cube.subst sigma cnp) in
-    ListLabels.fold_left lnp ~init:acc ~f:(
-      fun (ls, post) cnp ->
-        let np, nargs = cnp.Cube.litterals, cnp.Cube.vars in
-        let lureq = uguard sigma nargs tr_args tr.tr_ureq in
-        ListLabels.fold_left lureq ~init:(ls, post) ~f:(
-          fun (ls, post) ureq ->
-            
-	        try
-	          let ureq = Cube.simplify_atoms_base np ureq in
-	          let np = SAtom.union ureq np in 
-	          if debug && verbose > 0 then Debug.pre_cubes np nargs;
-	          if Cube.inconsistent_set np then
-                begin
-		          if debug && verbose > 0 then eprintf "(inconsistent)@.";
-		          (ls, post)
-	            end
-	          else
-                let new_cube = Cube.create nargs np in
-                let new_s = Node.create ~from:(Some (tr, tr_args, s)) new_cube in
-	            match post_strategy with
-	            | 0 -> add_list new_s ls, post
-	            | 1 -> 
-		          if List.length nargs > nb_uargs then
-		            ls, add_list new_s post
-		          else add_list new_s ls, post
-	            | 2 -> 
-		          if not (SAtom.is_empty ureq) || postpone args p np 
-		          then ls, add_list new_s post
-		          else add_list new_s ls, post
-	            | _ -> assert false
-	        with Exit -> ls, post)) in
-  
   if List.length tr.tr_args > List.length rargs then
     if !size_proc = 0 then assert false else  (ls, post)
   else
     let d = Variable.permutations_missing tr.tr_args args in
-    List.fold_left cube (ls, post) d
+    List.fold_left (cube s tr cnp) (ls, post) d
 
 
 (* The following version computes the pre-image once for each transition and
@@ -322,32 +325,31 @@ let pre ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t) unsafe =
 (*********************************************************************)
 
 
-let pre_image_path sys c =
+let rec pre_image_path_to sys (ls, post) c =
   TimePre.start ();
   Debug.unsafe c;
   let ls, post =
     match c.toward with
     | Some (glob_subst, (t, args)::rest) ->
       let pre_u, info_args = pre t (Node.litterals c) in
-      if List.length glob_subst > List.length info_args then
-        if !size_proc = 0 then assert false else ([], [])
-      else
-        let local_subst =
-          List.map2 (fun a b -> (a, Variable.subst glob_subst b)) t.tr_info.tr_args args in
-        let sigma = local_subst @ glob_subst in
-        let ls, post = cube c t.tr_info pre_u ([],[]) sigma in
-        let ls, post =
-          List.map (fun c -> ({c with toward = Some (glob_subst, rest)})) ls,
-          List.map (fun c -> ({c with toward = Some (glob_subst, rest)})) post in
-        ls, post
+      (* if List.length glob_subst > List.length info_args then *)
+      (*   if !size_proc = 0 then assert false else ([], []) *)
+      (* else *)
+      let local_subst =
+        List.map2 (fun a b -> (a, Variable.subst glob_subst b)) t.tr_info.tr_args args in
+      let pre_u = Cube.subst local_subst pre_u in
+      let sigma = glob_subst in
+      cube c t.tr_info pre_u (ls,post) sigma
     | Some (_,[]) | None ->  (* no future *)
       let cubes = ListLabels.concat_map sys.t_transactions ~f:(fun (globs, p) ->
           let fvs = c.cube.vars in
           let substs = Variable.permutations_missing globs fvs in
           List.map (fun sigma -> {c with toward = Some (sigma, p)}) substs) in
-      (cubes, []) in
+      List.fold_left (pre_image_path_to sys) ([],[]) cubes in
   TimePre.pause ();
   List.rev ls, List.rev post
+
+let pre_image_path sys c = pre_image_path_to sys ([],[]) c
 
 let pre_image_normal sys s =
   TimePre.start ();

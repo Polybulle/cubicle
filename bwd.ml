@@ -65,16 +65,15 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
     try
       while not (Q.is_empty q) do
         let n = Q.pop q in
-        if not (Node.is_midpath n) then Safety.check system n;
-        let fix = if Node.is_midpath n then None else Fixpoint.check n !visited in
+        if not (Node.has_future n) then Safety.check system n;
+        let fix = if Node.has_future n then None else Fixpoint.check n !visited in
         begin
           match fix with
-          | Some db ->
-             Stats.fixpoint n db
+          | Some db -> Stats.fixpoint n db
           | None ->
              Stats.check_limit n;
              Stats.new_node n;
-             let n = if Node.is_midpath n then n else begin
+             let n = if Node.has_future n then n else begin
                  match Approx.good n with
                  | None -> n
                  | Some c ->
@@ -93,8 +92,8 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
              if delete then
                visited :=
                  Cubetrie.delete_subsumed ~cpt:Stats.cpt_delete n !visited;
-	     postponed := List.rev_append post !postponed;
-             visited := Cubetrie.add_node n !visited;
+	         postponed := List.rev_append post !postponed;
+             if not (Node.has_future n) then visited := Cubetrie.add_node n !visited;
              Q.push_list ls q;
              Stats.remaining (nb_remaining q postponed);
         end;
@@ -113,8 +112,6 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
 
 end
 
-
-(* TODO hector implémenter la backward parallèle *)
 
 module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
 
@@ -165,21 +162,25 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
   let worker system = function
     | Task_node (n, visited) ->
        try
-         Safety.check system n;
-         match Fixpoint.check n visited with
+         if not (Node.has_future n) then Safety.check system n;
+         let fix = if Node.has_future n then None else Fixpoint.check n visited in
+         match fix with
          | Some db -> WR_Fixpoint db
          | None ->
             Stats.check_limit n;
-            match Approx.good n with
-            | None ->
-               WR_PreNormal (Pre.pre_image system n)
-            | Some c ->
-               try
-                 (* Replace node with its approximation *)
-                 Safety.check system c;
-                 WR_PreCandidate (c, (Pre.pre_image system n))
-               with Safety.Unsafe _ ->
-                 WR_PreNormal (Pre.pre_image system n)
+            if Node.has_future n then
+              WR_PreNormal (Pre.pre_image system n)
+            else
+              match Approx.good n with
+              | None ->
+                WR_PreNormal (Pre.pre_image system n)
+              | Some c ->
+                try
+                  (* Replace node with its approximation *)
+                  Safety.check system c;
+                  WR_PreCandidate (c, (Pre.pre_image system n))
+                with Safety.Unsafe _ ->
+                  WR_PreNormal (Pre.pre_image system n)
        with
        | Safety.Unsafe faulty  ->
           WR_Unsafe faulty

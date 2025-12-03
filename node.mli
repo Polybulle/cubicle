@@ -57,8 +57,12 @@ val has_deleted_ancestor : t -> bool
 val ancestor_of : t -> t -> bool
 (** [ancestor_of a b] returns [true] if [a] is an ancestor of [b] *)
 
-val is_midpath : t -> bool
+val has_future : t -> bool
 (** [is_midpath a] returns [true] when [a] has a set [towards] field *)
+
+val step_future : t -> node_future option
+(** [step_future a] returns the future of node [a] after the next pre-image, or
+    [None] if not applicable*)
 
 val subset : t -> t -> bool
 (** returns true if the set of litterals of the cube associated with the first

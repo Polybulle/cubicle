@@ -118,9 +118,13 @@ let ancestor_of n s =
   (* List.exists (fun (_,_,anc) -> ArrayAtom.equal n.t_arru anc.t_arru) s.t_from *)
   List.exists (fun (_, _, ps) -> n.tag = ps.tag) s.from
 
-let is_midpath n = match n.toward with
+let has_future n = match n.toward with
   | None | Some (_,[]) -> false
-  | _ -> true
+  | Some (_,_::_) -> true
+
+let step_future n = match n.toward with
+  | None | Some (_, []) | Some (_, _::[])-> None
+  | Some (a, _::b) -> Some (a,b)
 
 let subset n1 n2 = ArrayAtom.subset (array n1) (array n2)
        

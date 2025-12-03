@@ -121,17 +121,20 @@ module Make (G : DAG) = struct
     let paths : node path list M.t ref = ref M.empty in
 
     let rec visit i =
-      let n = G.nodes.(i) in
-      List.iter visit (neighboors i);
-      let ps = List.concat_map
-          (fun e ->
-             let j = idx_of_node (G.dest_node e) in
-             let ps = Option.value (M.find_opt j !paths) ~default:[] in
-             List.map (fun p -> Tcp_step (n,e,p)) ps)
-          (G.edges_from n) in
-      let ps = if G.is_output n then (Tcp_one n)::ps else ps in
-      let ps = try ps @ M.find i !paths with Not_found -> ps in
-      paths := M.add i ps !paths
+      if M.mem i !paths then
+        ()
+      else
+        let n = G.nodes.(i) in
+        List.iter visit (neighboors i);
+        let ps = List.concat_map
+            (fun e ->
+               let j = idx_of_node (G.dest_node e) in
+               let ps = Option.value (M.find_opt j !paths) ~default:[] in
+               List.map (fun p -> Tcp_step (n,e,p)) ps)
+            (G.edges_from n) in
+        let ps = if G.is_output n then (Tcp_one n)::ps else ps in
+        let ps = try ps @ M.find i !paths with Not_found -> ps in
+        paths := M.add i ps !paths
     in
 
     for i = 0 to Array.length G.nodes -1 do
