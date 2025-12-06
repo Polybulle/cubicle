@@ -8,7 +8,7 @@ score=0
 max=0
 
 
-FILES="bakery.cub bakery_lamport.cub bakery_uguard.cub bakery_uguard2.cub berkeley.cub burns.cub crash.cub dekker.cub dekker_limbo.cub  dekker_loc.cub dekker_n.cub dijkstra.cub illinois.cub jml.cub mesi.cub moesi.cub motivating.cub mutex.cub mux_sem.cub peterson_two_proc.cub sense_barrier.cub synapse.cub two-semaphores.cub xerox_dragon.cub"
+FILES="bakery.cub bakery_lamport.cub bakery_uguard.cub berkeley.cub burns.cub crash.cub dekker.cub dekker_limbo.cub  dekker_loc.cub dekker_n.cub dijkstra.cub illinois.cub jml.cub mesi.cub moesi.cub motivating.cub mutex.cub mux_sem.cub peterson_two_proc.cub sense_barrier.cub synapse.cub two-semaphores.cub xerox_dragon.cub"
 
 for f in $FILES; do
     echo $f;
