@@ -454,10 +454,9 @@ let wrapper_elim_prime p_init sa =
 let swts_to_ites at swts sigma =
   let rec sd acc = function
     | [] -> assert false
-    | [d] -> acc, d
+    | [(_,t)] -> acc, t
     | s::r -> sd (s::acc) r in
-  let swts, (d, t) = sd [] swts in
-  (* assert (d = SAtom.singleton True); *)
+  let swts, t = sd [] swts in
   let t = Term.subst sigma (prime_term t) in
   let default = Comp (at, Eq, t) in
   List.fold_left (fun ites (sa, t) ->
@@ -576,44 +575,44 @@ let abstract_others sa others =
     not (List.exists (fun z -> atom_contains_arg z a) others)) sa
 
 
-let post init all_procs procs { tr_args = tr_args; 
-				tr_reqs = reqs; 
-				tr_name = name;
-				tr_ureq = ureqs;
-				tr_assigns = assigns; 
-				tr_upds = upds; 
-				tr_nondets = nondets } =
-  let tr_others, others = missing_args procs tr_args in
-  let d = Variable.all_permutations tr_args procs in
-  (* do it even if no arguments *)
-  let d = if d = [] then [[]] else d in
-  let p_init = prime_satom init in
-  List.fold_left (fun acc sigma ->
-    if possible_guard procs all_procs tr_args sigma init reqs ureqs then
-      let assi, assi_terms = apply_assigns assigns sigma in
-      let upd, upd_terms = apply_updates upds all_procs sigma in
-      let unchanged = preserve_terms (Term.Set.union assi_terms upd_terms) init in
-      let sa = Cube.simplify_atoms_base p_init
-      	(SAtom.union unchanged (SAtom.union assi upd)) in
-      let sa = abstract_others sa tr_others in
-      List.fold_left (fun acc sa ->
-        let sa = wrapper_elim_prime p_init sa in
-        (* let sa = gauss_elim sa in *)
-        let csa = Cube.create_normal sa in
-        let sa, nargs = csa.Cube.litterals, csa.Cube.vars in
-        (sa, nargs) :: acc)
-        acc (Cube.elim_ite_simplify_atoms sa)
-    else acc
-  ) [] d
+(* let post init all_procs procs { tr_args = tr_args;  *)
+(* 				tr_reqs = reqs;  *)
+(* 				tr_name = name; *)
+(* 				tr_ureq = ureqs; *)
+(* 				tr_assigns = assigns;  *)
+(* 				tr_upds = upds;  *)
+(* 				tr_nondets = nondets } = *)
+(*   let tr_others, others = missing_args procs tr_args in *)
+(*   let d = Variable.all_permutations tr_args procs in *)
+(*   (\* do it even if no arguments *\) *)
+(*   let d = if d = [] then [[]] else d in *)
+(*   let p_init = prime_satom init in *)
+(*   List.fold_left (fun acc sigma -> *)
+(*     if possible_guard procs all_procs tr_args sigma init reqs ureqs then *)
+(*       let assi, assi_terms = apply_assigns assigns sigma in *)
+(*       let upd, upd_terms = apply_updates upds all_procs sigma in *)
+(*       let unchanged = preserve_terms (Term.Set.union assi_terms upd_terms) init in *)
+(*       let sa = Cube.simplify_atoms_base p_init *)
+(*       	(SAtom.union unchanged (SAtom.union assi upd)) in *)
+(*       let sa = abstract_others sa tr_others in *)
+(*       List.fold_left (fun acc sa -> *)
+(*         let sa = wrapper_elim_prime p_init sa in *)
+(*         (\* let sa = gauss_elim sa in *\) *)
+(*         let csa = Cube.create_normal sa in *)
+(*         let sa, nargs = csa.Cube.litterals, csa.Cube.vars in *)
+(*         (sa, nargs) :: acc) *)
+(*         acc (Cube.elim_ite_simplify_atoms sa) *)
+(*     else acc *)
+(*   ) [] d *)
 
 
 
 
-let post_inst init all_procs procs { i_reqs = reqs;
+let post_inst init _ _ { i_reqs = reqs;
 				     i_udnfs = udnfs;
 				     i_actions = actions;
 				     i_touched_terms = touched_terms } =
-  if possible_inst_guard procs all_procs init reqs udnfs then
+  if possible_inst_guard () () init reqs udnfs then
     let p_init = prime_satom init in
     let unchanged = preserve_terms touched_terms init in
     let sa = Cube.simplify_atoms_base p_init (SAtom.union unchanged actions) in
@@ -651,40 +650,32 @@ let forward s procs trs l =
   let rec forward_rec s procs trs = function
     | [] -> eprintf "Total forward nodes : %d@." !cpt_f
     | (sa, args) :: to_do ->
-        (* if ArrayAtom.subset s.t_arru init.t_arru then begin *)
-        (*   eprintf "\nUnsafe trace: @[%a@]@."  Pretty.print_verbose_node init; *)
-        (*   raise (Search.Unsafe init) *)
-        (* end; *)
-        if false && !cpt_f > 400_000 then ()
-        else (
-          (* if fixpoint ~invariants:[] ~visited init then *)
-          (* if easy_fixpoint init visited then *)
-          (** Very incomplete hash test **)
-	  if HSA.mem h_visited sa then
-	    forward_rec s procs trs to_do
-	  else
-	    let new_td =
-	      List.fold_left (fun new_td tr ->
-	        List.fold_left (fun new_td s ->
+      (** Very incomplete hash test **)
+      if HSA.mem h_visited sa then
+	forward_rec s procs trs to_do
+      else
+	let new_td =
+	  List.fold_left (fun new_td tr ->
+	      List.fold_left (fun new_td s ->
 		  s :: new_td
 	        ) new_td (post_inst sa args procs tr)
-	      ) [] trs
-	    in
-	    incr cpt_f;
-	    if debug then 
-	      eprintf "%d : %a\n@." !cpt_f SAtom.print sa
-	    else if !cpt_f mod 1000 = 0 then eprintf "%d (%d)@." !cpt_f
-	      (List.length to_do + List.length new_td);
-	    (* HSA.add h_visited sa (); *)
-	    let d = Variable.all_permutations args args in
-	    List.iter 
-              (fun sigma -> HSA.add h_visited (SAtom.subst sigma sa) ()) d;
-	    forward_rec s procs trs (List.rev_append new_td to_do)
-        )
+	    ) [] trs
+	in
+	incr cpt_f;
+	if debug then
+	  eprintf "%d : %a\n@." !cpt_f SAtom.print sa
+	else if !cpt_f mod 1000 = 0 then eprintf "%d (%d)@." !cpt_f
+	    (List.length to_do + List.length new_td);
+	let d = Variable.all_permutations args args in
+	List.iter
+          (fun sigma -> HSA.add h_visited (SAtom.subst sigma sa) ()) d;
+	forward_rec s procs trs (List.rev_append new_td to_do)
   in
   forward_rec s procs trs l;
   h_visited
 
+
+(** TODO *)
 
 let var_term_unconstrained sa t =
   SAtom.for_all (function
@@ -700,7 +691,7 @@ let lit_abstract = function
       Smt.Symbol.has_abstract_type x
   | _ -> false
 
-let add_compagnions_from_node all_var_terms sa =
+let add_compagnions_from_node all_var_terms sa mc =
   SAtom.fold (fun a mc ->
     if lit_abstract a then mc
     else
@@ -709,46 +700,32 @@ let add_compagnions_from_node all_var_terms sa =
       let old_comps, old_uncs = 
 	try MA.find a mc with Not_found -> SAtom.empty, Term.Set.empty in
       MA.add a (SAtom.union rsa old_comps, Term.Set.union unc old_uncs) mc
-  ) sa
+  ) sa mc
 
 
 let stateless_forward s procs trs all_var_terms l =
   let h_visited = HI.create 2_000_029 in
   let cpt_f = ref 0 in
-  let rec forward_rec s procs trs mc = function
+  let rec forward_rec mc = function
     | [] -> eprintf "Total forward nodes : %d@." !cpt_f; mc
+    | (sa, args) :: to_do when HI.mem h_visited (SAtom.hash sa) ->
+      forward_rec mc to_do
     | (sa, args) :: to_do ->
-        let hsa = SAtom.hash sa in
-        if HI.mem h_visited hsa then
-	  forward_rec s procs trs mc to_do
-        else
-	  let new_td =
-	    List.fold_left (fun new_td tr ->
-	      List.fold_left (fun new_td s ->
-	        (* if fixpoint ~invariants:[] ~visited s then new_td *)
-	        (* else *) 
-	        (* if HI.mem h_visited (SAtom.hash (fst s)) then new_td else *)
-	        s :: new_td
-	      ) new_td (post_inst sa args procs tr)
-	    ) [] trs
-	  in
-	  incr cpt_f;
-	  
-	  if debug then eprintf "%d : %a@." !cpt_f SAtom.print sa
-	  else if !cpt_f mod 1000 = 0 then eprintf "%d (%d)@." !cpt_f
-	    (List.length to_do + List.length new_td);
-	  (* HI.add h_visited hsa (); *)
-	  (* let mc = add_compagnions_from_node all_var_terms sa mc in *)
-	  let d = Variable.all_permutations args args in
-	  let mc = 
-	    List.fold_left (fun mc sigma ->
-	      let sa = SAtom.subst sigma sa in
-	      HI.add h_visited (SAtom.hash sa) ();
-	      add_compagnions_from_node all_var_terms sa mc
-	    ) mc d in
-	  forward_rec s procs trs mc (List.rev_append new_td to_do)
+      let new_td = List.concat_map (post_inst sa args procs) trs in
+      incr cpt_f;
+      if debug then
+        eprintf "%d : %a@." !cpt_f SAtom.print sa
+      else if !cpt_f mod 1000 = 0 then
+        eprintf "%d (%d)@." !cpt_f (List.length to_do + List.length new_td);
+      let d = Variable.all_permutations args args in
+      let mc =
+        ListLabels.fold_left d ~init:mc ~f:(fun mc sigma ->
+            let sa = SAtom.subst sigma sa in
+            HI.add h_visited (SAtom.hash sa) ();
+            add_compagnions_from_node all_var_terms sa mc) in
+      forward_rec mc (List.rev_append new_td to_do)
   in
-  forward_rec s procs trs MA.empty l
+  forward_rec MA.empty l
   
 
 let make_init_cdnf args lsa lvars =

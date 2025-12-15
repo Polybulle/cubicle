@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+
+
 open Ast
 open Types
 
@@ -79,3 +81,204 @@ val uguard_dnf :
   Variable.subst ->
   Variable.t list -> Variable.t list ->
   (Variable.t * SAtom.t list) list -> SAtom.t list list
+
+
+
+module H = Hstring
+
+(** Renamings and eliminations of renamed terms *)
+
+val prime_term : Types.term -> Types.term (** alpha-renamed copy of a term *)
+val prime_satom : Types.SAtom.t -> Types.SAtom.t (** alpha-renamed copy of a cube *)
+val unprime_h : Hstring.t -> Hstring.t (** original of a (possibly renamed) variable *)
+
+(** Detect if a variable/term has been renamed *)
+val is_prime : string -> bool
+val is_prime_term : Types.term -> bool
+
+(** Attempt to eliminate some primed term of finite type constant prop. *)
+val elim_prime : Types.SAtom.t -> Types.SAtom.t -> Types.SAtom.t
+
+(** Attempt to eliminate all prime terms of infinite type from a cube through eq and const prop. *)
+val elim_prime2 : Types.SAtom.t -> Types.SAtom.t
+
+(** Attempt to eliminate all prime terms of 2nd cube and accumulate into first *)
+val elim_prime_type2 : Types.SAtom.t -> Types.SAtom.t -> Types.SAtom.t
+
+(** Sam as above with simplification *)
+val wrapper_elim_prime : Types.SAtom.t -> Types.SAtom.t -> Types.SAtom.t
+
+
+
+(** [swts_to_ites t cases sigma] compiles sigma(case t of cases) to if-then-elses *)
+val swts_to_ites :
+  Types.term ->
+  (Types.SAtom.t * Types.term) list ->
+  Variable.subst ->
+  Types.Atom.t
+
+(** converts an update block (of vars) under a subst into an atom. before-vars are primed,
+    new-vars are not. *)
+val apply_assigns :
+  (Hstring.t * Ast.glob_update) list ->
+  Variable.subst ->
+  Types.SAtom.t * Types.Term.Set.t
+
+(** converts an update block (of arrays) under a subst and actual procs into an
+    atom. before-vars are primed, new-vars are not. *)
+val apply_updates :
+  Ast.update list ->
+  Hstring.t list ->
+  Variable.subst ->
+  Types.SAtom.t * Types.Term.Set.t
+
+(** Given a list of (unmodified) variables and an atom representing an update,
+    add a re-assignement encoding the non-update *)
+val preserve_terms :
+  Types.Term.Set.t -> Types.SAtom.t -> Types.SAtom.t
+
+
+(** [possible_init _ a b] checks if the requirements [b] are compatible with
+    init condition [a]*)
+val possible_init :
+  'a -> Types.SAtom.t -> Types.SAtom.t -> bool
+
+(** checks that the guard of a transition is compatible with init condition *)
+val possible_guard :
+  'a ->
+  H.t list ->
+  Hstring.t list ->
+  Variable.subst ->
+  Types.SAtom.t ->
+  Types.SAtom.t ->
+  (Hstring.t * Types.SAtom.t list) list ->
+  bool
+
+(** ? *)
+val possible_inst_guard :
+  'a ->
+  'b ->
+  Types.SAtom.t ->
+  Types.SAtom.t ->
+  Types.SAtom.t list list ->
+  bool
+
+val missing_args :
+  'a list -> Hstring.t list -> Hstring.t list * Hstring.t list
+
+val term_contains_arg : Hstring.t -> Types.term -> bool
+val atom_contains_arg : Hstring.t -> Types.Atom.t -> bool
+
+(** Given a forward state and transition, compute the next possible forward states *)
+val post_inst :
+  Types.SAtom.t ->
+  'a ->
+  'b ->
+  inst_trans ->
+  (Types.SAtom.t * Hstring.t list) list
+
+val already_seen :
+  Types.SAtom.t -> Hstring.t list -> 'a HSA.t -> bool
+
+(** given a list of transitions and list of state, run forward reach until a
+    fixpoint is reached *)
+val forward :
+  'a ->
+  'b ->
+  inst_trans list ->
+  (HSA.key * Hstring.t list) list ->
+  unit HSA.t
+
+(** is an atom unconstrained by a term *)
+val var_term_unconstrained : Types.SAtom.t -> Types.term -> bool
+val unconstrained_terms : Types.SAtom.t -> Types.Term.Set.t -> Types.Term.Set.t
+
+(** Add to the map, for each atom in the cube, the set of all other atoms (its
+    companions) and the set of all global variables is does not constrain *)
+val add_compagnions_from_node :
+  Types.Term.Set.t ->
+  Types.SAtom.t ->
+  (Types.SAtom.t * Types.Term.Set.t) MA.t ->
+  (Types.SAtom.t * Types.Term.Set.t) MA.t
+
+val stateless_forward :
+  'a ->
+  'b ->
+  inst_trans list ->
+  Types.Term.Set.t ->
+  (Types.SAtom.t * Hstring.t list) list ->
+  (Types.SAtom.t * Types.Term.Set.t) MA.t
+
+val make_init_cdnf :
+  Hstring.t list ->
+  Types.SAtom.t list ->
+  Hstring.t list ->
+  Types.SAtom.t list list
+
+val cdnf_to_dnf_rec :
+  Types.SAtom.t list ->
+  Types.SAtom.t list list ->
+  (Types.SAtom.t * Hstring.t list) list
+
+val cdnf_to_dnf :
+  Types.SAtom.t list list ->
+  (Types.SAtom.t * Hstring.t list) list
+
+val mkinits :
+  Hstring.t list ->
+  Ast.t_system ->
+  (Types.SAtom.t * Hstring.t list) list
+
+val instance_of_transition :
+  Ast.transition_info ->
+  Hstring.t list ->
+  Hstring.t list ->
+  Variable.subst ->
+  inst_trans
+
+val search_only : 'a -> 'b
+
+exception
+  Reachable of
+    (Types.SAtom.t
+    * Ast.transition_info
+    * Variable.subst
+    * Types.SAtom.t)
+    list
+
+val all_partitions : 'a list -> 'a list list
+
+val mkinits_up_to :
+  Hstring.t list list ->
+  Ast.t_system ->
+  (Types.SAtom.t * Hstring.t list) list
+
+val above :
+  Ast.node_cube ->
+  ('a * 'b * Ast.node_cube) list ->
+  ('a * 'b * Ast.node_cube) list
+
+val possible_trace :
+  starts:(Types.SAtom.t * Hstring.t list) list ->
+  finish:Ast.node_cube ->
+  procs:Hstring.t list ->
+  trace:Ast.trace_step list ->
+  possible_result
+
+val list_excedent : 'a list * 'b list -> 'b list
+
+val equal_trace_woargs :
+  (Ast.transition_info * 'a * 'b) list ->
+  (Ast.transition_info * 'c * 'd) list ->
+  bool
+
+val procs_on_trace :
+  ('a * Hstring.t list * Ast.node_cube) list -> Hstring.t list
+
+val reachable_on_all_traces_from_init :
+  Ast.t_system ->
+  Ast.node_cube ->
+  Ast.trace_step list ->
+  possible_result
+
+val possible_history : Ast.node_cube -> possible_result
