@@ -201,6 +201,9 @@ val add_compagnions_from_node :
   (Types.SAtom.t * Types.Term.Set.t) MA.t ->
   (Types.SAtom.t * Types.Term.Set.t) MA.t
 
+(** [stateless_forward _ _ trs vars states] computes the reachable cubes
+    attainable through instantiated transitions [trs] from states [states]. The
+    set [vars] must contain the instantiated global variables of the system. *)
 val stateless_forward :
   'a ->
   'b ->
@@ -209,26 +212,19 @@ val stateless_forward :
   (Types.SAtom.t * Hstring.t list) list ->
   (Types.SAtom.t * Types.Term.Set.t) MA.t
 
-val make_init_cdnf :
-  Hstring.t list ->
-  Types.SAtom.t list ->
-  Hstring.t list ->
-  Types.SAtom.t list list
-
-val cdnf_to_dnf_rec :
-  Types.SAtom.t list ->
-  Types.SAtom.t list list ->
-  (Types.SAtom.t * Hstring.t list) list
-
-val cdnf_to_dnf :
-  Types.SAtom.t list list ->
-  (Types.SAtom.t * Hstring.t list) list
-
+(** Given a list of process ids [procs] and a system [sys], calling [mkinits
+    procs sys] returns the initial condition of the system as a conjonctions
+    atom, whose existential variables are replaced by all possible combination
+    of processes in [procs] *)
 val mkinits :
   Hstring.t list ->
   Ast.t_system ->
   (Types.SAtom.t * Hstring.t list) list
 
+(** [instance_of_transition tr procs others subst] returns the instantiated
+    transition [tr] under substitution [subst], where all variables in [others]
+    are abstracted (their updates are removed). [procs] must contain all
+    instantiated process variables. *)
 val instance_of_transition :
   Ast.transition_info ->
   Hstring.t list ->
@@ -246,18 +242,15 @@ exception
     * Types.SAtom.t)
     list
 
-val all_partitions : 'a list -> 'a list list
-
 val mkinits_up_to :
   Hstring.t list list ->
   Ast.t_system ->
   (Types.SAtom.t * Hstring.t list) list
 
-val above :
-  Ast.node_cube ->
-  ('a * 'b * Ast.node_cube) list ->
-  ('a * 'b * Ast.node_cube) list
 
+(** Given a trace [trace], an inital condition [starts] as a list of
+    (instantiated) cubes, and a condition to look for [finish], return the
+    history of the system that reaches it from a cube in [start]. *)
 val possible_trace :
   starts:(Types.SAtom.t * Hstring.t list) list ->
   finish:Ast.node_cube ->
@@ -265,12 +258,6 @@ val possible_trace :
   trace:Ast.trace_step list ->
   possible_result
 
-val list_excedent : 'a list * 'b list -> 'b list
-
-val equal_trace_woargs :
-  (Ast.transition_info * 'a * 'b) list ->
-  (Ast.transition_info * 'c * 'd) list ->
-  bool
 
 val procs_on_trace :
   ('a * Hstring.t list * Ast.node_cube) list -> Hstring.t list
@@ -282,3 +269,26 @@ val reachable_on_all_traces_from_init :
   possible_result
 
 val possible_history : Ast.node_cube -> possible_result
+
+
+val reachable_on_trace_from_init :
+  t_system -> Node.t -> trace -> possible_result
+
+
+(** check if the history of a node is spurious *)
+val spurious : Node.t -> bool
+
+(** check if an error trace is spurious *)
+val spurious_error_trace : t_system -> Node.t -> bool
+
+(** check if an error trace is spurious due to the {b Crash Failure Model } *)
+val spurious_due_to_cfm : t_system -> Node.t -> bool
+
+(** Replays the history of a faulty node and returns (possibly) an error
+    trace *)
+val replay_history :
+  t_system -> Node.t ->
+  (SAtom.t * transition_info * Variable.subst * SAtom.t) list option
+
+(** check if an error trace is spurious due to the {b Crash Failure Model } *)
+val conflicting_from_trace : t_system -> trace -> SAtom.t list

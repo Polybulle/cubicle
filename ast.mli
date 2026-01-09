@@ -157,6 +157,6 @@ type t_system = {
   t_trans : transition list;
   (** transition relation in the form of a list of transitions *)
   t_transactions : (Variable.t list * transaction_path) list;
-  (** List of paths through triggered transitions *)
+  (** List of paths through triggered transitions for backward search *)
 }
 (** type of typed transition systems *)
