@@ -338,8 +338,7 @@ let rec pre_image_path_to sys (ls, post) c =
       let local_subst =
         List.map2 (fun a b -> (a, Variable.subst glob_subst b)) t.tr_info.tr_args args in
       let pre_u = Cube.subst local_subst pre_u in
-      let sigma = glob_subst in
-      cube c t.tr_info pre_u (ls,post) sigma
+      cube c t.tr_info pre_u (ls,post) (local_subst @ glob_subst)
     | Some (_,[]) | None ->  (* no future *)
       let cubes = ListLabels.concat_map sys.t_transactions ~f:(fun (globs, p) ->
           let fvs = c.cube.vars in
