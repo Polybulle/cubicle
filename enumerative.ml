@@ -19,8 +19,7 @@ open Ast
 open Types
 open Util
 
-module H = Hstring
-
+(** Hash table keyed by terms *)
 module HT = Hashtbl.Make (Term)
 
 module HI = Hashtbl.Make (struct 
@@ -35,39 +34,14 @@ module HLI = Hashtbl.Make (struct
   let hash = Hashtbl.hash
 end)
 
-module SI = Set.Make (struct
-    type t = int
-    let compare = Stdlib.compare
-  end)
-
 module SLI = Set.Make (struct
     type t = int list
     let compare = Stdlib.compare
   end)
 
-module TMap = Map.Make (Term)
-
 type state = int array
 
-
-type state_info = int HT.t
-
-let equal_state a1 a2 =
-  let n = Array.length a1 in
-  let n2 = Array.length a2 in
-  if n <> n2 then false
-  else
-    let res = ref true in
-    let i = ref 0 in 
-    while !res && !i < n  do
-      res := a1.(!i) = a2.(!i);
-      incr i
-    done;
-    !res
-
-
 let hash_state st = Hashtbl.hash_param 100 500 st
-
 
 module HST = Hashtbl.Make 
   (struct 
@@ -109,62 +83,65 @@ end
 
 type st_req = int * op_comp * int
 
-type st_action = 
+type st_action =
   | St_ignore
-  | St_assign of int * int 
+  | St_assign of int * int
   | St_arith of int * int * int
   | St_ite of st_req list * st_action * st_action
 
 
+(* Raised when a transition's guards are not satisfied by the current state *)
 exception Not_applicable
 
+(* A compiled transition, ready for execution on concrete states.
+   [st_f] may raise [Not_applicable] *)
 type state_transistion = {
   st_name : Hstring.t;
   st_reqs : st_req list;
   st_udnfs : st_req list list list;
   st_actions : st_action list;
   st_f : state -> state list;
-  st_vars : Hstring.HSet.t;
-  st_args : Hstring.t list;
 }
 
 
-type env = {
-  model_cardinal : int;
-  var_terms : Term.Set.t;
-  nb_vars : int;
-  max_id_vars : int;
-  perm_procs : (int * int) list list;
-  perm_states : ((Hstring.t * Hstring.t) list *
-                    (int * int) list * (int * int) list) list;
-  first_proc : int;
-  extra_proc : int;
-  all_procs : Hstring.t list;
-  proc_ids : int list;
-  id_terms : int HT.t;
-  id_true : int;
-  id_false : int;
-  st_trs : state_transistion list;
-  low_int_abstr : int;
-  up_int_abstr : int;
-  pinf_int_abstr : int;
-  minf_int_abstr : int;
-  proc_substates : int list HLI.t;
-  reverse_proc_substates : int list HI.t;
-  partial_order : int list list;
+type state_transaction = state_transistion list
 
-  table_size : int;
-  mutable explicit_states : unit HST.t;
-  mutable states : state list;
+(** Environment for enumerative exploration.
+    This record contains all the mappings and state needed to execute
+    transitions on concrete states. Symbolic terms
+    are encoded as integers, and states are int arrays where:
+    - Indices 0..max_id_vars are state variables (globals, arrays)
+    - Indices first_proc..extra_proc-1 are process identifiers
+    - Higher indices are constructors and constants
+*)
+type env = {
+  model_cardinal : int;     (** Number of processes in the finite model *)
+  nb_vars : int;            (** Number of state variables (array size) *)
+  max_id_vars : int;        (** Highest index that is a state variable *)
+  first_proc : int;         (** Index of first process ID (#1) *)
+  extra_proc : int;         (** Index of extra process (for disequalities) *)
+  all_procs : Hstring.t list;  (** All process names including extra *)
+  proc_ids : int list;      (** Encoded IDs of regular processes *)
+  id_terms : int HT.t;      (** Map from terms to their integer encoding *)
+  id_true : int;            (** Encoded ID for True constant *)
+  id_false : int;           (** Encoded ID for False constant *)
+  st_trs : state_transistion list;  (** Compiled transitions *)
+  st_tracts : state_transaction list;
+  low_int_abstr : int;      (** Lower bound of abstracted int range *)
+  up_int_abstr : int;       (** Upper bound of abstracted int range *)
+  pinf_int_abstr : int;     (** Encoding for +infinity *)
+  minf_int_abstr : int;     (** Encoding for -infinity (always -3) *)
+  proc_substates : int list HLI.t;     (** For in-place substitutions on arrays *)
+  reverse_proc_substates : int list HI.t;  (** Reverse mapping for substitutions *)
+  table_size : int;         (** Estimated size for hash tables *)
+  mutable explicit_states : unit HST.t;  (** Visited states (for dedup during BFS) *)
+  mutable states : state list;  (** All explored states (for candidate checking) *)
 }
 
 let empty_env = {
   model_cardinal = 0;
-  var_terms = Term.Set.empty;
   max_id_vars = 0;
   nb_vars = 0;
-  perm_procs = [];
-  perm_states = [];
   first_proc = 0;
   extra_proc = 0;
   all_procs = [];
@@ -173,13 +150,13 @@ let empty_env = {
   id_true = 0;
   id_false = 0;
   st_trs = [];
+  st_tracts = [];
   low_int_abstr = 0;
   up_int_abstr = 0;
   pinf_int_abstr = 0;
   minf_int_abstr = 0;
   proc_substates = HLI.create 0;
   reverse_proc_substates = HI.create 0;
-  partial_order = [];
 
   table_size = 0;
   explicit_states = HST.create 0;
@@ -187,28 +164,10 @@ let empty_env = {
 }
 
 
-let build_state_procs_map id_terms procs var_terms proc_terms =
-  let build_int_perms sigma lt =
-    List.fold_left (fun acc_s t ->
-      let t_s = Term.subst sigma t in
-      if not (Term.equal t_s t) then
-        (HT.find id_terms t, HT.find id_terms t_s) :: acc_s
-      else acc_s
-    ) [] lt
-  in
-  let d = Variable.all_permutations procs procs in
-  List.rev_map (fun sigma ->
-    let p_vars = build_int_perms sigma (Term.Set.elements var_terms) in
-    let p_procs = build_int_perms sigma proc_terms in
-    sigma, p_vars, p_procs
-  ) d
-
-
-exception Found of term
-
 
 (* inefficient but only used for debug *)
 let id_to_term env id =
+  let exception Found of term in
   try
     HT.iter (fun t i -> if id = i then raise (Found t)) env.id_terms;
     raise Not_found
@@ -240,17 +199,6 @@ let swap a i j =
     a.(i) <- a.(j);
     a.(j) <- tmp
     
-let swap_c a (i,j) = swap a i j
-
-let apply_perm_state env st (_, p_vars, p_procs) =
-  let st' = Array.copy st in
-  List.iter (swap_c st') p_vars;
-  for i = 0 to env.nb_vars - 1 do
-    try let v = List.assoc st'.(i) p_procs in st'.(i) <- v
-    with Not_found -> ()
-  done;
-  st'
-
 (* Applying substitutions in place is tricky because some idexes of the array
    encode terms like A[#1,#2]. We proceed by swapping here, and remember the
    shifting introduced thanks to the mapping rho. *)
@@ -286,19 +234,7 @@ let apply_subst_in_place env st sigma =
           (* encoding in terms of indexes *)
           let sigma_proc_sub = HLI.find env.proc_substates sigma_proc_domain in
           let rho_proc_sub = HLI.find env.proc_substates rho_proc_domain in
-
-          (* eprintf "sigma ("; *)
-          (* List.iter (eprintf "%d,") proc_domain; *)
-          (* eprintf ") = "; *)
-          (* List.iter (eprintf "%d,") sigma_proc_domain; *)
-          (* eprintf "@."; *)
-
-          (* eprintf "rho ("; *)
-          (* List.iter (eprintf "%d,") proc_domain; *)
-          (* eprintf ") = "; *)
-          (* List.iter (eprintf "%d,") rho_proc_domain; *)
-          (* eprintf "@."; *)
-
+         
           (* Perform actual swaps on the encoded versions *)
           List.iter2 (fun i j ->
               (* eprintf "   exchanging %a <---> %a@."
@@ -311,11 +247,6 @@ let apply_subst_in_place env st sigma =
       ) !proc_subs
 
   end
-
-let apply_subst env st sigma =
-  let st' = Array.copy st in
-  apply_subst_in_place env st' sigma;
-  st'
 
 let is_proc env v = env.first_proc <= v && v < env.extra_proc
 
@@ -342,41 +273,10 @@ let find_subst_for_norm env st =
   List.iter2 (fun v r -> if v <> r then HI.add sigma v r) not_met !remaining;
   sigma
 
-let rec map_with_procs acc procs ord = match procs, ord with
-  | p :: rp, (_,_,o) :: ro -> map_with_procs ((p, o) :: acc) rp ro
-  | _, [] -> List.rev acc
-  | [], _ -> assert false
-
-let find_subst_for_norm2 sigma env st =
-  (* let sigma = HI.create env.model_cardinal in *)
-  List.iter (fun order ->
-      HI.clear sigma;
-      List.map (fun i ->
-          let lpi = List.hd (List.rev (HI.find env.reverse_proc_substates i)) in
-          (i, st.(i), lpi)
-        ) order
-      |> List.stable_sort (fun (_, v1, _) (_, v2, _) -> compare v1 v2)
-      |> map_with_procs [] env.proc_ids
-      |> List.iter (fun (x, y) ->
-          (* let y = try HI.find sigma y with Not_found -> y in *)
-          if x <> y then HI.replace sigma x y);
-      apply_subst_in_place env st sigma;
-    ) [List.hd env.partial_order]
-  
 
 let normalize_state env st =
-  (* let old = Array.copy st in *)
   let sigma = find_subst_for_norm env st in
   apply_subst_in_place env st sigma (* ; *)
-  (* find_subst_for_norm2 sigma env st *)
-  (* ; *)
-  (* let same = ref true in *)
-  (* for i = 0 to Array.length st - 1 do *)
-  (*   same := !same && st.(i) = old.(i) *)
-  (* done; *)
-  (* if not !same then eprintf "\nNormalize :@.%a@.->@.%a@." *)
-  (*     (print_state env) old *)
-  (*     (print_state env) st *)
 
 
 let global_envs = ref []
@@ -415,12 +315,6 @@ let abstr_add env x y =
 
 let is_variable env id = id <= env.max_id_vars
 
-let is_int_real = function
-  | Elem (x,Glob) | Access (x, _) -> 
-      snd (Smt.Symbol.type_of x) = Smt.Type.type_int ||
-      snd (Smt.Symbol.type_of x) = Smt.Type.type_real
-  | _ -> false
-
 let all_constr_terms () =
   List.rev_map (fun x -> Elem (x, Constr)) (Smt.Type.all_constructors ())
 
@@ -442,35 +336,10 @@ let add_pos_to_proc_substate ht
         let i = HT.find ht t in
         let ids_ps = List.map (fun hp -> HT.find ht (Elem (hp, Var))) ps in
         let sub_ps = try HLI.find proc_substates ids_ps with Not_found -> [] in
-        (* List.iter (fun p -> eprintf "%d (%a), " p Term.print t) ids_ps; *)
-        (* eprintf "at %d@." i; *)
         HLI.replace proc_substates ids_ps (i :: sub_ps);
         HI.add reverse_proc_substates i ids_ps
       | _ -> ()
     )
-
-let partial_order ht var_terms nb_vars =
-  (* let orders = HI.create nb_vars in *)
-  let map_orders =
-    Term.Set.fold (fun t acc -> match t with
-        | Access (a, ps) ->
-          let i = HT.find ht t in
-          let ups = List.rev (List.tl (List.rev ps)) in
-          let t_par = Access (a, ups) in
-          let others = try TMap.find t_par acc with Not_found -> SI.empty in
-          let pord = SI.add i others in
-          TMap.add t_par pord acc
-        | _ -> acc
-      ) var_terms TMap.empty 
-  in
-  (* let rec populate_orders = function *)
-  (*   | [] -> () *)
-  (*   | i :: after -> HI.add i after; populate_orders after *)
-  (* in *)
-  let orders = TMap.fold (fun _ one_order acc ->
-      (SI.elements one_order) :: acc
-    ) map_orders [] in
-  List.sort (fun l1 l2 -> compare (List.hd l1) (List.hd l2)) orders
 
 
 let init_tables ?(alloc=true) procs s =
@@ -498,11 +367,6 @@ let init_tables ?(alloc=true) procs s =
 
   List.iter (fun t -> HT.add ht t !i; incr i) constr_terms;
   let proc_ids = List.rev !proc_ids in
-  let perm_procs = 
-    List.filter (fun sigma ->
-      List.exists (fun (x,y) -> x <> y) sigma
-    ) (Variable.all_permutations proc_ids proc_ids) in
-  let perm_states = build_state_procs_map ht procs var_terms proc_terms in
   if debug then
     HT.iter (fun t i -> eprintf "%a -> %d@." Term.print t i ) ht;
   let id_true =
@@ -525,11 +389,8 @@ let init_tables ?(alloc=true) procs s =
   let tsize = table_size nb_procs nb_vars in
   
   { model_cardinal = nb_procs;
-    var_terms = var_terms;
     nb_vars = nb_vars;
     max_id_vars = max_id_vars;
-    perm_procs = perm_procs;
-    perm_states = perm_states;
     first_proc = first_proc;
     extra_proc = extra_proc;
     all_procs = all_procs;
@@ -538,6 +399,7 @@ let init_tables ?(alloc=true) procs s =
     id_true = id_true;
     id_false = id_false;
     st_trs = [];
+    st_tracts = [];
 
     low_int_abstr = a_low;
     up_int_abstr = a_up;
@@ -546,7 +408,6 @@ let init_tables ?(alloc=true) procs s =
 
     proc_substates = proc_substates;
     reverse_proc_substates = reverse_proc_substates;
-    partial_order = partial_order ht var_terms nb_vars;
 
     table_size = tsize;
     explicit_states = HST.create (if alloc then tsize else 0);
@@ -597,19 +458,6 @@ let rec cdnf_to_dnf_rec acc = function
 let cdnf_to_dnf = function
   | [] -> [SAtom.singleton Atom.False]
   | l -> cdnf_to_dnf_rec [SAtom.singleton Atom.True] l
-
-(* let make_sorts = *)
-(*   let cpt = ref 0 in *)
-(*   List.fold_left (fun sa p -> *)
-(*     incr cpt; *)
-(*     let s = if !cpt <= 2 then "CId" else "L1Id" in *)
-(*     let a = Atom.Comp (Access (Hstring.make "Sort", [p]), Eq, *)
-(*                   Elem (Hstring.make s, Constr)) in *)
-(*     SAtom.add a sa) SAtom.empty *)
-
-(* let add_sorts procs = *)
-(*   let sorts = make_sorts procs in *)
-(*   List.map (SAtom.union sorts) *)
 
 let mkinits procs ({t_init = ia, l_init}) =
   let lsa = cdnf_to_dnf (make_init_cdnf ia l_init procs) in
@@ -718,8 +566,7 @@ let swts_to_stites env at sigma swts =
     | [] -> assert false
     | [d] -> acc, d
     | s::r -> sd (s::acc) r in
-  let swts, (d, t) = sd [] swts in
-  (* assert (d = SAtom.singleton True); *)
+  let swts, (_, t) = sd [] swts in
   let t = Term.subst sigma t in
   let default =
     try match t with
@@ -771,7 +618,7 @@ let assigns_to_actions env sigma acc tr_assigns =
       | UCase swts -> swts_to_stites env nt sigma swts :: acc
     ) acc tr_assigns
 
-let nondets_to_actions env sigma acc =
+let nondets_to_actions env _ acc =
   List.fold_left 
     (fun acc (h) ->
       let nt = Elem (h, Glob) in
@@ -853,7 +700,7 @@ let rec apply_action env st sts' = function
 	List.iter (fun st' -> st'.(i1) <- v2) sts';
         sts'
       with Not_found -> sts'
-    end 
+    end
   | St_arith (i1, i2, c) when abstr_num ->
     begin
       try
@@ -882,6 +729,7 @@ let rec apply_action env st sts' = function
           | _, _ -> List.rev_append sts'1 sts'2
       end
   | _ (* St_ignore or St_arith when ignoring nums *) -> sts'
+
 
 let apply_actions env st acts =
   let st' = Array.copy st in
@@ -917,220 +765,168 @@ let print_transition_fun env name sigma { st_reqs = st_reqs;
       fprintf fmt "}\n@."
 
 
-let rec ordered_subst = function
-  | [] | [_] -> true
-  | (_, x) :: ((_, y) :: _ as r) ->
-      Hstring.compare x y <= 0 && ordered_subst r
+let compile_transition_instance procs env
+    { tr_args; tr_reqs = reqs; tr_name = name; tr_ureq = ureqs;
+       tr_assigns = assigns; tr_upds = upds; tr_nondets = nondets; _ }
+    sigma =
+  (* Substitute process variables in the guard *)
+  let reqs = SAtom.subst sigma reqs in
+  (* Get the effective process arguments after substitution *)
+  let t_args_ef =
+    List.fold_left (fun acc p ->
+      try (Variable.subst sigma p) :: acc
+      with Not_found -> p :: acc) [] tr_args in
+  (* Compile universal guards to DNF form *)
+  let udnfs = Forward.uguard_dnf sigma procs t_args_ef ureqs in
+  (* Encode guards as integer requirements *)
+  let st_reqs = satom_to_st_req env reqs in
+  let st_udnfs = List.map (List.map (satom_to_st_req env)) udnfs in
+  (* Compile all actions *)
+  let st_actions = assigns_to_actions env sigma [] assigns in
+  let st_actions = nondets_to_actions env sigma st_actions nondets in
+  let st_actions = List.fold_left
+    (update_to_actions procs sigma env)
+    st_actions upds in
+  (* Add frame actions for variables mentioned in guards but not assigned *)
+  let st_actions = missing_reqs_to_actions env st_actions st_reqs in
+  (* Build the executable closure *)
+  let f = fun st ->
+    (* Step 1: Check conjunctive guards (tr_reqs) *)
+    if not (check_reqs env st st_reqs) then raise Not_applicable;
+    (* Step 2: Check universal guards (tr_ureq) - each DNF needs one true disjunct *)
+    if not (List.for_all (List.exists (check_reqs env st)) st_udnfs)
+    then raise Not_applicable;
+    (* Step 3: Apply all actions to produce successor state(s) *)
+    apply_actions env st st_actions
+  in
+  let st_tr = {
+    st_name = name;
+    st_reqs = st_reqs;
+    st_udnfs = st_udnfs;
+    st_actions = st_actions;
+    st_f = f;
+  } in
+  if debug then print_transition_fun env name sigma st_tr err_formatter;
+  st_tr
 
-let ordered_fst_subst = function
-  | [] -> true
-  | (_, x) :: _ as sb ->
-      Hstring.equal x (List.hd Variable.procs) && ordered_subst sb
+let compose_st_f trs =
+  let rec aux todo acc =
+    match todo with
+    | [] -> acc
+    | (y,[])::todo -> aux todo (y::acc)
+    | (y,(f::rest))::todo ->
+      let after = try f.st_f y with Not_applicable -> [] in 
+      if after = [] then raise Not_applicable;
+      let todo = List.fold_left (fun acc z -> (z,rest)::acc) todo after in 
+      aux todo acc in
+  fun x -> aux [(x,trs)] []
 
+(* Assumes we have enough procs *)
+let compile_transaction_instance procs env calls sigma =
+  let trs = ListLabels.rev_map calls ~f:(fun (tr,args) ->
+      let s = ListLabels.fold_left2 tr.tr_info.tr_args args ~init:sigma
+          ~f:(fun s formal actual -> (formal, Variable.subst s actual) :: s) in
+      compile_transition_instance procs env tr.tr_info s
+    ) in
+  {
+    st_name = Hstring.make "<transaction>";
+    st_reqs = [];
+    st_udnfs = [];
+    st_actions = [];
+    st_f = compose_st_f trs
+  }
 
-
-(****************************************************)
-(* Instantiate transitions and transform to closure *)
-(****************************************************)
-        
-let transitions_to_func_aux procs env reduce acc 
-                            { tr_info = { tr_args = tr_args; 
-		                          tr_reqs = reqs; 
-		                          tr_name = name;
-		                          tr_ureq = ureqs;
-		                          tr_assigns = assigns; 
-		                          tr_upds = upds; 
-		                          tr_nondets = nondets }} =
-  if List.length tr_args > List.length procs then acc
-  else 
-    let d = Variable.all_permutations tr_args procs in
-    (* do it even if no arguments *)
+let transitions_to_func_aux procs env acc { tr_info; _ } =
+  (* Skip if transition requires more processes than we have *)
+  if List.length tr_info.tr_args > List.length procs then acc
+  else
+    (* Generate all possible instantiations of transition parameters *)
+    let d = Variable.all_permutations tr_info.tr_args procs in
+    (* Ensure at least one instantiation even for parameter-less transitions *)
     let d = if d = [] then [[]] else d in
-    (* let d = List.filter ordered_subst d in *)
+    (* Compile each instantiation *)
     List.fold_left (fun acc sigma ->
-      let reqs = SAtom.subst sigma reqs in
-      let t_args_ef = 
-	List.fold_left (fun acc p -> 
-	  try (Variable.subst sigma p) :: acc
-	  with Not_found -> p :: acc) [] tr_args in
-      let udnfs = Forward.uguard_dnf sigma procs t_args_ef ureqs in
-      let st_reqs = satom_to_st_req env reqs in
-      let st_udnfs = List.map (List.map (satom_to_st_req env)) udnfs in
-      let st_actions = assigns_to_actions env sigma [] assigns in
-      let st_actions = nondets_to_actions env sigma st_actions nondets in
-      let st_actions = List.fold_left 
-	(update_to_actions procs sigma env)
-	st_actions upds in
-      let st_actions = missing_reqs_to_actions env st_actions st_reqs in
-      let f = fun st ->
-	if not (check_reqs env st st_reqs) then raise Not_applicable;
-	if not (List.for_all (List.exists (check_reqs env st)) st_udnfs)
-	then raise Not_applicable;
-	apply_actions env st st_actions
-      in
-      let st_vars = 
-        List.fold_left (fun acc (_, x) ->
-          Hstring.HSet.add x acc) Hstring.HSet.empty sigma in
-      let st_tr = {
-        st_name = name;
-        st_reqs = st_reqs;
-        st_udnfs = st_udnfs;
-        st_actions = st_actions;
-        st_vars = st_vars;
-        st_args = t_args_ef;
-        st_f = f;
-      } in
-      if debug then print_transition_fun env name sigma st_tr err_formatter;
-      reduce acc st_tr
+      let st_tr = compile_transition_instance procs env tr_info sigma in
+      st_tr :: acc
     ) acc d
 
-
-let transitions_to_func procs env =
-  List.fold_left 
-    (transitions_to_func_aux procs env (fun acc st_tr -> st_tr :: acc)) []
-
-
-
-
-
-let post st visited trs acc cpt_q depth =
-  if limit_forward_depth && depth >= forward_depth then acc
+let transactions_to_func_aux procs env acc (args, calls) =
+  if List.length args > List.length procs then acc
   else
-    List.fold_left (fun acc st_tr ->
-      try 
-        let sts = st_tr.st_f st in
-        List.fold_left (fun acc s ->
-          if HST.mem visited s then acc else
-            (incr cpt_q; (depth + 1, s) :: acc)
-        ) acc sts
-      with Not_applicable -> acc) acc trs
+    (* Generate all possible instantiations of transition parameters *)
+    let d = Variable.all_permutations args procs in
+    (* Ensure at least one instantiation even for parameter-less transitions *)
+    let d = if d = [] then [[]] else d in
+    (* Compile each instantiation *)
+    List.fold_left (fun acc sigma ->
+        let st_tr = compile_transaction_instance procs env calls sigma in
+        st_tr :: acc
+      ) acc d
 
 
+let transitions_to_func procs env = List.fold_left (transitions_to_func_aux procs env) []
+
+let transaction_to_func procs env = List.fold_left (transactions_to_func_aux procs env) []
+
+(******************************************************************************)
+(*                  BFS EXPLORATION                                           *)
+(*                                                                            *)
+(* The main exploration loop. Starting from initial states, we iteratively    *)
+(* apply all applicable transitions to discover reachable states.             *)
+(******************************************************************************)
+ 
 let post_bfs env st visited trs q cpt_q depth =
   if not limit_forward_depth || depth < forward_depth then
+    (* Try each compiled transition *)
     List.iter (fun st_tr ->
         try
-        let sts = st_tr.st_f st in
-        List.iter (fun s ->
-          if forward_sym then normalize_state env s;
-          if not (HST.mem visited s) then begin
-            (* incr cpt_q; *)
-            HQueue.add ~cpt_q (depth + 1, s) q
-          end
-        ) sts
-      with Not_applicable -> ()) trs
+          (* Execute transition: checks guards, applies actions *)
+          let sts = st_tr.st_f st in
+          (* Add each successor to the queue if not already visited *)
+          List.iter (fun s ->
+            (* Optionally normalize for symmetry reduction *)
+            if forward_sym then normalize_state env s;
+            if not (HST.mem visited s) then begin
+              HQueue.add ~cpt_q (depth + 1, s) q
+            end
+          ) sts
+        with Not_applicable ->
+          (* Guards not satisfied - transition doesn't fire from this state *)
+          ()
+    ) trs
 
-let post_dfs st visited trs q cpt_q depth =
-  if not limit_forward_depth || depth < forward_depth then
-    List.iter (fun st_tr ->
-      try 
-        let sts = st_tr.st_f st in
-        List.iter (fun s ->
-          if not (HST.mem visited s) then begin
-            incr cpt_q;
-            Stack.push (depth + 1, s) q
-          end
-        ) sts
-      with Not_applicable -> ()) trs
-
-let hset_none = Hstring.HSet.singleton (Hstring.make "none")
-
-let post_bfs_switches st visited trs q cpt_q cpt_f depth prev_vars =
-  let temp_table = HST.create 2009 in
-  let rec aux = function
-    | [] -> ()
-    | (st, last_vars) :: r ->
-        let to_do =
-          List.fold_left (fun to_do st_tr ->
-            try 
-              let sts = st_tr.st_f st in
-              let vars = st_tr.st_vars in
-              let switching = Hstring.HSet.equal vars last_vars ||
-                Hstring.HSet.equal last_vars hset_none in
-              List.fold_left (fun to_do s ->
-                if not (HST.mem visited s || HST.mem temp_table s) then
-                  if switching then begin
-                    incr cpt_q;
-                    Queue.add (depth + 1, vars, s) q;
-                    incr cpt_f;
-                    HST.add visited st ();
-                    to_do
-                  end 
-                  else begin 
-                    HST.add temp_table st ();
-                    (s, vars) :: to_do
-                  end
-                else to_do
-              ) to_do sts
-            with Not_applicable -> to_do) r trs
-        in
-        aux to_do
-  in
-  if not limit_forward_depth || depth < forward_depth then aux [st, prev_vars]
-
-
-let check_cand env state cand = 
+(** Check if a candidate invariant is violated by a state.
+    Returns [true] if the candidate is VIOLATED (i.e., the state is a
+    counterexample), [false] if the state satisfies the candidate. *)
+let check_cand env state cand =
   not (List.for_all (fun l -> check_req env state l) cand)
 
-let remove_first h =
-  try HST.iter (fun hst _ -> HST.remove h hst; raise Exit) h
-  with Exit -> ()
 
-let already_visited env h st =
-  HST.mem h st ||
-  List.exists (fun st_sigma ->
-    HST.mem h (apply_perm_state env st st_sigma)) env.perm_states
+(** Main BFS exploration loop.
+    Starting from initial states, explores reachable states level by level.
+    All visited states are stored in [env.states] for later use in
+    candidate checking (to disprove invariant candidates).
 
-let add_all_syms env h st =
-  HST.add h st ();
-  List.iter (fun st_sigma ->
-    HST.add h (apply_perm_state env st st_sigma) ()) env.perm_states
-
-let forward_dfs s procs env l =
+    @param env The environment with compiled transitions
+    @param l  List of (depth, state) pairs for initial states *)
+let forward_bfs _ _ env l =
   let h_visited = env.explicit_states in
-  let cpt_f = ref 0 in
-  let cpt_r = ref 0 in
-  let cpt_q = ref 1 in
-  let trs = env.st_trs in
-  let to_do = Stack.create () in
-  List.iter (fun td -> Stack.push td to_do) l;
-  while not (Stack.is_empty to_do) &&
-          (max_forward = -1 || !cpt_f < max_forward) do
-    let depth, st = Stack.pop to_do in
-    decr cpt_q;
-    if not (HST.mem h_visited st) then begin
-    (* if not (already_visited env explicit_states st) then begin *)
-      post_dfs st h_visited trs to_do cpt_q depth;
-      incr cpt_f;
-      if debug && verbose > 1 then
-        eprintf "%d : %a\n@." !cpt_f
-          SAtom.print (state_to_cube env st);
-      if not quiet && !cpt_f mod 1000 = 0 then
-        eprintf "%d (%d)@." !cpt_f !cpt_q;
-      (* if !cpt_f mod 3 = 1 then *)
-      incr cpt_r;
-      HST.add h_visited st ();
-      env.states <- st :: env.states;
-      (* add_all_syms env explicit_states st *)
-    end
-  done
-
-
-let forward_bfs s procs env l =
-  let h_visited = env.explicit_states in
-  let cpt_f = ref 0 in
-  let cpt_r = ref 0 in
-  let cpt_q = ref 1 in
-  let trs = env.st_trs in
+  let cpt_f = ref 0 in  (* Count of explored states *)
+  let cpt_r = ref 0 in  (* Count of registered states *)
+  let cpt_q = ref 1 in  (* Queue size *)
+  let trs = env.st_trs in  (* All compiled transitions *)
   let to_do = HQueue.create env.table_size in
+  (* Initialize queue with initial states *)
   List.iter (fun td -> HQueue.add td to_do) l;
+  (* BFS main loop *)
   while not (HQueue.is_empty to_do) &&
           (max_forward = -1 || !cpt_f < max_forward) do
     let depth, st = HQueue.take to_do in
     decr cpt_q;
     if not (HST.mem h_visited st) then begin
-      (* if not (already_visited env explicit_states st) then begin *)
+      (* Mark as visited *)
       HST.add h_visited st ();
+      (* Compute successors and add to queue *)
       post_bfs env st h_visited trs to_do cpt_q depth;
       incr cpt_f;
       if debug && verbose > 1 then
@@ -1138,49 +934,16 @@ let forward_bfs s procs env l =
           SAtom.print (state_to_cube env st);
       if not quiet && !cpt_f mod 1000 = 0 then
         eprintf "%d (%d)@." !cpt_f !cpt_q;
-      (* if !cpt_f mod 3 = 1 then *)
       incr cpt_r;
-      (* HST.add h_visited st (); *)
+      (* Store state for later candidate checking *)
       env.states <- st :: env.states;
-      (* add_all_syms env explicit_states st *)
     end
   done
 
-let forward_bfs_switches s procs env l =
-  let explicit_states = env.explicit_states in
-  let cpt_f = ref 0 in
-  let cpt_q = ref 1 in
-  let trs = env.st_trs in
-  let to_do = Queue.create () in
-  List.iter (fun (idp, ist)  -> 
-    Queue.add (idp, hset_none, ist) to_do) l;
-  while not (Queue.is_empty to_do) do
-    let depth, last_vars, st = Queue.take to_do in
-    decr cpt_q;
-    if not (HST.mem explicit_states st) then begin
-      post_bfs_switches 
-        st explicit_states trs to_do cpt_q cpt_f depth last_vars;
-      incr cpt_f;
-      if debug && verbose > 1 then
-        eprintf "%d : %a\n@." !cpt_f
-          SAtom.print (state_to_cube env st);
-      if not quiet (* && !cpt_f mod 1000 = 0 *) then
-        eprintf "%d (%d)@." !cpt_f !cpt_q;
-      (* if !cpt_f > 3_000_000 then remove_first explicit_states; *)
-      HST.add explicit_states st ();
-      env.states <- st :: env.states;
-    end
-  done
-    
 (************************************************************************)
 (* Forward enumerative search, states are insterted in the global hash- *)
 (* table explicit_states                                                *)
 (************************************************************************)
-let shuffle d =
-    let nd = List.rev_map (fun c -> (Random.bits (), c)) d in
-    let sond = List.sort compare nd in
-    List.rev_map snd sond
-
 let no_scan_states _env =
   (* Prevent the GC from scanning the list env.states as it is going to be
      kept in memory all the time. *)
@@ -1222,16 +985,25 @@ let install_sigint () =
 
 let search procs init =
   TimeForward.start ();
-  let procs = procs (*@ init.t_glob_proc*) in
+  let procs = procs in
+  (* Step 1: Initialize term-to-ID mappings *)
   let env = init_tables procs init in
+  (* Step 2: Convert initial formula to concrete states *)
   let st_inits = init_to_states env procs init in
-  if debug then 
+  if debug then
     List.iter (fun (_, st) ->
       eprintf "init : %a\n@." SAtom.print (state_to_cube env st))
       st_inits;
-  let env = { env with st_trs = transitions_to_func procs env init.t_trans } in
+  (* Step 3: Compile transitions to executable closures *)
+  let st_trs = if Options.triggers then
+      transaction_to_func procs env init.t_transactions
+    else
+      transitions_to_func procs env init.t_trans in
+  let env = { env with st_trs } in
+  (* Register environment for later candidate checking *)
   global_envs := env :: !global_envs;
   install_sigint ();
+  (* Step 4: Run BFS exploration *)
   begin try
     forward_bfs init procs env st_inits;
     with Exit -> ()
@@ -1239,45 +1011,10 @@ let search procs init =
   finalize_search env
                         
 
-let resume_search_from procs init = assert false
-
-
-exception Found_f of state_transistion
+let resume_search_from _ _ = assert false
 
 let find_tr_funs env name =
   List.filter (fun tr -> Hstring.equal tr.st_name name) env.st_trs
-
-let replay_trace_and_expand procs system faulty =
-  List.iter (fun env ->
-  (* let tmp_visited = HST.create 2_000_001 in *)
-  let st_inits = List.map snd (init_to_states env procs system) in
-  let trc = faulty.from in
-  let rec replay trc sts depth =
-    if depth >= forward_depth then sts
-    else match sts, trc with
-      | [], _ | _, [] -> sts
-      | _, ({tr_name = name}, args, _) :: trc ->
-          let st_trs = find_tr_funs env name in
-          let to_do =
-            List.fold_left (fun acc st_tr ->
-              List.fold_left (fun acc st ->
-                
-                eprintf ">>> : %a\n@."
-                  SAtom.print (state_to_cube env st);
-
-                try List.rev_append (st_tr.st_f st) acc
-                with Not_applicable -> acc) acc sts
-            ) [] st_trs in
-          eprintf "%a ( %a )@." Hstring.print name Variable.print_vars args; 
-          replay trc to_do (depth + 1)
-  in
-  let new_inits = replay trc st_inits 0 in
-  List.iter (fun (st) ->
-  eprintf "new_inits : %a\n@." SAtom.print (state_to_cube env st))
-    new_inits;
-  forward_bfs faulty procs env (List.map (fun s -> 0, s) new_inits)
- ) !global_envs
-
 
 let satom_to_cand env sa =
   SAtom.fold (fun a c -> match a with
@@ -1287,16 +1024,24 @@ let satom_to_cand env sa =
     sa []
 
 
+(** Raised when a candidate invariant survives checking against all states *)
 exception Sustainable of Node.t list
 
 
-(*********************************************************************)
-(* Check if there exists one (or many) approximation candidates that *)
-(* cannot be disproved by the finite model                           *)
-(*********************************************************************)
+(******************************************************************************)
+(*                  CANDIDATE INVARIANT CHECKING                              *)
+(*                                                                            *)
+(* These functions check if candidate invariants (approximations) can be      *)
+(* disproved by the finite model built during exploration.                    *)
+(*                                                                            *)
+(* The key insight: if a candidate is violated by ANY explored state, it      *)
+(* cannot be a valid invariant of the full (infinite) system. This provides   *)
+(* a fast way to filter out bad candidates before expensive SMT checking.     *)
+(*                                                                            *)
+(* A candidate that survives (is not disproved by any state) is "sustainable" *)
+(* and is returned for further verification by the BRAB algorithm.            *)
+(******************************************************************************)
 
-
-exception TooBig of t_system list
 
 let alpha_renamings env procs s =
   let d = List.rev (Variable.all_permutations (Node.variables s) procs) in
@@ -1373,7 +1118,6 @@ let smallest_to_resist_on_trace ls =
 
 
 
-type result_check = Good | Bad of state | CantSay
 exception EBad of state * env
 exception ECantSay
 
@@ -1441,25 +1185,9 @@ let fast_resist_on_trace ls =
 (* TODO Extract unsat cores to find minimal candidate *)
 (******************************************************)
 
-
-module SCand =
-  Set.Make (struct
-      type t = st_req * Atom.t
-      let compare (t,_) (t',_) = Stdlib.compare t t'
-  end)
-
-
-let unsat_cand_core env state cand =
-  List.fold_left
-    (fun uc ((l,_) as la) ->
-      if not (check_req env state (neg_req env l)) then
-        SCand.add la uc
-      else uc)
-    SCand.empty cand
-
-
-(*-------------- interface -------------*)
-
+(******************************************************************************)
+(*                  PUBLIC INTERFACE                                          *)
+(******************************************************************************)
 
 let init system =
   set_liberal_gc ();
@@ -1474,7 +1202,6 @@ let init system =
     if not quiet then printf "%a@." Pretty.print_double_line ();
   done;
   reset_gc_params ()
-   
 
 let first_good_candidate candidates =
   match fast_resist_on_trace candidates with

@@ -349,10 +349,6 @@ end
 
 let select_oracle =
 
-  if triggers && do_brab then begin
-    eprintf "Option -trigger is incompatible with -brab";
-    exit 1
-  end;
   if triggers && murphi then begin
     eprintf "Option -trigger is incompatible with -murphi";
     exit 1

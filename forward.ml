@@ -545,7 +545,6 @@ let missing_args procs tr_args =
     | [], _::_, _ ->
       let f, s = List.split (Variable.build_subst t pv) in
       List.rev f, List.rev s
-      (* List.rev (snd (List.split (build_subst t pv))) *)
     | _::rp, _::rt, _::rpv -> aux rp rt rpv
     | _, [], _ -> [],[]
     | _, _::_, [] -> assert false
@@ -800,10 +799,7 @@ let instance_of_transition { tr_args = tr_args;
 		             tr_upds = upds; 
 		             tr_nondets = nondets } all_procs tr_others sigma =
   let reqs = SAtom.subst sigma reqs in
-  let t_args_ef = 
-    List.fold_left (fun acc p -> 
-      try (Variable.subst sigma p) :: acc
-      with Not_found -> p :: acc) [] tr_args in
+  let t_args_ef = List.map (Variable.subst sigma) tr_args in
   let udnfs = uguard_dnf sigma all_procs t_args_ef ureqs in
   let assi, assi_terms = apply_assigns assigns sigma in
   let upd, upd_terms = apply_updates upds all_procs sigma in
@@ -837,14 +833,13 @@ let instantiate_transitions all_procs procs trans =
 
 
 let all_var_terms procs {t_globals = globals; t_arrays = arrays} =
-  let acc, gp = 
-    List.fold_left 
-      (fun (acc, gp) g ->
-	Term.Set.add (Elem (g, Glob)) acc, gp
-      ) (Term.Set.empty, []) globals
+  let acc = List.fold_left
+      (fun acc g -> Term.Set.add (Elem (g, Glob)) acc)
+      (Term.Set.empty)
+      globals
   in
   List.fold_left (fun acc a ->
-    let indexes = Variable.all_arrangements_arity a (procs@gp) in
+    let indexes = Variable.all_arrangements_arity a (procs) in
     List.fold_left (fun acc lp ->
       Term.Set.add (Access (a, lp)) acc)
       acc indexes)
@@ -873,11 +868,6 @@ let search_only s = assert false
 exception Reachable of
     (SAtom.t * transition_info * Variable.subst * SAtom.t) list 
 
-let all_partitions s =
-  List.fold_left (fun acc x ->
-    [x] :: List.map (fun l -> x :: l) acc) [] (List.rev s)
-
-
 let mkinits_up_to procs_sets s =
   match procs_sets with
   | [] | [[]] -> mkinits [] s
@@ -901,7 +891,6 @@ type possible_result =
 
 
 let possible_trace ~starts ~finish ~procs ~trace =
-  (* eprintf "Possible with %d procs?@." (List.length procs); *)
   let usa = Node.litterals finish in
   let rec forward_rec ls rtrace = match ls, rtrace with
     | _, [] ->
@@ -913,67 +902,54 @@ let possible_trace ~starts ~finish ~procs ~trace =
     | [], (_, _, s) ::_ ->
       Spurious (above s trace)
     | _, (tr, _, _) :: rest_trace ->
-        let nls =
-	  if List.length tr.tr_args > List.length procs then []
-	  else
+       let nls =
+	     if List.length tr.tr_args > List.length procs then []
+	     else
            List.fold_left (fun acc sigma ->
-            let itr = instance_of_transition tr procs [] sigma in
-            List.fold_left (fun acc (sa, args, hist) ->
-              List.fold_left (fun acc (nsa, nargs) ->
-                let new_hist = (sa, tr, sigma, nsa) :: hist in
-                (* eprintf "%a\n@." SAtom.print nsa;     *)
-                try Prover.reached procs usa nsa; raise (Reachable new_hist)
-                with Smt.Unsat _ -> (nsa, nargs, new_hist) :: acc
-              ) acc (post_inst sa args procs itr)
-            ) acc ls
-           ) [] (Variable.all_permutations tr.tr_args procs)
-        in
-        forward_rec nls rest_trace
+               let itr = instance_of_transition tr procs [] sigma in
+               List.fold_left (fun acc (sa, args, hist) ->
+                   List.fold_left (fun acc (nsa, nargs) ->
+                       let new_hist = (sa, tr, sigma, nsa) :: hist in
+                       try Prover.reached procs usa nsa; raise (Reachable new_hist)
+                       with Smt.Unsat _ -> (nsa, nargs, new_hist) :: acc
+                     ) acc (post_inst sa args procs itr)
+                 ) acc ls
+             ) [] (Variable.all_permutations tr.tr_args procs)
+       in
+       forward_rec nls rest_trace
   in
   try
     let init = List.map (fun (isa, iargs)-> isa, iargs, []) starts in
     forward_rec init trace
   with
     | Reachable hist -> Reach hist
-  
-
-let rec list_excedent = function
-  | _, [] -> assert false
-  | [], l2 -> l2
-  | _ :: l1, _ :: l2 -> list_excedent (l1, l2)
-  
-
-let rec equal_trace_woargs tr1 tr2 =
-  match tr1, tr2 with
-  | [], [] -> true
-  | [], _ -> false
-  | _, [] -> false
-  | (x, _, _)::r1, (y, _, _)::r2 ->
-     Hstring.equal x.tr_name y.tr_name && equal_trace_woargs r1 r2
 
 module HTrace = 
   Hashtbl.Make (
       struct
-	type t = (transition_info * Hstring.t list * t_system) list
-	let equal = equal_trace_woargs
-	let hash = Hashtbl.hash_param 50 100
+	    type t = (transition_info * Hstring.t list * t_system) list
+	    let hash = Hashtbl.hash_param 50 100
+        let rec equal tr1 tr2 =
+          match tr1, tr2 with
+          | [], [] -> true
+          | [], _ | _, [] -> false
+          | (x, _, _)::r1, (y, _, _)::r2 ->
+             Hstring.equal x.tr_name y.tr_name && equal r1 r2
       end)
-			       
 
 let procs_on_trace trace =
   let all_procs_set = 
-    List.fold_left (fun acc (_, procs_t, n) ->
-      List.fold_left (fun acc p -> Hstring.HSet.add p acc) acc
-	(List.rev_append procs_t
-    (Variable.Set.elements (SAtom.variables (Node.litterals n))))
-    (* (Node.variables n)) *)
-      ) Hstring.HSet.empty trace
+    ListLabels.fold_left trace ~init:Hstring.HSet.empty ~f:
+      (fun acc (_, procs_t, n) ->
+        List.fold_left (fun acc p -> Hstring.HSet.add p acc) acc
+	      (List.rev_append procs_t
+             (Variable.Set.elements (SAtom.variables (Node.litterals n)))))
   in
   Hstring.HSet.elements all_procs_set
 
 let reachable_on_trace_from_init s unsafe trace =
-  let all_procs = procs_on_trace  trace in
-  let proc_sets = (* all_partitions *) [all_procs] in
+  let all_procs = procs_on_trace trace in
+  let proc_sets = [all_procs] in
   let inits = mkinits_up_to proc_sets s in
   match possible_trace ~starts:inits ~finish:unsafe ~procs:all_procs ~trace with
   | Spurious _ | Unreach -> Unreach
@@ -981,7 +957,7 @@ let reachable_on_trace_from_init s unsafe trace =
 
 let reachable_on_all_traces_from_init s unsafe trace =
   let all_procs = procs_on_trace trace in
-  let proc_sets = (* all_partitions *) [all_procs] in
+  let proc_sets = [all_procs] in
   let inits = mkinits_up_to proc_sets s in
   possible_trace ~starts:inits ~finish:unsafe ~procs:all_procs ~trace
 
