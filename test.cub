@@ -1,0 +1,23 @@
+array Foo[proc] : bool
+
+init (i) {Foo[i] = True}
+
+unsafe (i) {Foo[i] = False}
+
+transition t1 (i j)
+{ Foo[i] := False }
+next t2(i j)
+
+triggered
+transition t2 (k l)
+{Foo[k] := True}
+
+
+transition t3 (i j)
+{ Foo[i] := False }
+next t4(i j)
+
+triggered
+transition t4 (k l)
+{Foo[k] := False}
+
