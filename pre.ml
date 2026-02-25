@@ -366,4 +366,4 @@ let pre_image_normal sys s =
   List.rev ls, List.rev post
 
 let pre_image =
-  if Options.triggers then pre_image_path else pre_image_normal
+  if Options.tract then pre_image_path else pre_image_normal

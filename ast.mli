@@ -67,10 +67,34 @@ type transition_info = {
   (** non deterministic updates (only for global variables) *)
   tr_loc : loc; (** location information *)
   tr_is_triggered : bool; (** [triggered] mark (defaults to [false]) *)
-  tr_may_continue : bool; (** [continue] mark (defaults to [true]) *)
+  tr_may_yield : bool; (** [continue] mark (defaults to [true]) *)
   tr_nexts : transition_call list; (** calls to [next] transitions (defaults to [[]]) *)
 }
 (** type of parameterized transitions *)
+
+type transaction_part_body = {
+  tract_part_name : Hstring.t;
+  tract_lets : (Hstring.t * Term.t) list;
+  tract_assigns : (Hstring.t * glob_update) list; (** updates of global variables *)
+  tract_upds : update list; (** updates of arrays *)
+  tract_nondets : Hstring.t list;
+  (** non deterministic updates (only for global variables) *)
+  tract_part_loc : loc; (** location information *)
+}
+(** type of parameterized transitions *)
+
+type transaction_info = {
+  tract_name : Hstring.t; (** name of the transactions *)
+  tract_args : Variable.t list;
+  (** existentially quantified parameters of the transaction *)
+  tract_reqs : SAtom.t; (** guard *)
+  tract_ureq : (Variable.t * dnf) list;
+  (** global condition of the guard, i.e. universally quantified DNF *)
+  tract_parts : transaction_part_body list;
+  tract_loc : loc
+}
+(** type of parameterized transactions *)
+
 
 type transition_func = Term.t -> op_comp -> Term.t -> Atom.t
 (** functionnal form, computed during typing phase *)
@@ -91,6 +115,7 @@ type system = {
   invs : (loc * Variable.t list * SAtom.t) list;
   unsafe : (loc * Variable.t list * SAtom.t) list;  
   trans : transition_info list;
+  tracts : transaction_info list
 }
 (** type of untyped transition systems constructed by parsing *)
 
@@ -122,7 +147,7 @@ type node_cube =
                                   (see {! Cubetrie.delete_subsumed}) *)
       from : trace;           (** history of the node *)
       toward : node_future option (** future of the node *)
-                                      (**  (only for -triggers option) *)
+                                      (**  (only for -tract option) *)
     }
 (** the type of nodes, i.e. cubes with extra information *)
 

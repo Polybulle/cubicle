@@ -25,9 +25,11 @@
 	"init", INIT;
 	"transition", TRANSITION;
     "triggered", TRIGGERED;
-    "next", NEXT;
+    "triggers", TRIGGERS;
     "or", OORR;
-    "continue", CONTINUE;
+    "yields", YIELDS;
+    "transaction", TRANSACTION;
+    "part", PART;
 	"invariant", INVARIANT;
 	"requires", REQUIRE;
         "array", ARRAY;

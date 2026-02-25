@@ -32,7 +32,7 @@ type error =
   | UnknownName of Hstring.t
   | DuplicateInit of Hstring.t
   | NoMoreThanOneArray
-  | HasTriggers of Hstring.t
+  | HasTracts of Hstring.t
   | CycleInTriggers of Hstring.t list
   | ClashParam of Hstring.t
   | MustBeAnArray of Hstring.t
@@ -78,7 +78,7 @@ let report fmt = function
       fprintf fmt "duplicate initialization for %a" Hstring.print a
   | NoMoreThanOneArray ->
       fprintf fmt "sorry, no more than one array"
-  | HasTriggers t ->
+  | HasTracts t ->
       fprintf fmt "transition %a requires the -triggers option"
       Hstring.print t
   | CycleInTriggers names ->
@@ -285,12 +285,70 @@ let check_lets loc args l =
      let _ = term loc args t in ()
     ) l
 	       
-let unique_transition_names trs =
-  ignore (List.fold_left (fun names t ->
-      if List.mem t.tr_name names then
-        error (DuplicateTransition t.tr_name) t.tr_loc;
-      (t.tr_name :: names))
-    [] trs)
+let unique_transition_names s =
+  ignore (List.fold_left
+      (fun names t ->
+        if List.mem t.tr_name names then
+          error (DuplicateTransition t.tr_name) t.tr_loc
+        else
+          t.tr_name :: names)
+      []
+      s.trans)
+
+let rec all_permutations = function
+  | [] -> [[]]
+  | lst ->
+    let rec pick_one acc = function
+      | [] -> []
+      | x :: xs ->
+        let rest = List.rev_append acc xs in
+        let perms = List.map (fun p -> x :: p) (all_permutations rest) in
+        perms @ pick_one (x :: acc) xs
+    in
+    pick_one [] lst
+
+let transition_from_part tract part =
+  let name =
+    let open Hstring in
+    make @@ (view tract.tract_name) ^ "." ^ (view part.tract_part_name) in
+  {tr_name = name;
+   tr_args = tract.tract_args;
+   tr_reqs = SAtom.empty;
+   tr_ureq = [];
+   tr_lets = part.tract_lets;
+   tr_assigns = part.tract_assigns;
+   tr_upds = part.tract_upds;
+   tr_nondets = part.tract_nondets;
+   tr_loc = part.tract_part_loc;
+   tr_is_triggered = true;
+   tr_may_yield = false;
+   tr_nexts = []}
+
+let transitions_of_transaction tract =
+  let check =
+    { tr_name = tract.tract_name;
+      tr_args = tract.tract_args;
+      tr_reqs = tract.tract_reqs;
+      tr_ureq = tract.tract_ureq;
+      tr_lets = [];
+      tr_assigns = [];
+      tr_upds = [];
+      tr_nondets = [];
+      tr_loc = tract.tract_loc;
+      tr_is_triggered = true;
+      tr_may_yield = false;
+      tr_nexts = [];} in
+  let trs = List.map (transition_from_part tract) tract.tract_parts in
+  let paths =
+    let calls = List.map (fun t -> (t, t.tr_args)) trs in
+    let paths = all_permutations calls in
+    List.map (fun p -> (tract.tract_args, (check, tract.tract_args) :: p)) paths in
+  (check :: trs, paths)
+
+let transaction_paths s =
+  ListLabels.fold_left s.tracts ~init:(s,[]) ~f:(fun (s,ps) tract ->
+      let trs, ps' = transitions_of_transaction tract in
+      {s with trans = trs @ s.trans}, ps @ ps')
 
 let next trs tr ({tc_name; tc_args; tc_loc}) =
   (* are proc arguments in scope ? *)
@@ -331,10 +389,10 @@ let finalize_future trs
     let find tri = List.find (fun t -> t.tr_info.tr_name = tri.tr_name) trs in
     (globs, List.rev_map (fun (tri, args) -> (find tri, args)) calls)
 
-(* Validates the triggers if the option is enabled. Return the paths through
+(* Validates the triggers if transactions are enabled. Return the paths through
    transition triggers. *)
 let triggers s =
-  unique_transition_names s.trans;
+  unique_transition_names s;
   List.iter (nexts s.trans) s.trans;
   let nodes = Array.of_list s.trans in
   let module G = struct
@@ -342,7 +400,7 @@ let triggers s =
     type edge = transition_call
     let nodes = nodes
     let is_input tr = not tr.tr_is_triggered
-    let is_output tr = tr.tr_may_continue
+    let is_output tr = tr.tr_may_yield
     let edges_from tr = tr.tr_nexts
     let dest_node tc = List.find (fun t -> t.tr_name = tc.tc_name) s.trans
   end in
@@ -356,14 +414,14 @@ let triggers s =
     let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
     error (CycleInTriggers involved) dummy_loc
 
-(* Check that system doesn't use trigger features. Returns a dummy list of paths
-   through triggers. *)
-let no_triggers s =
-  List.iter (fun t ->
-      if not t.tr_may_continue || t.tr_is_triggered || t.tr_nexts <> [] then
-        error (HasTriggers t.tr_name) t.tr_loc)
-    s.trans;
-  []
+(* Check that system doesn't use transaction features. *)
+let no_transactions s =
+  ListLabels.iter s.trans ~f:(fun t ->
+      if not t.tr_may_yield || t.tr_is_triggered || t.tr_nexts <> [] then
+        error (HasTracts t.tr_name) t.tr_loc);
+  match s.tracts with
+  | t::_ -> error (HasTracts t.tract_name) t.tract_loc
+  | [] -> ()
 
 let transitions = 
   List.iter 
@@ -616,11 +674,17 @@ let system s =
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();
   end;
-
-  let t_trans = List.map add_tau s.trans in
-  let t_transactions =
-    let ps = if Options.triggers then triggers s else no_triggers s in
-    List.map (finalize_future t_trans) ps in
+  let s,t_trans,t_transactions = if Options.tract then
+      let ps = triggers s in
+      let s, ps' = transaction_paths s in
+      let t_trans = List.map add_tau s.trans in
+      let t_transactions = List.map (finalize_future t_trans) ps in
+      s, t_trans, t_transactions
+    else begin
+      no_transactions s;
+      let t_trans = List.map add_tau s.trans in
+      s, t_trans, []
+    end in
   let init_woloc = let _,v,i = s.init in v,i in
   let invs_woloc =
     List.map (fun (_,v,i) -> create_node_rename Inv v i) s.invs in

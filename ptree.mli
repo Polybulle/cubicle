@@ -95,7 +95,25 @@ type ptransition = {
   ptr_loc : loc;
   ptr_nexts : ptcall list;
   ptr_is_triggered : bool;
-  ptr_may_continue : bool;
+  ptr_may_yield : bool;
+}
+
+type ptransaction_part_body = {
+  ptractp_name : Hstring.t;
+  ptractp_lets : (Hstring.t * term) list;
+  ptractp_assigns : (Hstring.t * pglob_update) list;
+  ptractp_upds : pupdate list;
+  ptractp_nondets : Hstring.t list;
+  ptractp_loc : loc;
+}
+
+type ptransaction = {
+  ptract_name : Hstring.t;
+  ptract_args : Variable.t list;
+  ptract_reqs : cformula;
+  ptract_loc : loc;
+  ptract_parts : ptransaction_part_body list
+
 }
 
 type psystem = {
@@ -107,6 +125,7 @@ type psystem = {
   pinvs : (loc * Variable.t list * cformula) list;
   punsafe : (loc * Variable.t list * cformula) list;
   ptrans : ptransition list;
+  ptracts : ptransaction list
 }
 
 
@@ -115,6 +134,7 @@ type pdecl =
   | PInv of (loc * Variable.t list * cformula)
   | PUnsafe of (loc * Variable.t list * cformula)
   | PTrans of ptransition
+  | PTract of ptransaction
   | PFun
 
 

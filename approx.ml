@@ -349,8 +349,8 @@ end
 
 let select_oracle =
 
-  if triggers && murphi then begin
-    eprintf "Option -trigger is incompatible with -murphi";
+  if tract && murphi then begin
+    eprintf "Option -tract is incompatible with -murphi";
     exit 1
   end;
 
