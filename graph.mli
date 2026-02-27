@@ -14,6 +14,8 @@ type 'tr path =
 
 val print_path : ('t -> transition_info) -> Format.formatter -> 't path -> unit
 
+val debug_paths : node path list -> unit
+
 val path_map : ('a -> 'b) -> 'a path -> 'b path
 
 val path_rev : 'a path -> 'a path

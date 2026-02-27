@@ -33,6 +33,16 @@ let print_path tr_info fmt p =
     go_tail e p;
     pp_close_box fmt ()
 
+let debug_paths ps =  if Options.debug || Options.verbose > 0 then begin
+      let open Format in
+      if List.length ps = 0 then
+        printf "Found 0 paths through triggers in the model.@."
+      else
+        printf "@[<v 2>Found the following %n trigger path(s):@;%a@]@."
+          (List.length ps)
+          (pp_print_list ~pp_sep:pp_print_cut (print_path (fun n->n))) ps
+    end
+
 let rec path_map f = function
   | Tcp_one t -> Tcp_one (f t)
   | Tcp_step (t,e,p) -> Tcp_step (f t, e, path_map f p)
@@ -150,11 +160,5 @@ module Make (G : DAG) = struct
        !paths
        []
 
-  let _ = if Options.debug || Options.verbose > 0 then begin
-      let open Format in
-      printf "@[<v>Found the following %n trigger path(s):@.%a@.@.@]"
-        (List.length paths)
-        (pp_print_list ~pp_sep:pp_print_newline (print_path (fun n->n))) paths
-    end
 
 end

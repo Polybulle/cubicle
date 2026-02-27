@@ -205,18 +205,18 @@ end
 
 (* let print = Latex.print *)
 
+let print_tcall subst fmt (tr, args) =
+  let open Format in
+  fprintf fmt "%a(%a) ->@ "
+    Hstring.print tr.tr_info.tr_name
+    Variable.print_vars (List.map (Variable.subst subst) args)
+
 let print_history fmt n =
   if not dmcmt then begin
     match n.toward with
     | None | Some (_,[]) -> ()
     | Some (subst,p) ->
-      let p = List.rev p in
-      List.iter
-        (fun (tr, args) ->
-           fprintf fmt "%a(%a) ->@ "
-             Hstring.print tr.tr_info.tr_name
-             Variable.print_vars (List.map (Variable.subst subst) args))
-        p;
+      List.iter (print_tcall subst fmt) (List.rev p);
       fprintf fmt "[NOW] "
   end;
   let last = List.fold_left

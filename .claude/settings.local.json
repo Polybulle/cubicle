@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(which timeout:*)",
+      "Bash(bash:*)",
+      "Bash(./cubicle.opt:*)",
+      "Bash(grep:*)",
+      "Bash(git log:*)",
+      "Bash(make:*)"
+    ]
+  }
+}

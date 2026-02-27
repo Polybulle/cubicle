@@ -79,7 +79,7 @@ let report fmt = function
   | NoMoreThanOneArray ->
       fprintf fmt "sorry, no more than one array"
   | HasTracts t ->
-      fprintf fmt "transition %a requires the -triggers option"
+      fprintf fmt "transition %a requires the -tract option"
       Hstring.print t
   | CycleInTriggers names ->
     fprintf fmt "Found a cycle of triggers within transitions (forbidden). Cycle \
@@ -346,9 +346,27 @@ let transitions_of_transaction tract =
   (check :: trs, paths)
 
 let transaction_paths s =
-  ListLabels.fold_left s.tracts ~init:(s,[]) ~f:(fun (s,ps) tract ->
+  let (s,ps) = ListLabels.fold_left s.tracts ~init:(s,[]) ~f:(fun (s,ps) tract ->
       let trs, ps' = transitions_of_transaction tract in
-      {s with trans = trs @ s.trans}, ps @ ps')
+      {s with trans = trs @ s.trans}, ps @ ps') in
+  if Options.verbose > 0 then begin
+    let open Format in
+    let print_tcall fmt (tr, args) =
+      fprintf fmt "%a(%a) ->@ "
+        Hstring.print tr.tr_name
+        Variable.print_vars args in
+    let print_path fmt (_, calls) =
+      fprintf fmt "@[%aEND@]" (pp_print_list print_tcall) calls in
+    if List.length ps = 0 then
+      printf "Found 0 paths through model transactions.@."
+    else begin
+      printf "@[<v 2>Found following %n paths through model transactions.@;%a@]@."
+        (List.length ps)
+        (pp_print_list ~pp_sep:pp_print_cut print_path) ps
+    end
+  end ;
+  (s,ps)
+
 
 let next trs tr ({tc_name; tc_args; tc_loc}) =
   (* are proc arguments in scope ? *)
@@ -407,7 +425,9 @@ let triggers s =
   try
     let module G = Graph.Make(G) in
     if not G.is_acyclic then failwith "invariant break";
-    List.map path_to_future G.paths
+    Graph.debug_paths G.paths;
+    let res = List.map path_to_future G.paths in
+    res
   with
   | Graph.Cycle involved ->
     let involved = List.map (fun i -> nodes.(i).tr_name) involved in
@@ -662,7 +682,17 @@ let add_tau tr =
     tr_tau = pre;
     tr_reset = reset_memo;
   }
-    
+
+(* If the assigns in transactions aren't registered before Smt.Variant.close is
+   called, the subtyping analysis ignores all transactions, which causes
+   correctness errors. *)
+let register_tract_assigns s =
+  List.iter (fun tract ->
+      List.iter (fun part ->
+        assigns part.tract_part_loc tract.tract_args part.tract_assigns
+      ) tract.tract_parts
+    ) s.tracts
+
 let system s = 
   let l = init_global_env s in
   if not Options.notyping then init s.init;
@@ -670,6 +700,8 @@ let system s =
   if not Options.notyping then List.iter unsafe s.unsafe;
   if not Options.notyping then List.iter unsafe (List.rev s.invs);
   if not Options.notyping then transitions s.trans;
+  if not Options.notyping then
+  register_tract_assigns s; (* Must happen before closing the SMT solver *)
   if Options.(subtyping && not murphi) then begin
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();
@@ -678,7 +710,7 @@ let system s =
       let ps = triggers s in
       let s, ps' = transaction_paths s in
       let t_trans = List.map add_tau s.trans in
-      let t_transactions = List.map (finalize_future t_trans) ps in
+      let t_transactions = List.map (finalize_future t_trans) (ps@ps') in
       s, t_trans, t_transactions
     else begin
       no_transactions s;
