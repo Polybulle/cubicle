@@ -443,6 +443,19 @@ let no_transactions s =
   | t::_ -> error (HasTracts t.tract_name) t.tract_loc
   | [] -> ()
 
+let transactions tracts =
+  List.iter (fun ({tract_loc = loc; tract_args = args; _} as tract) ->
+      unique (fun x-> error (DuplicateName x) loc) args; 
+      atoms loc args tract.tract_reqs;
+      List.iter (fun (x, cnf) ->  List.iter (atoms loc (x::args)) cnf) tract.tract_ureq;
+      List.iter (fun ({tract_part_loc=loc; _} as part) ->
+          check_lets loc args part.tract_lets;
+          assigns loc args part.tract_assigns;
+          updates args part.tract_upds;
+          nondets loc part.tract_nondets
+      ) tract.tract_parts
+    ) tracts 
+
 let transitions = 
   List.iter 
     (fun ({tr_args = args; tr_loc = loc} as t) -> 
@@ -683,16 +696,6 @@ let add_tau tr =
     tr_reset = reset_memo;
   }
 
-(* If the assigns in transactions aren't registered before Smt.Variant.close is
-   called, the subtyping analysis ignores all transactions, which causes
-   correctness errors. *)
-let register_tract_assigns s =
-  List.iter (fun tract ->
-      List.iter (fun part ->
-        assigns part.tract_part_loc tract.tract_args part.tract_assigns
-      ) tract.tract_parts
-    ) s.tracts
-
 let system s = 
   let l = init_global_env s in
   if not Options.notyping then init s.init;
@@ -700,8 +703,7 @@ let system s =
   if not Options.notyping then List.iter unsafe s.unsafe;
   if not Options.notyping then List.iter unsafe (List.rev s.invs);
   if not Options.notyping then transitions s.trans;
-  if not Options.notyping then
-  register_tract_assigns s; (* Must happen before closing the SMT solver *)
+  if not Options.notyping then transactions s.tracts;
   if Options.(subtyping && not murphi) then begin
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();
