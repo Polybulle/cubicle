@@ -1,0 +1,97 @@
+type req = Empty | Reqs | Reqe | Inv | Invack
+type cstate = Invalid | Shared | Exclusive
+
+var Exgntd : bool
+var Curcmd : req
+var Curptr : proc
+var Writer : proc
+
+array Cache[proc] : cstate
+array Shrset[proc] : bool
+array Chan[proc] : req
+
+init (z) { Cache[z] = Invalid && Shrset[z] = False &&
+           Exgntd = False && Curcmd = Empty && Chan[z]=Empty }
+
+(*
+invariant (z) { Cache[z] = Exclusive && Exgntd  = False }
+invariant (z) { Cache[z] = Shared && Shrset[z] = False }
+*)
+
+unsafe (z1 z2) { Cache[z1] = Exclusive && Cache[z2] = Shared }
+
+transaction send_shared (n)
+requires { Chan[n] = Empty && Cache[n] = Invalid } {
+  part chan { Chan[n] := Reqs }
+}
+
+transaction send_exclusive (n)
+requires { Chan[n] = Empty && Cache[n] <> Exclusive } {
+  part chan { Chan[n] := Reqe }
+}
+
+transaction recv_shared (n)
+requires { Curcmd = Empty && Chan[n] = Reqs } {
+  part chan { Chan[n] := Empty }
+  part ctrl {
+    Curcmd := Reqs ;
+    Curptr := n ;
+  }
+}
+    
+transaction recv_exclusive (n)
+requires { Curcmd = Empty && Chan[n] = Reqe } {
+  part chan { Chan[n] := Empty }
+  part ctrl {
+    Curcmd := Reqe ;
+    Curptr := n ;
+  }
+}
+    
+transaction sendinv_to_reader (n)
+requires { Chan[n] = Empty && Shrset[n]=True  &&  Curcmd = Reqe } {
+  part chan { Chan[n] := Inv }
+}
+
+transaction sendinv_to_writer (n)
+requires { Chan[n] = Empty && Writer = n &&
+           Curcmd = Reqs && Exgntd=True } {
+  part chan { Chan[n] := Inv }
+}
+
+transaction recv_inv(n)
+requires { Chan[n] = Inv } {
+  part chan { Chan[n] := Invack }
+  part user { Cache[n] := Invalid }
+}
+
+    
+transaction recv_invack(n)
+requires { Chan[n] = Invack && Curcmd <> Empty } {
+   part chan { Chan[n] := Empty }
+   part ctrl {
+      Exgntd := False ;
+      Shrset[n] := False ;
+   }
+}
+
+transaction gnt_shared (n)
+requires { Curptr = n && Curcmd = Reqs && Exgntd = False } {
+  part user { Cache[n] := Shared }
+  part ctrl {
+    Curcmd := Empty ;
+    Shrset[n] := True ;
+  }
+}
+
+transaction gnt_exclusive (n)
+requires { Shrset[n] = False && Curcmd = Reqe && Exgntd = False && Curptr = n &&
+	   forall_other l. Shrset[l] = False } {
+  part user { Cache[n] := Exclusive }
+  part ctrl {
+    Writer := n ;
+    Curcmd := Empty ;
+    Exgntd := True ;
+    Shrset[n] := True ;
+  }
+}

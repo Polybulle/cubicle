@@ -235,14 +235,24 @@ let add_array_to_list n l =
     in
       n :: l
 
-let cube s tr cnp acc sigma =
+let cube ?(origin : Node.t option) s tr cnp acc sigma =
   (* Format.printf "\ncube/tr = %a(%a)\ncube/sigma = %a\ncube/cnp = %a\n" *)
   (*   Hstring.print tr.tr_name Variable.print_vars tr.tr_args *)
   (*   Variable.print_subst sigma *)
   (*   Cube.print cnp; *)
   let cnp =  (Cube.subst sigma cnp) in
   let tr_args = List.map (Variable.subst sigma) tr.tr_args in
-  let lnp = Cube.elim_ite_simplify cnp in
+  (* Skip variable renaming normalization for intermediate cubes in transaction
+     paths: the toward field's glob_subst refers to the original variable names,
+     so renaming would create a mismatch. *)
+  let will_have_future = match Node.step_future s with
+    | Some _ -> true | None -> false in
+  let lnp =
+    if will_have_future then Cube.elim_ite_simplify_unnorm cnp
+    else Cube.elim_ite_simplify cnp in
+  (* Use the origin node (if provided) for postponement decisions, so that
+     intermediate nodes in transaction paths don't distort the search order. *)
+  let post_ref = match origin with Some o -> o | None -> s in
   ListLabels.fold_left lnp ~init:acc ~f:(
     fun (ls, post) cnp ->
       let np, nargs = cnp.Cube.litterals, cnp.Cube.vars in
@@ -266,11 +276,12 @@ let cube s tr cnp acc sigma =
 	          match post_strategy with
 	          | 0 -> add_list new_s ls, post
 	          | 1 ->
-		        if List.length nargs > List.length s.cube.vars then
+		        if List.length nargs > List.length post_ref.cube.vars then
 		          ls, add_list new_s post
 		        else add_list new_s ls, post
 	          | 2 ->
-		        if not (SAtom.is_empty ureq) || postpone cnp.vars s.cube.litterals np
+		        if not (SAtom.is_empty ureq) ||
+                   postpone cnp.vars post_ref.cube.litterals np
 		        then ls, add_list new_s post
 		        else add_list new_s ls, post
 	          | _ -> assert false
@@ -305,9 +316,13 @@ let pre_unsafe tr unsafe =
       (* With, for each cube, its pullback through the actions *)
       (SAtom.fold (fun a -> SAtom.add (pre_atom tr.tr_tau a)) unsafe SAtom.empty)
 
-let pre ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t) unsafe =
+let pre ?(normalize=true) ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t) unsafe =
   let pre_unsafe = pre_unsafe t unsafe in
-  let pre_u = Cube.create_normal pre_unsafe in
+  let pre_u =
+    if normalize then Cube.create_normal pre_unsafe
+    else
+      let vars = Variable.Set.elements (SAtom.variables_proc pre_unsafe) in
+      Cube.create vars pre_unsafe in
   if debug && verbose > 0 then Debug.pre tri pre_unsafe;
   reset();
   let args = pre_u.Cube.vars in
@@ -325,26 +340,42 @@ let pre ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t) unsafe =
 (*********************************************************************)
 
 
-let rec pre_image_path_to sys (ls, post) c =
+let rec pre_image_path_to ?origin sys (ls, post) c =
   TimePre.start ();
   Debug.unsafe c;
   let ls, post =
     match c.toward with
     | Some (glob_subst, (t, args)::rest) ->
-      let pre_u, info_args = pre t (Node.litterals c) in
+      let pre_u, info_args = pre ~normalize:false t (Node.litterals c) in
       (* if List.length glob_subst > List.length info_args then *)
       (*   if !size_proc = 0 then assert false else ([], []) *)
       (* else *)
       let local_subst =
         List.map2 (fun a b -> (a, Variable.subst glob_subst b)) t.tr_info.tr_args args in
       let pre_u = Cube.subst local_subst pre_u in
-      cube c t.tr_info pre_u (ls,post) (local_subst @ glob_subst)
+      let step_ls, step_post =
+        cube ?origin c t.tr_info pre_u ([],[]) (local_subst @ glob_subst) in
+      (* Process intermediate nodes (with remaining future) recursively
+         within this call, so they never enter the BWD queue without
+         fixpoint checking. Only return final nodes, preserving the
+         ls/post classification from cube's post_strategy. *)
+      let dispatch (ls, post) nodes to_post =
+        List.fold_left (fun (ls, post) n ->
+          if Node.has_future n then
+            pre_image_path_to ?origin sys (ls, post) n
+          else if to_post then
+            (ls, n :: post)
+          else
+            (n :: ls, post)
+        ) (ls, post) nodes in
+      let ls, post = dispatch (ls, post) step_ls false in
+      dispatch (ls, post) step_post true
     | Some (_,[]) | None ->  (* no future *)
       let cubes = ListLabels.concat_map sys.t_transactions ~f:(fun (globs, p) ->
           let fvs = c.cube.vars in
           let substs = Variable.permutations_missing globs fvs in
           List.map (fun sigma -> {c with toward = Some (sigma, p)}) substs) in
-      List.fold_left (pre_image_path_to sys) ([],[]) cubes in
+      List.fold_left (pre_image_path_to ~origin:c sys) ([],[]) cubes in
   TimePre.pause ();
   List.rev ls, List.rev post
 

@@ -1,0 +1,87 @@
+type req = Empty | Reqs | Reqe | Inv | Invack
+type cstate = Invalid | Shared | Exclusive
+
+var Exgntd : bool
+var Curcmd : req
+var Curptr : proc
+var Writer : proc
+
+array Cache[proc] : cstate
+array Shrset[proc] : bool
+array Chan[proc] : req
+
+init (z) { Cache[z] = Invalid && Shrset[z] = False &&
+           Exgntd = False && Curcmd = Empty && Chan[z]=Empty }
+
+(*
+invariant (z) { Cache[z] = Exclusive && Exgntd  = False }
+invariant (z) { Cache[z] = Shared && Shrset[z] = False }
+*)
+
+unsafe (z1 z2) { Cache[z1] = Exclusive && Cache[z2] = Shared }
+
+transition send_shared (n)
+requires { Chan[n] = Empty && Cache[n] = Invalid } {
+  Chan[n] := Reqs
+}
+
+transition send_exclusive (n)
+requires { Chan[n] = Empty && Cache[n] <> Exclusive } {
+  Chan[n] := Reqe
+}
+
+transition recv_shared (n)
+requires { Curcmd = Empty && Chan[n] = Reqs } {
+  Chan[n] := Empty ;
+  Curcmd := Reqs ;
+  Curptr := n ;
+}
+    
+transition recv_exclusive (n)
+requires { Curcmd = Empty && Chan[n] = Reqe } {
+  Chan[n] := Empty ;
+  Curcmd := Reqe ;
+  Curptr := n ;
+}
+    
+transition sendinv_to_reader (n)
+requires { Chan[n] = Empty && Shrset[n]=True  &&  Curcmd = Reqe } {
+  Chan[n] := Inv ;
+}
+
+transition sendinv_to_writer (n)
+requires { Chan[n] = Empty && Writer = n &&
+           Curcmd = Reqs && Exgntd=True } {
+  Chan[n] := Inv ;
+}
+
+transition recv_inv(n)
+requires { Chan[n] = Inv } {
+  Chan[n] := Invack ;
+  Cache[n] := Invalid ;
+}
+
+    
+transition recv_invack(n)
+requires { Chan[n] = Invack && Curcmd <> Empty } {
+   Chan[n] := Empty ;
+   Exgntd := False ;
+   Shrset[n] := False ;
+}
+
+transition gnt_shared (n)
+requires { Curptr = n && Curcmd = Reqs && Exgntd = False } {
+  Cache[n] := Shared ;
+  Curcmd := Empty ;
+  Shrset[n] := True ;
+}
+
+transition gnt_exclusive (n)
+requires { Shrset[n] = False && Curcmd = Reqe && Exgntd = False && Curptr = n &&
+           forall_other l. Shrset[l] = False } {
+  Cache[n] := Exclusive ;
+  Writer := n ;
+  Curcmd := Empty ;
+  Exgntd := True ;
+  Shrset[n] := True ;
+}

@@ -90,6 +90,11 @@ val elim_ite_simplify_atoms : SAtom.t -> SAtom.t list
 val elim_ite_simplify : t -> t list
 (** lifts [if-then-else] constructs and simplify a cube *)
 
+val elim_ite_simplify_unnorm : t -> t list
+(** Same as [elim_ite_simplify] but without variable renaming normalization.
+    Used for intermediate cubes in transaction paths whose [toward] field
+    refers to the original variable names. *)
+
 
 (** {2 Misc } *)
 
