@@ -325,25 +325,23 @@ let transition_from_part tract part =
    tr_nexts = []}
 
 let transitions_of_transaction tract =
-  let check =
-    { tr_name = tract.tract_name;
+  let with_check tr =
+    { tr with tr_name = tract.tract_name;
       tr_args = tract.tract_args;
       tr_reqs = tract.tract_reqs;
       tr_ureq = tract.tract_ureq;
-      tr_lets = [];
-      tr_assigns = [];
-      tr_upds = [];
-      tr_nondets = [];
-      tr_loc = tract.tract_loc;
-      tr_is_triggered = true;
-      tr_may_yield = false;
-      tr_nexts = [];} in
+      tr_is_triggered = false } in
   let trs = List.map (transition_from_part tract) tract.tract_parts in
+  let trs' = ref trs in
+  let[@warning "-8"] add_head ((tr,args)::rest) =
+    let tr' = with_check tr in
+    trs' := tr' :: !trs';
+    (tr',args)::rest in
   let paths =
     let calls = List.map (fun t -> (t, t.tr_args)) trs in
     let paths = all_permutations calls in
-    List.map (fun p -> (tract.tract_args, (check, tract.tract_args) :: p)) paths in
-  (check :: trs, paths)
+    List.map (fun p -> (tract.tract_args, add_head p)) paths in
+  (!trs', paths)
 
 let transaction_paths s =
   let (s,ps) = ListLabels.fold_left s.tracts ~init:(s,[]) ~f:(fun (s,ps) tract ->
