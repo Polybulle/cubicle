@@ -8,17 +8,13 @@ type edge = transition_call
 
 (** Type of paths through triggered transitions. *)
 (**  Parameter [tr] is the transition info type *)
-type 'tr path =
-  | Tcp_one of 'tr
-  | Tcp_step of 'tr * Ast.transition_call * ('tr path)
+type path = node * ( (node * edge * node) list )
 
-val print_path : ('t -> transition_info) -> Format.formatter -> 't path -> unit
+val print_path : Format.formatter -> path -> unit
 
-val debug_paths : node path list -> unit
+val debug_paths : path list -> unit
 
-val path_map : ('a -> 'b) -> 'a path -> 'b path
-
-val path_rev : 'a path -> 'a path
+val path_rev : path -> path
 
 module type DAG = sig
   val nodes : node array
@@ -30,7 +26,7 @@ end
 
 module type Algos = sig
   val is_acyclic : bool
-  val paths : node path list
+  val paths : path list
 end
 
 (* Raises [Cycle] if [G] contains a cycle. *)

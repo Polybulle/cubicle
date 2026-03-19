@@ -387,17 +387,16 @@ let next trs tr ({tc_name; tc_args; tc_loc}) =
 
 let nexts trs ({tr_nexts} as t) = List.iter (next trs t) tr_nexts
 
-let path_to_future p =
+let path_to_future (src,p) =
   let open Graph in
-  let rec aux args = function
-    | Tcp_one t -> [(t, args)]
-    | Tcp_step (t,e,p) ->
-      let s = Variable.build_subst t.tr_args args in
+  let rec aux s = function
+    | [] -> []
+    | (_,e,t)::p' ->
       let args = List.map (Variable.subst s) e.tc_args in
-      (t, args) :: aux args p in
-  match p with
-  | Tcp_one t -> t.tr_args, [(t,t.tr_args)]
-  | Tcp_step (t,e,p) -> t.tr_args, (t,t.tr_args) :: aux e.tc_args p
+      let s' = Variable.build_subst e.tc_args args in
+      (t, args) :: aux s' p' in
+  let s = [] in
+  src.tr_args, (src,src.tr_args) :: aux s p
 
 let finalize_future trs
   (globs, calls :  Variable.t list * (transition_info * Hstring.t list) list) =
