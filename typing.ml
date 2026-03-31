@@ -307,12 +307,12 @@ let rec all_permutations = function
     in
     pick_one [] lst
 
-let transition_from_part tract part =
+let transition_from_part tr part =
   let name =
     let open Hstring in
-    make @@ (view tract.tract_name) ^ "." ^ (view part.tract_part_name) in
+    make @@ (view tr.tr_name) ^ "." ^ (view part.tract_part_name) in
   {tr_name = name;
-   tr_args = tract.tract_args;
+   tr_args = tr.tr_args;
    tr_reqs = SAtom.empty;
    tr_ureq = [];
    tr_lets = part.tract_lets;
@@ -322,30 +322,33 @@ let transition_from_part tract part =
    tr_loc = part.tract_part_loc;
    tr_is_triggered = true;
    tr_may_yield = false;
-   tr_nexts = []}
+   tr_nexts = [];
+   tr_parts = []}
 
-let transitions_of_transaction tract =
-  let with_check tr =
-    { tr with tr_name = tract.tract_name;
-      tr_args = tract.tract_args;
-      tr_reqs = tract.tract_reqs;
-      tr_ureq = tract.tract_ureq;
+let transitions_of_transaction tr =
+  let with_check t =
+    { t with tr_name = tr.tr_name;
+      tr_args = tr.tr_args;
+      tr_reqs = tr.tr_reqs;
+      tr_ureq = tr.tr_ureq;
       tr_is_triggered = false } in
-  let trs = List.map (transition_from_part tract) tract.tract_parts in
+  let trs = List.map (transition_from_part tr) tr.tr_parts in
   let trs' = ref trs in
-  let[@warning "-8"] add_head ((tr,args)::rest) =
-    let tr' = with_check tr in
-    trs' := tr' :: !trs';
-    (tr',args)::rest in
+  let[@warning "-8"] add_head ((t,args)::rest) =
+    let t' = with_check t in
+    trs' := t' :: !trs';
+    (t',args)::rest in
   let paths =
     let calls = List.map (fun t -> (t, t.tr_args)) trs in
     let paths = all_permutations calls in
-    List.map (fun p -> (tract.tract_args, add_head p)) paths in
+    List.map (fun p -> (tr.tr_args, add_head p)) paths in
   (!trs', paths)
 
 let transaction_paths s =
-  let (s,ps) = ListLabels.fold_left s.tracts ~init:(s,[]) ~f:(fun (s,ps) tract ->
-      let trs, ps' = transitions_of_transaction tract in
+  let tracts = List.filter (fun tr -> tr.tr_parts <> []) s.trans in
+  let base = {s with trans = List.filter (fun tr -> tr.tr_parts = []) s.trans} in
+  let (s,ps) = ListLabels.fold_left tracts ~init:(base,[]) ~f:(fun (s,ps) tr ->
+      let trs, ps' = transitions_of_transaction tr in
       {s with trans = trs @ s.trans}, ps @ ps') in
   if Options.verbose > 0 then begin
     let open Format in
@@ -434,37 +437,27 @@ let triggers s =
 (* Check that system doesn't use transaction features. *)
 let no_transactions s =
   ListLabels.iter s.trans ~f:(fun t ->
-      if not t.tr_may_yield || t.tr_is_triggered || t.tr_nexts <> [] then
-        error (HasTracts t.tr_name) t.tr_loc);
-  match s.tracts with
-  | t::_ -> error (HasTracts t.tract_name) t.tract_loc
-  | [] -> ()
+      if not t.tr_may_yield || t.tr_is_triggered || t.tr_nexts <> [] || t.tr_parts <> [] then
+        error (HasTracts t.tr_name) t.tr_loc)
 
-let transactions tracts =
-  List.iter (fun ({tract_loc = loc; tract_args = args; _} as tract) ->
-      unique (fun x-> error (DuplicateName x) loc) args; 
-      atoms loc args tract.tract_reqs;
-      List.iter (fun (x, cnf) ->  List.iter (atoms loc (x::args)) cnf) tract.tract_ureq;
-      List.iter (fun ({tract_part_loc=loc; _} as part) ->
-          check_lets loc args part.tract_lets;
-          assigns loc args part.tract_assigns;
-          updates args part.tract_upds;
-          nondets loc part.tract_nondets
-      ) tract.tract_parts
-    ) tracts 
-
-let transitions = 
-  List.iter 
-    (fun ({tr_args = args; tr_loc = loc} as t) -> 
-       unique (fun x-> error (DuplicateName x) loc) args; 
+let transitions =
+  List.iter
+    (fun ({tr_args = args; tr_loc = loc} as t) ->
+       unique (fun x-> error (DuplicateName x) loc) args;
        atoms loc args t.tr_reqs;
-       List.iter 
-	 (fun (x, cnf) -> 
+       List.iter
+	 (fun (x, cnf) ->
 	  List.iter (atoms loc (x::args)) cnf)  t.tr_ureq;
        check_lets loc args t.tr_lets;
        updates args t.tr_upds;
        assigns loc args t.tr_assigns;
-       nondets loc t.tr_nondets)
+       nondets loc t.tr_nondets;
+       List.iter (fun ({tract_part_loc=loc; _} as part) ->
+           check_lets loc args part.tract_lets;
+           assigns loc args part.tract_assigns;
+           updates args part.tract_upds;
+           nondets loc part.tract_nondets
+       ) t.tr_parts)
 
 let declare_type (loc, (x, y)) =
   try Smt.Type.declare x y
@@ -700,7 +693,6 @@ let system s =
   if not Options.notyping then List.iter unsafe s.unsafe;
   if not Options.notyping then List.iter unsafe (List.rev s.invs);
   if not Options.notyping then transitions s.trans;
-  if not Options.notyping then transactions s.tracts;
   if Options.(subtyping && not murphi) then begin
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();

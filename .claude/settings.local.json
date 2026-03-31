@@ -9,5 +9,6 @@
       "Bash(git log:*)",
       "Bash(make:*)"
     ]
-  }
+  },
+  "outputStyle": "default"
 }

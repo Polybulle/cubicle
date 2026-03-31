@@ -147,7 +147,6 @@ decl :
   | invariant { PInv $1 }
   | unsafe { PUnsafe $1 }
   | transition { PTrans $1 }
-  | transaction { PTract $1 }
   | function_decl { PFun  }
 
 symbold_decls :
@@ -253,28 +252,6 @@ next_clause:
   | {(true, [])}
   | TRIGGERS tcalls {$2}
 
-transition:
-  | triggered_annot TRANSITION transition_name LEFTPAR lidents RIGHTPAR
-      require
-      LEFTBR let_assigns_nondets_updates RIGHTBR
-      next_clause
-      { let lets, (assigns, nondets, upds) = $9 in
-        let ptr_may_yield, ptr_nexts = $11 in
-	{   ptr_lets = lets;
-	    ptr_name = $3;
-            ptr_args = $5;
-	    ptr_reqs = $7;
-	    ptr_assigns = assigns; 
-	    ptr_nondets = nondets; 
-	    ptr_upds = upds;
-            ptr_is_triggered = $1;
-            ptr_may_yield;
-            ptr_nexts;
-            ptr_loc = loc ();
-          }
-      }
-;
-
 transaction_part:
   | PART transition_name LEFTBR let_assigns_nondets_updates RIGHTBR
     { let  lets, (assigns, nondets, upds) = $4 in
@@ -292,18 +269,29 @@ transaction_parts:
   | { [] }
   | transaction_part transaction_parts { $1 :: $2 }
 
-transaction:
-  |  TRANSACTION transition_name LEFTPAR lidents RIGHTPAR
-     require
-     LEFTBR transaction_parts RIGHTBR
-    {
-      { ptract_name = $2;
-        ptract_args = $4;
-        ptract_reqs = $6;
-        ptract_parts = $8;
-        ptract_loc = loc ()
+transition:
+  | triggered_annot TRANSITION transition_name LEFTPAR lidents RIGHTPAR
+      require
+      LEFTBR let_assigns_nondets_updates RIGHTBR
+      next_clause
+      transaction_parts
+      { let lets, (assigns, nondets, upds) = $9 in
+        let ptr_may_yield, ptr_nexts = $11 in
+	{   ptr_lets = lets;
+	    ptr_name = $3;
+            ptr_args = $5;
+	    ptr_reqs = $7;
+	    ptr_assigns = assigns;
+	    ptr_nondets = nondets;
+	    ptr_upds = upds;
+            ptr_is_triggered = $1;
+            ptr_may_yield;
+            ptr_nexts;
+            ptr_loc = loc ();
+            ptr_parts = $12;
+          }
       }
-    }
+;
 
 let_assigns_nondets_updates:
   | assigns_nondets_updates { [], $1 }

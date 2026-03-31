@@ -104,8 +104,6 @@ type state_transistion = {
 }
 
 
-type state_transaction = state_transistion list
-
 (** Environment for enumerative exploration.
     This record contains all the mappings and state needed to execute
     transitions on concrete states. Symbolic terms
@@ -126,7 +124,6 @@ type env = {
   id_true : int;            (** Encoded ID for True constant *)
   id_false : int;           (** Encoded ID for False constant *)
   st_trs : state_transistion list;  (** Compiled transitions *)
-  st_tracts : state_transaction list;
   low_int_abstr : int;      (** Lower bound of abstracted int range *)
   up_int_abstr : int;       (** Upper bound of abstracted int range *)
   pinf_int_abstr : int;     (** Encoding for +infinity *)
@@ -150,7 +147,6 @@ let empty_env = {
   id_true = 0;
   id_false = 0;
   st_trs = [];
-  st_tracts = [];
   low_int_abstr = 0;
   up_int_abstr = 0;
   pinf_int_abstr = 0;
@@ -399,8 +395,6 @@ let init_tables ?(alloc=true) procs s =
     id_true = id_true;
     id_false = id_false;
     st_trs = [];
-    st_tracts = [];
-
     low_int_abstr = a_low;
     up_int_abstr = a_up;
     pinf_int_abstr = a_up + 1;
