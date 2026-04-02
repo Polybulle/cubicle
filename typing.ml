@@ -404,7 +404,7 @@ let finalize_future trs
   match calls with
   | [] -> failwith "Invariant break: empty path"
   | (args,_)::_ ->
-    let find tri = List.find (fun t -> t.tr_info.tr_name = tri.tr_name) trs in
+    let find tri = List.find (fun t -> t.tr_info == tri) trs in
     (globs, List.rev_map (fun (tri, args) -> (find tri, args)) calls)
 
 (* Validates the triggers if transactions are enabled. Return the paths through
@@ -417,8 +417,8 @@ let triggers s =
     type node = transition_info
     type edge = transition_call
     let nodes = nodes
-    let is_input tr = not tr.tr_is_triggered
-    let is_output tr = tr.tr_may_yield
+    let is_input tr = not tr.tr_is_triggered && tr.tr_parts = []
+    let is_output tr = tr.tr_may_yield && tr.tr_parts = []
     let edges_from tr = tr.tr_nexts
     let dest_node tc = List.find (fun t -> t.tr_name = tc.tc_name) s.trans
   end in
@@ -439,6 +439,34 @@ let no_transactions s =
   ListLabels.iter s.trans ~f:(fun t ->
       if not t.tr_may_yield || t.tr_is_triggered || t.tr_nexts <> [] || t.tr_parts <> [] then
         error (HasTracts t.tr_name) t.tr_loc)
+
+(* Expand a trigger path by substituting each transaction node with its permutation
+   sub-paths from ps'. Each transaction in the path multiplies the result by the
+   number of permutations for that transaction. *)
+let expand_trigger_path ps' (globs, calls) =
+  let perms_for tri =
+    List.filter (fun (_, perm_calls) ->
+      match perm_calls with
+      | [] -> false
+      | (head, _) :: _ -> head.tr_name = tri.tr_name
+    ) ps'
+  in
+  let rec aux = function
+    | [] -> [[]]
+    | (tri, args) :: rest ->
+      let rest_exps = aux rest in
+      if tri.tr_parts = [] then
+        List.map (fun r -> (tri, args) :: r) rest_exps
+      else
+        let subst = Variable.build_subst tri.tr_args args in
+        List.concat_map (fun (_, perm_calls) ->
+          let substituted = List.map
+            (fun (t, pargs) -> (t, List.map (Variable.subst subst) pargs))
+            perm_calls in
+          List.map (fun r -> substituted @ r) rest_exps
+        ) (perms_for tri)
+  in
+  List.map (fun expanded -> (globs, expanded)) (aux calls)
 
 let transitions =
   List.iter
@@ -701,7 +729,8 @@ let system s =
       let ps = triggers s in
       let s, ps' = transaction_paths s in
       let t_trans = List.map add_tau s.trans in
-      let t_transactions = List.map (finalize_future t_trans) (ps@ps') in
+      let expanded_ps = List.concat_map (expand_trigger_path ps') ps in
+      let t_transactions = List.map (finalize_future t_trans) (expanded_ps @ ps') in
       s, t_trans, t_transactions
     else begin
       no_transactions s;

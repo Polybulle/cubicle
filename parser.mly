@@ -85,7 +85,7 @@
 
 %token VAR ARRAY CONST TYPE INIT TRANSITION INVARIANT CASE
 %token TRIGGERED TRIGGERS OORR YIELDS
-%token TRANSACTION PART
+%token PART
 %token FORALL EXISTS FORALL_OTHER EXISTS_OTHER
 %token SIZEPROC
 %token REQUIRE UNSAFE PREDICATE
@@ -266,17 +266,21 @@ transaction_part:
 ;
 
 transaction_parts:
-  | { [] }
+  | transaction_part { [$1] }
   | transaction_part transaction_parts { $1 :: $2 }
+
+transition_body:
+  | LEFTBR let_assigns_nondets_updates RIGHTBR
+    { let lets, (assigns, nondets, upds) = $2 in lets, assigns, nondets, upds, [] }
+  | LEFTBR transaction_parts RIGHTBR
+    { [], [], [], [], $2 }
+;
 
 transition:
   | triggered_annot TRANSITION transition_name LEFTPAR lidents RIGHTPAR
-      require
-      LEFTBR let_assigns_nondets_updates RIGHTBR
-      next_clause
-      transaction_parts
-      { let lets, (assigns, nondets, upds) = $9 in
-        let ptr_may_yield, ptr_nexts = $11 in
+      require transition_body next_clause
+      { let lets, assigns, nondets, upds, parts = $8 in
+        let ptr_may_yield, ptr_nexts = $9 in
 	{   ptr_lets = lets;
 	    ptr_name = $3;
             ptr_args = $5;
@@ -288,7 +292,7 @@ transition:
             ptr_may_yield;
             ptr_nexts;
             ptr_loc = loc ();
-            ptr_parts = $12;
+            ptr_parts = parts;
           }
       }
 ;

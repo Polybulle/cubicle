@@ -4,7 +4,7 @@ init () {X = True}
 
 unsafe () {X = False}
 
-transaction t () {
+transition t () {
 
   part foo {
     X := True ;
