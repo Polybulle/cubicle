@@ -45,6 +45,9 @@ val mu_cmd : string
 val mu_opts : string
 val cpp_cmd : string
 
+val tract_fwd : bool
+val tract_bwd : bool
+val tract_ignore : bool
 val tract : bool
 
 val limit_forward_depth : bool

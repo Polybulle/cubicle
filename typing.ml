@@ -33,6 +33,7 @@ type error =
   | DuplicateInit of Hstring.t
   | NoMoreThanOneArray
   | HasTracts of Hstring.t
+  | HasPartsNeedAll of Hstring.t
   | CycleInTriggers of Hstring.t list
   | ClashParam of Hstring.t
   | MustBeAnArray of Hstring.t
@@ -80,6 +81,9 @@ let report fmt = function
       fprintf fmt "sorry, no more than one array"
   | HasTracts t ->
       fprintf fmt "transition %a requires the -tract option"
+      Hstring.print t
+  | HasPartsNeedAll t ->
+      fprintf fmt "transition %a has sequential parts and requires -tract all"
       Hstring.print t
   | CycleInTriggers names ->
     fprintf fmt "Found a cycle of triggers within transitions (forbidden). Cycle \
@@ -725,15 +729,24 @@ let system s =
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();
   end;
-  let s,t_trans,t_transactions = if Options.tract then
+  let s,t_trans,t_transactions = if Options.tract_fwd || Options.tract_bwd then begin
+      (* When only one direction uses transactions, tr_parts require both *)
+      if not (Options.tract_fwd && Options.tract_bwd) then
+        (match List.find_opt (fun tr -> tr.tr_parts <> []) s.trans with
+         | Some tr -> error (HasPartsNeedAll tr.tr_name) tr.tr_loc
+         | None -> ());
       let ps = triggers s in
       let s, ps' = transaction_paths s in
       let t_trans = List.map add_tau s.trans in
       let expanded_ps = List.concat_map (expand_trigger_path ps') ps in
       let t_transactions = List.map (finalize_future t_trans) (expanded_ps @ ps') in
       s, t_trans, t_transactions
-    else begin
-      no_transactions s;
+    end else begin
+      (* Trigger annotations are accepted but ignored.
+         tr_parts always require -tract all (both directions). *)
+      (match List.find_opt (fun tr -> tr.tr_parts <> []) s.trans with
+       | Some tr -> error (HasPartsNeedAll tr.tr_name) tr.tr_loc
+       | None -> ());
       let t_trans = List.map add_tau s.trans in
       s, t_trans, []
     end in
