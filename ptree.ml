@@ -157,7 +157,7 @@ type pupdate = {
 type ptcall = {
     ptc_loc : loc;
     ptc_name : Hstring.t;
-    ptc_args : Variable.t list;
+    ptc_args : (Variable.t option) list;
 }
 
 type ptransition = {
@@ -861,7 +861,9 @@ let print_triggered_annot fmt is_triggered =
   if is_triggered then fprintf fmt "triggered "
 
 let print_tcall fmt {tc_name; tc_args} =
-  fprintf fmt "%a(%a)" Hstring.print tc_name Variable.print_vars tc_args
+  let print_arg fmt = function None -> fprintf fmt "_" | Some v -> Variable.print fmt v in
+  let print_args = pp_print_list ~pp_sep:pp_print_space print_arg in 
+  fprintf fmt "%a(%a)" Hstring.print tc_name print_args tc_args
 
 let print_tcalls =
   let pp_or fmt () = fprintf fmt " or " in

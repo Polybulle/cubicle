@@ -10,6 +10,10 @@ type 'tr path =
   | Tcp_one of 'tr
   | Tcp_step of 'tr * Ast.transition_call * ('tr path)
 
+let print_arg fmt = function
+  | None -> Format.pp_print_string fmt "_"
+  | Some v -> Variable.print fmt v
+
 let print_path tr_info fmt p =
   let open Format in
   let go_one n =
@@ -20,7 +24,7 @@ let print_path tr_info fmt p =
   let rec go_tail e p =
     fprintf fmt " -> %a(%a)"
         Hstring.print e.Ast.tc_name
-        Variable.print_vars e.Ast.tc_args;
+        (pp_print_list ~pp_sep:pp_print_space print_arg) e.Ast.tc_args;
     match p with
     | Tcp_one n -> ()
     | Tcp_step (t,e',p') ->

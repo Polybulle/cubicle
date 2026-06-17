@@ -370,12 +370,14 @@ let transaction_paths s =
 
 let next trs tr ({tc_name; tc_args; tc_loc}) =
   (* are proc arguments in scope ? *)
-  List.iter (fun p ->
-      if not (List.mem p tr.tr_args)
-      then error (UnknownName p) tc_loc)
+  List.iter (function
+      | None -> ()
+      | Some p when List.mem p tr.tr_args -> ()
+      | Some p -> error (UnknownName p) tc_loc)
     tc_args;
   (* are proc arguments a cube ? *)
-  unique (fun p -> error (DuplicateName p) tc_loc) tc_args;
+  unique (fun p -> error (DuplicateName p) tc_loc)
+    (List.filter_map (fun x -> x) tc_args);
   (* does called transition exists ? *)
   match List.find_opt (fun t -> t.tr_name = tc_name) trs with
   | None ->  error (UnknownName tc_name) tc_loc
@@ -388,16 +390,34 @@ let next trs tr ({tc_name; tc_args; tc_loc}) =
 let nexts trs ({tr_nexts} as t) = List.iter (next trs t) tr_nexts
 
 let path_to_future p =
+  let scope = ref [] in 
+  let subst = ref [] in 
   let open Graph in
-  let rec aux args = function
-    | Tcp_one t -> [(t, args)]
+  let normalize = function
+    | None ->
+      let v = Variable.gen_var () in
+      Smt.Symbol.declare v [] Smt.Type.type_proc;
+      v
+    | Some v -> Variable.subst !subst v in 
+  let rec arg_subst actuals formals = match (actuals, formals) with
+    | [], [] -> ()
+    | actual::rest_a, formal::rest_f ->
+      subst := (formal, Variable.subst !subst actual) :: !subst;
+      arg_subst rest_a rest_f
+    | [],_::_ | _::_,[] -> failwith "invariant break: path_to_future" in
+  let rec path (actuals:Hstring.t list) = function
+    | Tcp_one t -> [(t, actuals)]
     | Tcp_step (t,e,p) ->
-      let s = Variable.build_subst t.tr_args args in
-      let args = List.map (Variable.subst s) e.tc_args in
-      (t, args) :: aux args p in
+      arg_subst actuals t.tr_args;
+      let next_acts = List.map normalize e.tc_args in
+      (t, actuals) :: path next_acts p in
   match p with
   | Tcp_one t -> t.tr_args, [(t,t.tr_args)]
-  | Tcp_step (t,e,p) -> t.tr_args, (t,t.tr_args) :: aux e.tc_args p
+  | Tcp_step (t,e,p) ->
+    scope := t.tr_args;
+    let next_acts = List.map normalize e.tc_args in 
+    let path = (t,t.tr_args) :: path next_acts p in
+    (!scope, path)
 
 let finalize_future trs
   (globs, calls :  Variable.t list * (transition_info * Hstring.t list) list) =

@@ -81,7 +81,7 @@ type pupdate = {
 type ptcall = {
     ptc_loc : loc;
     ptc_name : Hstring.t;
-    ptc_args : Variable.t list;
+    ptc_args : (Variable.t option) list;
 }
 
 type ptransition = {

@@ -24,11 +24,13 @@ transition send_shared (n)
 requires { Chan[n] = Empty && Cache[n] = Invalid } {
   Chan[n] := Reqs
 }
+triggers recv_shared (n) or yields
 
 transition send_exclusive (n)
 requires { Chan[n] = Empty && Cache[n] <> Exclusive } {
   Chan[n] := Reqe
 }
+triggers recv_exclusive (n) or yields
 
 transition recv_shared (n)
 requires { Curcmd = Empty && Chan[n] = Reqs } {
@@ -36,6 +38,7 @@ requires { Curcmd = Empty && Chan[n] = Reqs } {
   Curcmd := Reqs ;
   Curptr := n ;
 }
+(* triggers sendinv_to_reader (m) or sendinv_to_writer (m) or yields *)
     
 transition recv_exclusive (n)
 requires { Curcmd = Empty && Chan[n] = Reqe } {
@@ -48,18 +51,21 @@ transition sendinv_to_reader (n)
 requires { Chan[n] = Empty && Shrset[n]=True  &&  Curcmd = Reqe } {
   Chan[n] := Inv ;
 }
+triggers recv_inv (n) or yields
 
 transition sendinv_to_writer (n)
 requires { Chan[n] = Empty && Writer = n &&
            Curcmd = Reqs && Exgntd=True } {
   Chan[n] := Inv ;
 }
+triggers recv_inv (n) or yields
 
 transition recv_inv(n)
 requires { Chan[n] = Inv } {
   Chan[n] := Invack ;
   Cache[n] := Invalid ;
 }
+triggers recv_invack (n) or yields
 
     
 transition recv_invack(n)
@@ -68,6 +74,7 @@ requires { Chan[n] = Invack && Curcmd <> Empty } {
    Exgntd := False ;
    Shrset[n] := False ;
 }
+triggers gnt_shared (_) or gnt_exclusive (_) or yields
 
 transition gnt_shared (n)
 requires { Curptr = n && Curcmd = Reqs && Exgntd = False } {

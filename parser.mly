@@ -240,8 +240,13 @@ triggered_annot:
   | TRIGGERED {true}
   | {false}
 
+targs:
+  | UNDERSCORE targs { None :: $2 }
+  | lident targs { (Some $1) :: $2 }
+  | { [] }
+
 tcall:
-  | transition_name LEFTPAR lidents RIGHTPAR
+  | transition_name LEFTPAR targs RIGHTPAR
     { {ptc_name = $1; ptc_args = $3; ptc_loc = loc ()} }
 
 tcalls:

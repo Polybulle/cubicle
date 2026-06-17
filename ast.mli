@@ -48,7 +48,7 @@ type update = {
 
 type transition_call = {
   tc_name : Hstring.t; (** name of called transition *)
-  tc_args : Variable.t list; (** parameters of the call *)
+  tc_args : (Variable.t option) list; (** parameters of the call *)
   tc_loc : loc; (** position information *)
 }
 (** Call to a transition *)

@@ -20,6 +20,7 @@ requires { Curcmd = Empty && Cache[n] = Invalid }
   Curcmd := Reqs; 
   Curptr := n ;
 }
+triggers gnt_shared (n) or inv_2 (_) 
     
 transition req_exclusive (n)
 requires { Curcmd = Empty && Cache[n] <> Exclusive }
@@ -27,24 +28,27 @@ requires { Curcmd = Empty && Cache[n] <> Exclusive }
   Curcmd := Reqe; 
   Curptr := n;
 }
+triggers inv_1 (_) or gnt_exclusive (n) 
     
 transition inv_1 (n)
 requires { Shrset[n]=True  &&  Curcmd = Reqe }
 { 
   Exgntd := False;
-  Cache[n] := Invalid;
+  Cache[n] := Invalid; 
   Shrset[n] :=False;
 }
+triggers gnt_exclusive (_) or yields 
 
-transition inv_2 (n)
+triggered transition inv_2 (n)
 requires { Shrset[n]=True  && Curcmd = Reqs && Exgntd=True }
 { 
   Exgntd := False;
   Cache[n] := Invalid;
   Shrset[n] := False;
 }
+triggers gnt_shared (_)
     
-transition gnt_shared (n)
+triggered transition gnt_shared (n)
 requires { Curptr = n && Curcmd = Reqs && Exgntd = False }
 { 
   Curcmd := Empty;
@@ -52,7 +56,7 @@ requires { Curptr = n && Curcmd = Reqs && Exgntd = False }
   Cache[n] := Shared;
 }
 
-transition gnt_exclusive (n)
+triggered transition gnt_exclusive (n)
 requires { Shrset[n] = False && Curcmd = Reqe &&
            Exgntd = False && Curptr = n &&
 	   forall_other l. Shrset[l] = False }
