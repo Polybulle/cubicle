@@ -4,20 +4,15 @@ type node = Ast.transition_info
 
 type edge = Ast.transition_call
 
-(** Type of paths through triggered transitions. *)
-(**  Parameter [tr] is the transition info type *)
-type 'tr path =
-  | Tcp_one of 'tr
-  | Tcp_step of 'tr * Ast.transition_call * ('tr path)
+type path = node * ((node * edge * node) list)
 
 let print_arg fmt = function
   | None -> Format.pp_print_string fmt "_"
   | Some v -> Variable.print fmt v
 
-let print_path tr_info fmt p =
+let print_path fmt (src, p) =
   let open Format in
   let go_one n =
-    let n = tr_info n in
     fprintf fmt "%a(%a)"
       Hstring.print n.Ast.tr_name
       Variable.print_vars n.Ast.tr_args in
@@ -26,12 +21,12 @@ let print_path tr_info fmt p =
         Hstring.print e.Ast.tc_name
         (pp_print_list ~pp_sep:pp_print_space print_arg) e.Ast.tc_args;
     match p with
-    | Tcp_one n -> ()
-    | Tcp_step (t,e',p') ->
+    | [] -> ()
+    | (t,e',_)::p' ->
       go_tail e' p' in
   match p with
-  | Tcp_one t -> go_one t
-  | Tcp_step (n,e,p) ->
+  | [] -> go_one src
+  |  (n,e,_)::p ->
     pp_open_hbox fmt ();
     go_one n;
     go_tail e p;
@@ -44,20 +39,12 @@ let debug_paths ps =  if Options.debug || Options.verbose > 0 then begin
       else
         printf "@[<v 2>Found the following %n trigger path(s):@;%a@]@."
           (List.length ps)
-          (pp_print_list ~pp_sep:pp_print_cut (print_path (fun n->n))) ps
+          (pp_print_list ~pp_sep:pp_print_cut print_path) ps
     end
 
-let rec path_map f = function
-  | Tcp_one t -> Tcp_one (f t)
-  | Tcp_step (t,e,p) -> Tcp_step (f t, e, path_map f p)
+let rec path_map f = List.map (fun (n,e,n') -> (f n, e, f n'))
 
-let path_rev p =
-  let rec aux acc e = function
-    | Tcp_one t -> Tcp_step (t,e,acc)
-    | Tcp_step (t',e,p) -> aux (Tcp_step (t',e,acc)) e p in
-  match p with
-  | Tcp_one _ -> p
-  | Tcp_step (t,e,p) -> aux (Tcp_one t) e p
+let path_rev ((src,p):path) = (src, List.rev_map (fun (n,e,n') -> (n',e,n)) p)
 
 module type DAG = sig
   val nodes : node array
@@ -77,7 +64,7 @@ let array_findi a x =
 
 module type Algos = sig
   val is_acyclic : bool
-  val paths : node path list
+  val paths : path list
 end
 
 
@@ -122,47 +109,27 @@ module Make (G : DAG) = struct
 
     true
 
-
-  (* compute all paths *)
-
-  module M = Map.Make (struct
-      type t = int
-      let compare = compare
-    end)
-
-  let paths =
-
-    let paths : node path list M.t ref = ref M.empty in
-
-    let rec visit i =
-      if M.mem i !paths then
-        ()
-      else
-        let n = G.nodes.(i) in
-        List.iter visit (neighboors i);
-        let ps = List.concat_map
-            (fun e ->
-               let j = idx_of_node (G.dest_node e) in
-               let ps = Option.value (M.find_opt j !paths) ~default:[] in
-               List.map (fun p -> Tcp_step (n,e,p)) ps)
-            (G.edges_from n) in
-        let ps = if G.is_output n then (Tcp_one n)::ps else ps in
-        let ps = try ps @ M.find i !paths with Not_found -> ps in
-        paths := M.add i ps !paths
+  let paths : path list =
+    let rec explore src v rev_edges acc =
+      G.edges_from v |> List.fold_left (fun acc e ->
+          let w = G.dest_node e in
+          let rev_edges' = (v, e, w) :: rev_edges in
+          let acc = if G.is_output w
+            then (src, List.rev rev_edges') :: acc
+            else acc in
+          if G.is_input w && G.is_output w
+          then acc
+          else explore src w rev_edges' acc
+        ) acc
     in
-
-    for i = 0 to Array.length G.nodes -1 do
-      if G.is_input G.nodes.(i) then visit i
-    done;
-
-   M.fold
-       (fun i ps acc ->
-         if G.is_input G.nodes.(i) then
-           List.append ps acc
-         else
-           acc)
-       !paths
-       []
+    G.nodes
+    |> Array.fold_left (fun acc s ->
+        if G.is_input s then
+          let acc = if G.is_output s then (s, []) :: acc else acc in
+          explore s s [] acc
+        else
+          acc
+      ) []
 
 
 end

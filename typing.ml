@@ -33,6 +33,7 @@ type error =
   | DuplicateInit of Hstring.t
   | NoMoreThanOneArray
   | HasTracts of Hstring.t
+  | HasPartsNeedAll of Hstring.t
   | CycleInTriggers of Hstring.t list
   | ClashParam of Hstring.t
   | MustBeAnArray of Hstring.t
@@ -80,6 +81,9 @@ let report fmt = function
       fprintf fmt "sorry, no more than one array"
   | HasTracts t ->
       fprintf fmt "transition %a requires the -tract option"
+      Hstring.print t
+  | HasPartsNeedAll t ->
+      fprintf fmt "transition %a has sequential parts and requires -tract all"
       Hstring.print t
   | CycleInTriggers names ->
     fprintf fmt "Found a cycle of triggers within transitions (forbidden). Cycle \
@@ -307,12 +311,12 @@ let rec all_permutations = function
     in
     pick_one [] lst
 
-let transition_from_part tract part =
+let transition_from_part tr part =
   let name =
     let open Hstring in
-    make @@ (view tract.tract_name) ^ "." ^ (view part.tract_part_name) in
+    make @@ (view tr.tr_name) ^ "." ^ (view part.tract_part_name) in
   {tr_name = name;
-   tr_args = tract.tract_args;
+   tr_args = tr.tr_args;
    tr_reqs = SAtom.empty;
    tr_ureq = [];
    tr_lets = part.tract_lets;
@@ -322,32 +326,33 @@ let transition_from_part tract part =
    tr_loc = part.tract_part_loc;
    tr_is_triggered = true;
    tr_may_yield = false;
-   tr_nexts = []}
+   tr_nexts = [];
+   tr_parts = []}
 
-let transitions_of_transaction tract =
-  let check =
-    { tr_name = tract.tract_name;
-      tr_args = tract.tract_args;
-      tr_reqs = tract.tract_reqs;
-      tr_ureq = tract.tract_ureq;
-      tr_lets = [];
-      tr_assigns = [];
-      tr_upds = [];
-      tr_nondets = [];
-      tr_loc = tract.tract_loc;
-      tr_is_triggered = true;
-      tr_may_yield = false;
-      tr_nexts = [];} in
-  let trs = List.map (transition_from_part tract) tract.tract_parts in
+let transitions_of_transaction tr =
+  let with_check t =
+    { t with tr_name = tr.tr_name;
+      tr_args = tr.tr_args;
+      tr_reqs = tr.tr_reqs;
+      tr_ureq = tr.tr_ureq;
+      tr_is_triggered = false } in
+  let trs = List.map (transition_from_part tr) tr.tr_parts in
+  let trs' = ref trs in
+  let[@warning "-8"] add_head ((t,args)::rest) =
+    let t' = with_check t in
+    trs' := t' :: !trs';
+    (t',args)::rest in
   let paths =
     let calls = List.map (fun t -> (t, t.tr_args)) trs in
     let paths = all_permutations calls in
-    List.map (fun p -> (tract.tract_args, (check, tract.tract_args) :: p)) paths in
-  (check :: trs, paths)
+    List.map (fun p -> (tr.tr_args, add_head p)) paths in
+  (!trs', paths)
 
 let transaction_paths s =
-  let (s,ps) = ListLabels.fold_left s.tracts ~init:(s,[]) ~f:(fun (s,ps) tract ->
-      let trs, ps' = transitions_of_transaction tract in
+  let tracts = List.filter (fun tr -> tr.tr_parts <> []) s.trans in
+  let base = {s with trans = List.filter (fun tr -> tr.tr_parts = []) s.trans} in
+  let (s,ps) = ListLabels.fold_left tracts ~init:(base,[]) ~f:(fun (s,ps) tr ->
+      let trs, ps' = transitions_of_transaction tr in
       {s with trans = trs @ s.trans}, ps @ ps') in
   if Options.verbose > 0 then begin
     let open Format in
@@ -389,42 +394,29 @@ let next trs tr ({tc_name; tc_args; tc_loc}) =
 
 let nexts trs ({tr_nexts} as t) = List.iter (next trs t) tr_nexts
 
-let path_to_future p =
-  let scope = ref [] in 
-  let subst = ref [] in 
+let path_to_future (src,p) =
   let open Graph in
-  let normalize = function
+  let normalize s = function
     | None ->
       let v = Variable.gen_var () in
       Smt.Symbol.declare v [] Smt.Type.type_proc;
       v
-    | Some v -> Variable.subst !subst v in 
-  let rec arg_subst actuals formals = match (actuals, formals) with
-    | [], [] -> ()
-    | actual::rest_a, formal::rest_f ->
-      subst := (formal, Variable.subst !subst actual) :: !subst;
-      arg_subst rest_a rest_f
-    | [],_::_ | _::_,[] -> failwith "invariant break: path_to_future" in
-  let rec path (actuals:Hstring.t list) = function
-    | Tcp_one t -> [(t, actuals)]
-    | Tcp_step (t,e,p) ->
-      arg_subst actuals t.tr_args;
-      let next_acts = List.map normalize e.tc_args in
-      (t, actuals) :: path next_acts p in
-  match p with
-  | Tcp_one t -> t.tr_args, [(t,t.tr_args)]
-  | Tcp_step (t,e,p) ->
-    scope := t.tr_args;
-    let next_acts = List.map normalize e.tc_args in 
-    let path = (t,t.tr_args) :: path next_acts p in
-    (!scope, path)
+    | Some v -> Variable.subst s v in
+  let rec aux s = function
+    | [] -> []
+    | (_,e,t)::p' ->
+      let args = List.map (normalize s) e.tc_args in
+      let s' = Variable.build_subst t.tr_args args in
+      (t, args) :: aux s' p' in
+  let s = [] in
+  src.tr_args, (src,src.tr_args) :: aux s p
 
 let finalize_future trs
   (globs, calls :  Variable.t list * (transition_info * Hstring.t list) list) =
   match calls with
   | [] -> failwith "Invariant break: empty path"
   | (args,_)::_ ->
-    let find tri = List.find (fun t -> t.tr_info.tr_name = tri.tr_name) trs in
+    let find tri = List.find (fun t -> t.tr_info == tri) trs in
     (globs, List.rev_map (fun (tri, args) -> (find tri, args)) calls)
 
 (* Validates the triggers if transactions are enabled. Return the paths through
@@ -437,8 +429,8 @@ let triggers s =
     type node = transition_info
     type edge = transition_call
     let nodes = nodes
-    let is_input tr = not tr.tr_is_triggered
-    let is_output tr = tr.tr_may_yield
+    let is_input tr = not tr.tr_is_triggered && tr.tr_parts = []
+    let is_output tr = tr.tr_may_yield && tr.tr_parts = []
     let edges_from tr = tr.tr_nexts
     let dest_node tc = List.find (fun t -> t.tr_name = tc.tc_name) s.trans
   end in
@@ -457,37 +449,55 @@ let triggers s =
 (* Check that system doesn't use transaction features. *)
 let no_transactions s =
   ListLabels.iter s.trans ~f:(fun t ->
-      if not t.tr_may_yield || t.tr_is_triggered || t.tr_nexts <> [] then
-        error (HasTracts t.tr_name) t.tr_loc);
-  match s.tracts with
-  | t::_ -> error (HasTracts t.tract_name) t.tract_loc
-  | [] -> ()
+      if not t.tr_may_yield || t.tr_is_triggered || t.tr_nexts <> [] || t.tr_parts <> [] then
+        error (HasTracts t.tr_name) t.tr_loc)
 
-let transactions tracts =
-  List.iter (fun ({tract_loc = loc; tract_args = args; _} as tract) ->
-      unique (fun x-> error (DuplicateName x) loc) args; 
-      atoms loc args tract.tract_reqs;
-      List.iter (fun (x, cnf) ->  List.iter (atoms loc (x::args)) cnf) tract.tract_ureq;
-      List.iter (fun ({tract_part_loc=loc; _} as part) ->
-          check_lets loc args part.tract_lets;
-          assigns loc args part.tract_assigns;
-          updates args part.tract_upds;
-          nondets loc part.tract_nondets
-      ) tract.tract_parts
-    ) tracts 
+(* Expand a trigger path by substituting each transaction node with its permutation
+   sub-paths from ps'. Each transaction in the path multiplies the result by the
+   number of permutations for that transaction. *)
+let expand_trigger_path ps' (globs, calls) =
+  let perms_for tri =
+    List.filter (fun (_, perm_calls) ->
+      match perm_calls with
+      | [] -> false
+      | (head, _) :: _ -> head.tr_name = tri.tr_name
+    ) ps'
+  in
+  let rec aux = function
+    | [] -> [[]]
+    | (tri, args) :: rest ->
+      let rest_exps = aux rest in
+      if tri.tr_parts = [] then
+        List.map (fun r -> (tri, args) :: r) rest_exps
+      else
+        let subst = Variable.build_subst tri.tr_args args in
+        List.concat_map (fun (_, perm_calls) ->
+          let substituted = List.map
+            (fun (t, pargs) -> (t, List.map (Variable.subst subst) pargs))
+            perm_calls in
+          List.map (fun r -> substituted @ r) rest_exps
+        ) (perms_for tri)
+  in
+  List.map (fun expanded -> (globs, expanded)) (aux calls)
 
-let transitions = 
-  List.iter 
-    (fun ({tr_args = args; tr_loc = loc} as t) -> 
-       unique (fun x-> error (DuplicateName x) loc) args; 
+let transitions =
+  List.iter
+    (fun ({tr_args = args; tr_loc = loc} as t) ->
+       unique (fun x-> error (DuplicateName x) loc) args;
        atoms loc args t.tr_reqs;
-       List.iter 
-	 (fun (x, cnf) -> 
+       List.iter
+	 (fun (x, cnf) ->
 	  List.iter (atoms loc (x::args)) cnf)  t.tr_ureq;
        check_lets loc args t.tr_lets;
        updates args t.tr_upds;
        assigns loc args t.tr_assigns;
-       nondets loc t.tr_nondets)
+       nondets loc t.tr_nondets;
+       List.iter (fun ({tract_part_loc=loc; _} as part) ->
+           check_lets loc args part.tract_lets;
+           assigns loc args part.tract_assigns;
+           updates args part.tract_upds;
+           nondets loc part.tract_nondets
+       ) t.tr_parts)
 
 let declare_type (loc, (x, y)) =
   try Smt.Type.declare x y
@@ -723,19 +733,28 @@ let system s =
   if not Options.notyping then List.iter unsafe s.unsafe;
   if not Options.notyping then List.iter unsafe (List.rev s.invs);
   if not Options.notyping then transitions s.trans;
-  if not Options.notyping then transactions s.tracts;
   if Options.(subtyping && not murphi) then begin
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();
   end;
-  let s,t_trans,t_transactions = if Options.tract then
+  let s,t_trans,t_transactions = if Options.tract_fwd || Options.tract_bwd then begin
+      (* When only one direction uses transactions, tr_parts require both *)
+      if not (Options.tract_fwd && Options.tract_bwd) then
+        (match List.find_opt (fun tr -> tr.tr_parts <> []) s.trans with
+         | Some tr -> error (HasPartsNeedAll tr.tr_name) tr.tr_loc
+         | None -> ());
       let ps = triggers s in
       let s, ps' = transaction_paths s in
       let t_trans = List.map add_tau s.trans in
-      let t_transactions = List.map (finalize_future t_trans) (ps@ps') in
+      let expanded_ps = List.concat_map (expand_trigger_path ps') ps in
+      let t_transactions = List.map (finalize_future t_trans) (expanded_ps @ ps') in
       s, t_trans, t_transactions
-    else begin
-      no_transactions s;
+    end else begin
+      (* Trigger annotations are accepted but ignored.
+         tr_parts always require -tract all (both directions). *)
+      (match List.find_opt (fun tr -> tr.tr_parts <> []) s.trans with
+       | Some tr -> error (HasPartsNeedAll tr.tr_name) tr.tr_loc
+       | None -> ());
       let t_trans = List.map add_tau s.trans in
       s, t_trans, []
     end in

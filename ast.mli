@@ -69,10 +69,11 @@ type transition_info = {
   tr_is_triggered : bool; (** [triggered] mark (defaults to [false]) *)
   tr_may_yield : bool; (** [continue] mark (defaults to [true]) *)
   tr_nexts : transition_call list; (** calls to [next] transitions (defaults to [[]]) *)
+  tr_parts : transaction_part list;
 }
 (** type of parameterized transitions *)
 
-type transaction_part_body = {
+and transaction_part = {
   tract_part_name : Hstring.t;
   tract_lets : (Hstring.t * Term.t) list;
   tract_assigns : (Hstring.t * glob_update) list; (** updates of global variables *)
@@ -81,19 +82,7 @@ type transaction_part_body = {
   (** non deterministic updates (only for global variables) *)
   tract_part_loc : loc; (** location information *)
 }
-(** type of parameterized transitions *)
-
-type transaction_info = {
-  tract_name : Hstring.t; (** name of the transactions *)
-  tract_args : Variable.t list;
-  (** existentially quantified parameters of the transaction *)
-  tract_reqs : SAtom.t; (** guard *)
-  tract_ureq : (Variable.t * dnf) list;
-  (** global condition of the guard, i.e. universally quantified DNF *)
-  tract_parts : transaction_part_body list;
-  tract_loc : loc
-}
-(** type of parameterized transactions *)
+(** type of transactions parts *)
 
 
 type transition_func = Term.t -> op_comp -> Term.t -> Atom.t
@@ -115,7 +104,6 @@ type system = {
   invs : (loc * Variable.t list * SAtom.t) list;
   unsafe : (loc * Variable.t list * SAtom.t) list;  
   trans : transition_info list;
-  tracts : transaction_info list
 }
 (** type of untyped transition systems constructed by parsing *)
 

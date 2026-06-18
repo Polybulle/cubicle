@@ -20,17 +20,17 @@ invariant (z) { Cache[z] = Shared && Shrset[z] = False }
 
 unsafe (z1 z2) { Cache[z1] = Exclusive && Cache[z2] = Shared }
 
-transaction send_shared (n)
+transition send_shared (n)
 requires { Chan[n] = Empty && Cache[n] = Invalid } {
   part chan { Chan[n] := Reqs }
 }
 
-transaction send_exclusive (n)
+transition send_exclusive (n)
 requires { Chan[n] = Empty && Cache[n] <> Exclusive } {
   part chan { Chan[n] := Reqe }
 }
 
-transaction recv_shared (n)
+transition recv_shared (n)
 requires { Curcmd = Empty && Chan[n] = Reqs } {
   part chan { Chan[n] := Empty }
   part ctrl {
@@ -39,7 +39,7 @@ requires { Curcmd = Empty && Chan[n] = Reqs } {
   }
 }
     
-transaction recv_exclusive (n)
+transition recv_exclusive (n)
 requires { Curcmd = Empty && Chan[n] = Reqe } {
   part chan { Chan[n] := Empty }
   part ctrl {
@@ -48,25 +48,25 @@ requires { Curcmd = Empty && Chan[n] = Reqe } {
   }
 }
     
-transaction sendinv_to_reader (n)
+transition sendinv_to_reader (n)
 requires { Chan[n] = Empty && Shrset[n]=True  &&  Curcmd = Reqe } {
   part chan { Chan[n] := Inv }
 }
 
-transaction sendinv_to_writer (n)
+transition sendinv_to_writer (n)
 requires { Chan[n] = Empty && Writer = n &&
            Curcmd = Reqs && Exgntd=True } {
   part chan { Chan[n] := Inv }
 }
 
-transaction recv_inv(n)
+transition recv_inv(n)
 requires { Chan[n] = Inv } {
   part chan { Chan[n] := Invack }
   part user { Cache[n] := Invalid }
 }
 
     
-transaction recv_invack(n)
+transition recv_invack(n)
 requires { Chan[n] = Invack && Curcmd <> Empty } {
    part chan { Chan[n] := Empty }
    part ctrl {
@@ -75,7 +75,7 @@ requires { Chan[n] = Invack && Curcmd <> Empty } {
    }
 }
 
-transaction gnt_shared (n)
+transition gnt_shared (n)
 requires { Curptr = n && Curcmd = Reqs && Exgntd = False } {
   part user { Cache[n] := Shared }
   part ctrl {
@@ -84,7 +84,7 @@ requires { Curptr = n && Curcmd = Reqs && Exgntd = False } {
   }
 }
 
-transaction gnt_exclusive (n)
+transition gnt_exclusive (n)
 requires { Shrset[n] = False && Curcmd = Reqe && Exgntd = False && Curptr = n &&
 	   forall_other l. Shrset[l] = False } {
   part user { Cache[n] := Exclusive }

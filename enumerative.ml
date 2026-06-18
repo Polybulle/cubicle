@@ -104,8 +104,6 @@ type state_transistion = {
 }
 
 
-type state_transaction = state_transistion list
-
 (** Environment for enumerative exploration.
     This record contains all the mappings and state needed to execute
     transitions on concrete states. Symbolic terms
@@ -126,7 +124,6 @@ type env = {
   id_true : int;            (** Encoded ID for True constant *)
   id_false : int;           (** Encoded ID for False constant *)
   st_trs : state_transistion list;  (** Compiled transitions *)
-  st_tracts : state_transaction list;
   low_int_abstr : int;      (** Lower bound of abstracted int range *)
   up_int_abstr : int;       (** Upper bound of abstracted int range *)
   pinf_int_abstr : int;     (** Encoding for +infinity *)
@@ -150,7 +147,6 @@ let empty_env = {
   id_true = 0;
   id_false = 0;
   st_trs = [];
-  st_tracts = [];
   low_int_abstr = 0;
   up_int_abstr = 0;
   pinf_int_abstr = 0;
@@ -399,8 +395,6 @@ let init_tables ?(alloc=true) procs s =
     id_true = id_true;
     id_false = id_false;
     st_trs = [];
-    st_tracts = [];
-
     low_int_abstr = a_low;
     up_int_abstr = a_up;
     pinf_int_abstr = a_up + 1;
@@ -809,15 +803,22 @@ let compile_transition_instance procs env
   if debug then print_transition_fun env name sigma st_tr err_formatter;
   st_tr
 
+(* Intermediate states observed during chain execution. used by compose_st_f
+   (writer) and post_bfs (reader), without addition them to the BFS queue. *)
+let chain_intermediates : state list ref = ref []
+
 let compose_st_f trs =
   let rec aux todo acc =
     match todo with
     | [] -> acc
     | (y,[])::todo -> aux todo (y::acc)
     | (y,(f::rest))::todo ->
-      let after = try f.st_f y with Not_applicable -> [] in 
+      let after = try f.st_f y with Not_applicable -> [] in
       if after = [] then raise Not_applicable;
-      let todo = List.fold_left (fun acc z -> (z,rest)::acc) todo after in 
+      (* Record intermediate states (rest <> [] means chain not yet complete) *)
+      if rest <> [] then
+        List.iter (fun z -> chain_intermediates := z :: !chain_intermediates) after;
+      let todo = List.fold_left (fun acc z -> (z,rest)::acc) todo after in
       aux todo acc in
   fun x -> aux [(x,trs)] []
 
@@ -882,6 +883,17 @@ let post_bfs env st visited trs q cpt_q depth =
         try
           (* Execute transition: checks guards, applies actions *)
           let sts = st_tr.st_f st in
+          (* Drain chain intermediates into env.states for BRAB filtering. These
+             are NOT added to the BFS queue, but allow fast_resist_on_trace to
+             reject candidates that reference intermediate transaction states. *)
+          List.iter (fun s ->
+            if forward_sym then normalize_state env s;
+            if not (HST.mem visited s) then begin
+              HST.add visited s ();
+              env.states <- s :: env.states
+            end
+          ) !chain_intermediates;
+          chain_intermediates := [];
           (* Add each successor to the queue if not already visited *)
           List.iter (fun s ->
             (* Optionally normalize for symmetry reduction *)
@@ -891,7 +903,7 @@ let post_bfs env st visited trs q cpt_q depth =
             end
           ) sts
         with Not_applicable ->
-          (* Guards not satisfied - transition doesn't fire from this state *)
+          chain_intermediates := [];
           ()
     ) trs
 
@@ -995,7 +1007,7 @@ let search procs init =
       eprintf "init : %a\n@." SAtom.print (state_to_cube env st))
       st_inits;
   (* Step 3: Compile transitions to executable closures *)
-  let st_trs = if Options.tract then
+  let st_trs = if Options.tract_fwd then
       transaction_to_func procs env init.t_transactions
     else
       transitions_to_func procs env init.t_trans in

@@ -160,6 +160,16 @@ type ptcall = {
     ptc_args : (Variable.t option) list;
 }
 
+
+type ptransaction_part_body = {
+  ptractp_name : Hstring.t;
+  ptractp_lets : (Hstring.t * term) list;
+  ptractp_assigns : (Hstring.t * pglob_update) list;
+  ptractp_upds : pupdate list;
+  ptractp_nondets : Hstring.t list;
+  ptractp_loc : loc;
+}
+
 type ptransition = {
   ptr_lets : (Hstring.t * term) list;
   ptr_name : Hstring.t;
@@ -172,23 +182,7 @@ type ptransition = {
   ptr_nexts : ptcall list;
   ptr_is_triggered : bool;
   ptr_may_yield : bool;
-}
-
-type ptransaction_part_body = {
-  ptractp_name : Hstring.t;
-  ptractp_lets : (Hstring.t * term) list;
-  ptractp_assigns : (Hstring.t * pglob_update) list;
-  ptractp_upds : pupdate list;
-  ptractp_nondets : Hstring.t list;
-  ptractp_loc : loc;
-}
-
-type ptransaction = {
-  ptract_name : Hstring.t;
-  ptract_args : Variable.t list;
-  ptract_reqs : cformula;
-  ptract_loc : loc;
-  ptract_parts : ptransaction_part_body list
+  ptr_parts : ptransaction_part_body list
 }
 
 type psystem = {
@@ -200,7 +194,6 @@ type psystem = {
   pinvs : (loc * Variable.t list * cformula) list;
   punsafe : (loc * Variable.t list * cformula) list;
   ptrans : ptransition list;
-  ptracts : ptransaction list
 }
 
 
@@ -209,7 +202,6 @@ type pdecl =
   | PInv of (loc * Variable.t list * cformula)
   | PUnsafe of (loc * Variable.t list * cformula)
   | PTrans of ptransition
-  | PTract of ptransaction
   | PFun
 
 
@@ -600,15 +592,31 @@ let encode_pupdate {pup_loc; pup_arr; pup_arg; pup_swts} =
      up_swts = encode_pswts pup_swts;
   }
 
+let encode_ptransaction_part
+    { ptractp_lets; ptractp_assigns; ptractp_upds;
+      ptractp_nondets; ptractp_loc; ptractp_name } =
+  let tract_assigns = List.map (fun (i, pgu) ->
+      (i, encode_pglob_update pgu)) ptractp_assigns in
+  let tract_upds = List.map encode_pupdate ptractp_upds in
+  let tract_lets = List.map (fun (x, t) -> (x, encode_term t)) ptractp_lets in
+  { tract_part_name = ptractp_name;
+    tract_assigns;
+    tract_upds;
+    tract_nondets = ptractp_nondets;
+    tract_lets;
+    tract_part_loc = ptractp_loc
+  }
+
 let encode_ptransition
     {ptr_lets; ptr_name; ptr_args; ptr_reqs; ptr_assigns;
      ptr_upds; ptr_nondets; ptr_loc;
-     ptr_is_triggered; ptr_may_yield; ptr_nexts} =
+     ptr_is_triggered; ptr_may_yield; ptr_nexts; ptr_parts} =
   let dguards = guard_of_formula ptr_args ptr_reqs in
   let tr_assigns = List.map (fun (i, pgu) ->
       (i, encode_pglob_update pgu)) ptr_assigns in
   let tr_upds = List.map encode_pupdate ptr_upds in
   let tr_lets = List.map (fun (x, t) -> (x, encode_term t)) ptr_lets in
+  let tr_parts = List.map encode_ptransaction_part ptr_parts in
   let tr_nexts = List.map
       (fun tc -> {tc_name = tc.ptc_name;
                   tc_args = tc.ptc_args;
@@ -626,44 +634,15 @@ let encode_ptransition
          tr_loc = ptr_loc;
          tr_is_triggered = ptr_is_triggered;
          tr_may_yield = ptr_may_yield;
+         tr_parts;
          tr_nexts}
-    ) dguards
-
-
-let encode_ptransaction_part
-    { ptractp_lets; ptractp_assigns; ptractp_upds;
-      ptractp_nondets; ptractp_loc; ptractp_name } =
-  let tract_assigns = List.map (fun (i, pgu) ->
-      (i, encode_pglob_update pgu)) ptractp_assigns in
-  let tract_upds = List.map encode_pupdate ptractp_upds in
-  let tract_lets = List.map (fun (x, t) -> (x, encode_term t)) ptractp_lets in
-  { tract_part_name = ptractp_name;
-    tract_assigns;
-    tract_upds;
-    tract_nondets = ptractp_nondets;
-    tract_lets;
-    tract_part_loc = ptractp_loc
-  }
-
-let encode_ptransaction
-    { ptract_name; ptract_args; ptract_reqs; ptract_loc; ptract_parts } =
-  let dguards = guard_of_formula ptract_args ptract_reqs in
-  let parts = List.map encode_ptransaction_part ptract_parts in
-  List.map (fun (reqs, ureq) ->
-      { tract_name = ptract_name;
-        tract_args = ptract_args;
-        tract_reqs = reqs;
-        tract_ureq = ureq;
-        tract_loc = ptract_loc;
-        tract_parts = parts
-      }
     ) dguards
 
 
 let encode_psystem
     {pglobals; pconsts; parrays; ptype_defs;
      pinit = init_loc, init_vars, init_f;
-     pinvs; punsafe; ptrans; ptracts} =
+     pinvs; punsafe; ptrans} =
   let other_vars, init_dnf = inits_of_formula init_f in
   let init = init_loc, init_vars @ other_vars, init_dnf in
   let invs =
@@ -697,18 +676,6 @@ let encode_psystem
         compare (SAtom.cardinal t1.tr_reqs) (SAtom.cardinal t2.tr_reqs)
       )
   in
-  let tracts =
-     List.fold_left (fun acc ptr ->
-        List.fold_left (fun acc tr -> tr :: acc) acc (encode_ptransaction ptr)
-      ) [] ptracts
-    |> List.sort (fun t1 t2  ->
-        let c = compare (List.length t1.tract_args) (List.length t2.tract_args) in
-        if c <> 0 then c else
-        let c = compare (List.length t1.tract_ureq) (List.length t2.tract_ureq) in
-        if c <> 0 then c else
-        compare (SAtom.cardinal t1.tract_reqs) (SAtom.cardinal t2.tract_reqs)
-       )
-  in
   {
     globals = pglobals;
     consts = pconsts;
@@ -718,21 +685,19 @@ let encode_psystem
     invs;
     unsafe;
     trans;
-    tracts
   }
       
 
 
 let psystem_of_decls ~pglobals ~pconsts ~parrays ~ptype_defs pdecls =
-  let inits, pinvs, punsafe, ptrans, ptracts =
-    List.fold_left (fun (inits, invs, unsafes, trans, tracts) -> function
-        | PInit i -> i :: inits, invs, unsafes, trans, tracts
-        | PInv i -> inits, i :: invs, unsafes, trans, tracts
-        | PUnsafe u -> inits, invs, u :: unsafes, trans, tracts
-        | PTrans t -> inits, invs, unsafes, t :: trans, tracts
-        | PFun -> inits, invs, unsafes, trans, tracts
-        | PTract t -> inits, invs, unsafes, trans, t::tracts
-      ) ([],[],[],[],[]) pdecls
+  let inits, pinvs, punsafe, ptrans =
+    List.fold_left (fun (inits, invs, unsafes, trans) -> function
+        | PInit i -> i :: inits, invs, unsafes, trans
+        | PInv i -> inits, i :: invs, unsafes, trans
+        | PUnsafe u -> inits, invs, u :: unsafes, trans
+        | PTrans t -> inits, invs, unsafes, t :: trans
+        | PFun -> inits, invs, unsafes, trans
+      ) ([],[],[],[]) pdecls
   in
   let pinit = match inits with
     | [i] -> i
@@ -746,8 +711,7 @@ let psystem_of_decls ~pglobals ~pconsts ~parrays ~ptype_defs pdecls =
     pinit;
     pinvs;
     punsafe;
-    ptrans;
-    ptracts}
+    ptrans}
   
   
 
@@ -877,34 +841,6 @@ let print_next_clause fmt = function
   | (false, calls) ->
      fprintf fmt "next %a" print_tcalls calls
 
-let print_trans fmt =
-  List.iter
-    (fun { tr_name; tr_args; tr_reqs; tr_ureq; tr_lets;
-           tr_assigns; tr_upds; tr_nondets;
-           tr_is_triggered; tr_may_yield; tr_nexts } ->
-      fprintf fmt
-        "@[<v>@{<fg_magenta>%atransition@} @{<fg_cyan_b>%a@} (%a)@,\
-         %a\
-         {@[<v 2>@,\
-         %a\
-         %a\
-         %a\
-         %a\
-         @]}\
-         @,
-         %a@,@,@]"
-        print_triggered_annot tr_is_triggered
-        Hstring.print tr_name
-        Variable.print_vars tr_args
-        print_reqs (tr_reqs, tr_ureq)
-        print_lets tr_lets
-        print_assigns tr_assigns
-        print_updates tr_upds
-        print_nondets tr_nondets
-        print_next_clause (tr_may_yield, tr_nexts)
-    )
-
-
 let print_tract_parts =
   pp_print_list ~pp_sep:pp_print_cut
     (fun fmt {tract_lets; tract_assigns; tract_upds;
@@ -923,21 +859,35 @@ let print_tract_parts =
             print_nondets tract_nondets
     )
 
-let print_tract  =
-  pp_print_list ~pp_sep:pp_print_cut
-    (fun fmt { tract_name; tract_args; tract_reqs; tract_ureq; tract_parts } ->
+let print_trans fmt =
+  List.iter
+    (fun { tr_name; tr_args; tr_reqs; tr_ureq; tr_lets;
+           tr_assigns; tr_upds; tr_nondets;
+           tr_is_triggered; tr_may_yield; tr_nexts; tr_parts } ->
       fprintf fmt
-        "@[<v>@{<fg_magenta>transaction@} @{<fg_cyan_b>%a@} (%a)@,\
+        "@[<v>@{<fg_magenta>%atransition@} @{<fg_cyan_b>%a@} (%a)@,\
          %a\
          {@[<v 2>@,\
          %a\
-         @]@,}\
-         @,@,@]"
-        Hstring.print tract_name
-        Variable.print_vars tract_args
-        print_reqs (tract_reqs, tract_ureq)
-        print_tract_parts tract_parts
+         %a\
+         %a\
+         %a\
+         %a\
+         @]}\
+         @,
+         %a@,@,@]"
+        print_triggered_annot tr_is_triggered
+        Hstring.print tr_name
+        Variable.print_vars tr_args
+        print_reqs (tr_reqs, tr_ureq)
+        print_lets tr_lets
+        print_assigns tr_assigns
+        print_updates tr_upds
+        print_nondets tr_nondets
+        print_tract_parts tr_parts
+        print_next_clause (tr_may_yield, tr_nexts)
     )
+
 
 let print_system fmt { type_defs;
                        globals;
@@ -946,8 +896,7 @@ let print_system fmt { type_defs;
                        init;
                        invs;
                        unsafe;
-                       trans;
-                       tracts} =
+                       trans} =
   print_type_defs fmt type_defs;
   pp_print_newline fmt ();
   print_globals fmt globals;
@@ -963,9 +912,7 @@ let print_system fmt { type_defs;
   print_unsafe fmt unsafe;
   pp_print_newline fmt ();
   print_trans fmt (List.rev trans);
-  pp_print_newline fmt ();
-  print_tract fmt (List.rev tracts)
-
+  pp_print_newline fmt ()
 
 let encode_psystem psys =
   let sys = encode_psystem psys in

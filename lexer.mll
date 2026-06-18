@@ -28,7 +28,6 @@
     "triggers", TRIGGERS;
     "or", OORR;
     "yields", YIELDS;
-    "transaction", TRANSACTION;
     "part", PART;
 	"invariant", INVARIANT;
 	"requires", REQUIRE;
