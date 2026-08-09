@@ -16,6 +16,20 @@ Do not add routine session summaries, copied source, raw logs, generated output,
 
 Keep the layout flat until enough real notes exist to justify subdirectories. Use descriptive filenames such as `architecture.md`, `paper-cubicle.md`, or `experiment-<topic>.md`.
 
+## Current map
+
+| Note | Role |
+|---|---|
+| `architecture.md` | Current generic execution, symbolic backward-reachability, and BRAB call path. |
+| `scientific-foundations.md` | Published Cubicle/BRAB theory and its stated assumptions. |
+| `transactions.md` | Current-source map for triggers, `part` elaboration, `-tract` modes, and recorded smoke checks. |
+| `mcmt-notes.md` | ATS/TATS formal vocabulary and safety-observation hierarchy. |
+| `transactional-mcmt.md` | Primary onboarding note: submitted TxCubicle paper semantics, algorithms, implementation correspondence, and engineering checklist. |
+| `todo.md` | Specified transactional work that is not yet implemented or proved. |
+| `questions.md` | Current open questions; presently empty. |
+
+Use **transactional MCMT** as the umbrella term. **TxCubicle** is the submitted paper's name for the extension. A **transaction path** is an initial-to-final trigger path. `part` denotes the union of serial part permutations; it is a candidate for removal.
+
 ## Minimal note format
 
 Each note should say:
