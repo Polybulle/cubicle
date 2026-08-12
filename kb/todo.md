@@ -2,7 +2,9 @@
 
 ## Implement caller-local underscore resolution
 
-**Status:** specified design work; not yet implemented or proved.
+**Status:** implemented and regression-tested in the 2026-08-12 working tree;
+normalization coverage is documented in `kb/transactions.md`. Full correctness
+of the transaction-aware analyses is not claimed.
 
 ### Required semantics
 

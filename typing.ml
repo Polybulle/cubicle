@@ -394,22 +394,53 @@ let next trs tr ({tc_name; tc_args; tc_loc}) =
 
 let nexts trs ({tr_nexts} as t) = List.iter (next trs t) tr_nexts
 
-let path_to_future (src,p) =
-  let open Graph in
-  let normalize s = function
-    | None ->
-      let v = Variable.gen_var () in
-      Smt.Symbol.declare v [] Smt.Type.type_proc;
-      v
-    | Some v -> Variable.subst s v in
-  let rec aux s = function
-    | [] -> []
-    | (_,e,t)::p' ->
-      let args = List.map (normalize s) e.tc_args in
-      let s' = Variable.build_subst t.tr_args args in
-      (t, args) :: aux s' p' in
-  let s = [] in
-  src.tr_args, (src,src.tr_args) :: aux s p
+type resolved_call = {
+  args : Variable.t list;
+  in_scope : Variable.t list;
+}
+
+let fresh_process_var () =
+  let v = Variable.gen_var () in
+  Smt.Symbol.declare v [] Smt.Type.type_proc;
+  v
+
+let resolve_call subst caller in_scope {tc_args; _} =
+  let caller_vars = List.map (Variable.subst subst) caller.tr_args in
+  let available =
+    List.filter (fun v -> not (Hstring.list_mem v caller_vars)) in_scope in
+  let fresh_vars =
+    List.init
+      (List.fold_left (fun n -> function None -> n + 1 | Some _ -> n) 0 tc_args)
+      (fun _ -> fresh_process_var ()) in
+  let rec resolve available fresh_vars fresh_args rev_args = function
+    | [] ->
+      let fresh_args = List.rev fresh_args in
+      [{args = List.rev rev_args; in_scope = in_scope @ fresh_args}]
+    | Some var :: rest ->
+      resolve available fresh_vars fresh_args
+        (Variable.subst subst var :: rev_args) rest
+    | None :: rest ->
+      let resolved_without =
+        List.concat_map (fun var ->
+            let available =
+              List.filter (fun v -> not (Hstring.equal var v)) available in
+            resolve available fresh_vars fresh_args (var :: rev_args) rest)
+          available in
+      let var, fresh_vars = List.hd fresh_vars, List.tl fresh_vars in
+      let resolved_with =
+        resolve available fresh_vars (var :: fresh_args) (var :: rev_args) rest in
+      resolved_without @ resolved_with in
+  resolve available fresh_vars [] [] tc_args
+
+let path_to_futures (src,p) =
+  let rec aux subst in_scope rev_calls = function
+    | [] -> [in_scope, List.rev rev_calls]
+    | (caller, call, callee) :: rest ->
+      List.concat_map (fun {args; in_scope} ->
+          let subst = Variable.build_subst callee.tr_args args in
+          aux subst in_scope ((callee, args) :: rev_calls) rest)
+        (resolve_call subst caller in_scope call) in
+  aux [] src.tr_args [src, src.tr_args] p
 
 let finalize_future trs
   (globs, calls :  Variable.t list * (transition_info * Hstring.t list) list) =
@@ -438,7 +469,7 @@ let triggers s =
     let module G = Graph.Make(G) in
     if not G.is_acyclic then failwith "invariant break";
     Graph.debug_paths G.paths;
-    let res = List.map path_to_future G.paths in
+    let res = List.concat_map path_to_futures G.paths in
     res
   with
   | Graph.Cycle involved ->

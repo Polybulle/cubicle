@@ -1,0 +1,25 @@
+var Bad : bool
+array Mark[proc] : bool
+
+init (i) { Bad = False && Mark[i] = False }
+
+unsafe () { Bad = True }
+
+transition start (x)
+requires { Bad = False }
+{
+}
+triggers remember (_)
+
+triggered transition remember (y)
+requires { Bad = False }
+{
+  Mark[y] := True;
+}
+triggers finish (y)
+
+triggered transition finish (z)
+requires { Mark[z] = True }
+{
+  Bad := True;
+}
