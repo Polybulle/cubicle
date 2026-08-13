@@ -349,8 +349,8 @@ end
 
 let select_oracle =
 
-  if tract && murphi then begin
-    eprintf "Option -tract is incompatible with -murphi";
+  if tx && murphi then begin
+    eprintf "Option -tx is incompatible with -murphi";
     exit 1
   end;
 

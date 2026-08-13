@@ -135,7 +135,7 @@ type node_cube =
                                   (see {! Cubetrie.delete_subsumed}) *)
       from : trace;           (** history of the node *)
       toward : node_future option (** future of the node *)
-                                      (**  (only for -tract option) *)
+                                      (**  (only for -tx option) *)
     }
 (** the type of nodes, i.e. cubes with extra information *)
 

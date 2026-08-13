@@ -80,10 +80,10 @@ let report fmt = function
   | NoMoreThanOneArray ->
       fprintf fmt "sorry, no more than one array"
   | HasTracts t ->
-      fprintf fmt "transition %a requires the -tract option"
+      fprintf fmt "transition %a requires the -tx option"
       Hstring.print t
   | HasPartsNeedAll t ->
-      fprintf fmt "transition %a has sequential parts and requires -tract all"
+      fprintf fmt "transition %a has sequential parts and requires -tx all"
       Hstring.print t
   | CycleInTriggers names ->
     fprintf fmt "Found a cycle of triggers within transitions (forbidden). Cycle \
@@ -588,9 +588,9 @@ let system s =
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();
   end;
-  let s,t_trans,t_transactions = if Options.tract_fwd || Options.tract_bwd then begin
+  let s,t_trans,t_transactions = if Options.tx_fwd || Options.tx_bwd then begin
       (* When only one direction uses transactions, tr_parts require both *)
-      if not (Options.tract_fwd && Options.tract_bwd) then
+      if not (Options.tx_fwd && Options.tx_bwd) then
         (match List.find_opt (fun tr -> tr.tr_parts <> []) s.trans with
          | Some tr -> error (HasPartsNeedAll tr.tr_name) tr.tr_loc
          | None -> ());
@@ -605,7 +605,7 @@ let system s =
       s, t_trans, t_transactions
     end else begin
       (* Trigger annotations are accepted but ignored.
-         tr_parts always require -tract all (both directions). *)
+         tr_parts always require -tx all (both directions). *)
       (match List.find_opt (fun tr -> tr.tr_parts <> []) s.trans with
        | Some tr -> error (HasPartsNeedAll tr.tr_name) tr.tr_loc
        | None -> ());

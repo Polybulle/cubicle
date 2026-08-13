@@ -55,27 +55,27 @@ let mu_cmd = ref "mu"
 let mu_opts = ref ""
 let cpp_cmd = ref "g++ -O4"
 
-let tract_fwd = ref false
-let tract_bwd = ref false
-let tract_ignore = ref false
+let tx_fwd = ref false
+let tx_bwd = ref false
+let tx_ignore = ref false
 
-let set_tract = function
+let set_tx = function
   | "none" -> ()
-  | "fwd" -> tract_fwd := true
-  | "bwd" -> tract_bwd := true
-  | "all" -> tract_fwd := true; tract_bwd := true
-  | "ignore" -> tract_ignore := true
-  | s -> raise (Arg.Bad ("tract argument '"^s^"' must be none, fwd, bwd, all, or ignore"))
+  | "fwd" -> tx_fwd := true
+  | "bwd" -> tx_bwd := true
+  | "all" -> tx_fwd := true; tx_bwd := true
+  | "ignore" -> tx_ignore := true
+  | s -> raise (Arg.Bad ("tx argument '"^s^"' must be none, fwd, bwd, all, or ignore"))
 
-(* Normalize argv: -tract without a following keyword becomes -tract all *)
+(* Normalize argv: -tx without a following keyword becomes -tx all *)
 let preprocess_argv () =
   let rec process = function
     | [] -> []
-    | "-tract" :: rest ->
+    | "-tx" :: rest ->
       (match rest with
        | ("none" | "fwd" | "bwd" | "all" | "ignore") :: _ ->
-         "-tract" :: process rest
-       | _ -> "-tract" :: "all" :: process rest)
+         "-tx" :: process rest
+       | _ -> "-tx" :: "all" :: process rest)
     | x :: rest -> x :: process rest
   in
   Array.of_list (process (Array.to_list Sys.argv))
@@ -186,8 +186,8 @@ let specs =
     "-mu-opt", Arg.Set_string mu_opts,
     " Murphi compiler options (passed as is, no options by default)";
     "-cpp", Arg.Set_string cpp_cmd, " C++ compiler command line (default: g++ -O4)";
-    "-tract", Arg.Symbol (["none"; "fwd"; "bwd"; "all"; "ignore"], set_tract),
-    " transaction support: none=off, fwd=forward only, bwd=backward only, all=both, ignore=accept but ignore annotations (bare -tract means all)";
+    "-tx", Arg.Symbol (["none"; "fwd"; "bwd"; "all"; "ignore"], set_tx),
+    " transaction support: none=off, fwd=forward only, bwd=backward only, all=both, ignore=accept but ignore annotations (bare -tx means all)";
     "-forward-depth", Arg.Set_int forward_depth,
     "<d> Limit the depth of the forward exploration to at most d";
     "-max-forward", Arg.Set_int max_forward,
@@ -275,10 +275,10 @@ let mu_cmd = !mu_cmd
 let mu_opts = !mu_opts
 let cpp_cmd = !cpp_cmd
 
-let tract_fwd = !tract_fwd
-let tract_bwd = !tract_bwd
-let tract_ignore = !tract_ignore
-let tract = tract_fwd || tract_bwd
+let tx_fwd = !tx_fwd
+let tx_bwd = !tx_bwd
+let tx_ignore = !tx_ignore
+let tx = tx_fwd || tx_bwd
 
 let max_cands = !max_cands
 let max_forward = !max_forward

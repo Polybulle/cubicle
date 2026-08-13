@@ -1007,7 +1007,7 @@ let search procs init =
       eprintf "init : %a\n@." SAtom.print (state_to_cube env st))
       st_inits;
   (* Step 3: Compile transitions to executable closures *)
-  let st_trs = if Options.tract_fwd then
+  let st_trs = if Options.tx_fwd then
       transaction_to_func procs env init.t_transactions
     else
       transitions_to_func procs env init.t_trans in

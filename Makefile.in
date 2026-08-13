@@ -414,8 +414,8 @@ test_good:
 	@$(call test_good,examples/szymanski_at.cub,-brab 2)
 	@$(call test_good,examples/szymanski_na.cub,-brab 2)
 	@$(call test_good,examples/flash_nodata.cub,-brab 2 -forward-depth 6)
-	@$(call test_good,examples/underscore_caller_alias_safe.cub,-tract all -brab 4)
-	@$(call test_good,examples/underscore_same_call_distinct_safe.cub,-tract all -brab 4)
+	@$(call test_good,examples/underscore_caller_alias_safe.cub,-tx all -brab 4)
+	@$(call test_good,examples/underscore_same_call_distinct_safe.cub,-tx all -brab 4)
 
 test_bad:
 	@echo "----------------- UNSAFE ------------------"
@@ -423,8 +423,8 @@ test_bad:
 	@$(call test_bad,examples/futurebus.cub)
 	@$(call test_bad,examples/swimming_pool.cub)
 	@$(call test_bad,examples/flash_buggy.cub,-brab 2 -forward-depth 6)
-	@$(call test_bad,examples/underscore_later_alias_unsafe.cub,-tract all -brab 4)
-	@$(call test_bad,examples/underscore_named_propagation_unsafe.cub,-tract all -brab 4)
+	@$(call test_bad,examples/underscore_later_alias_unsafe.cub,-tx all -brab 4)
+	@$(call test_bad,examples/underscore_named_propagation_unsafe.cub,-tx all -brab 4)
 
 test: $(OPT) test_good test_bad
 
