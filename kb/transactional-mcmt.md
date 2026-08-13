@@ -101,7 +101,7 @@ At the transaction level, the paper defines unsafety as reachability of the bad 
 
 [1] (Equation 2, §4.5.)
 
-This boundary-only criterion is weaker than checking every intermediate low-level state. `-tract bwd` checks this transactional TATS property: it replaces ordinary ATS steps by complete transaction paths and reports only boundary-level safety. `-tract fwd` changes finite forward exploration for invariant generation but leaves the symbolic backward relation unchanged. `-tract all` combines both choices.
+This boundary-only criterion is weaker than checking every intermediate low-level state. `-tx bwd` checks this transactional TATS property: it replaces ordinary ATS steps by complete transaction paths and reports only boundary-level safety. `-tx fwd` changes finite forward exploration for invariant generation but leaves the symbolic backward relation unchanged. `-tx all` combines both choices.
 
 ## 6. Algorithms in the paper
 
@@ -138,10 +138,10 @@ This section is an implementation map, not a new theorem.
 
 ### 7.1 Typing and elaboration
 
-- `Typing.triggers` validates calls, identifies inputs (`not triggered` and no parts) and outputs (yielding and no parts), rejects trigger cycles through `Graph.Make`, then invokes `path_to_future` to make substituted paths (`typing.ml:376-447`).
-- `path_to_future` creates a fresh process variable for each `_` and composes substitutions through trigger calls (`typing.ml:397-412`). This preserves syntactic propagation but does not yet enforce the caller-local exclusion and permitted-aliasing contract.
-- `Typing.transaction_paths` lowers every part-bearing transition into primitive part transitions and enumerates every permutation of its parts; the guarded source-level head is copied for each permutation (`typing.ml:314-373`).
-- `expand_trigger_path` replaces part-bearing elements in a trigger path with matching permutations and applies the call substitution (`typing.ml:455-481`).
+- `Typing.check_triggers` validates names and calls. `Transaction.trigger_paths` identifies inputs (`not triggered` and no parts) and outputs (yielding and no parts), rejects trigger cycles, and enumerates source paths (`typing.ml`; `transaction.ml`).
+- `Transaction.resolve_call` and `path_to_futures` implement caller-local underscore resolution: `_` may reuse an in-scope representative not active in its caller or introduce the next canonical fresh representative; simultaneous underscores remain distinct and named arguments propagate identity (`transaction.ml`).
+- `Transaction.transaction_paths` lowers every part-bearing transition into primitive part transitions and enumerates every permutation of its parts; the guarded source-level head is copied for each permutation (`transaction.ml`).
+- `Transaction.expand_trigger_path` replaces part-bearing elements in a trigger path with matching permutations and applies the call substitution (`transaction.ml`).
 
 `part` denotes the union of all serial permutations of its parts: the outer guard is checked before the first part, all parts in the selected order execute before the enclosing transaction continues, and unrelated transactions do not interleave between parts. The feature is a candidate for removal.
 
@@ -153,7 +153,7 @@ Intermediate successful step states are recorded in `chain_intermediates`, copie
 
 ### 7.3 Backward path pre-image
 
-When `Options.tract_bwd` is set, `Pre.pre_image` selects `pre_image_path` rather than ordinary `pre_image_normal` (`pre.ml:343-400`). A node without a future is expanded over path substitutions; a node with a future is pre-imaged by its next path transition, then its remaining future is processed recursively before any final nodes are returned to the queue.
+When `Options.tx_bwd` is set, `Pre.pre_image` selects `pre_image_path` rather than ordinary `pre_image_normal` (`pre.ml:343-400`). A node without a future is expanded over path substitutions; a node with a future is pre-imaged by its next path transition, then its remaining future is processed recursively before any final nodes are returned to the queue.
 
 While a node still has a future, `Pre.cube` avoids normal renaming (`Cube.elim_ite_simplify_unnorm`) because its `Node.toward` global substitution refers to original variable names (`pre.ml:245-252`). Correspondingly, `Bwd.search` skips direct initial-state safety and fixpoint checks for nodes with a future (`bwd.ml:67-69`) and only adds future-free nodes to visited (`bwd.ml:91-97`). These are correctness-sensitive representation invariants, not superficial optimizations.
 
@@ -205,7 +205,6 @@ Before editing any transaction-aware code, identify all of the following.
 - Intermediate path nodes are intentionally under-used by the current fixpoint checker; the paper proposes exploiting them for earlier coverage decisions.[1] (§6.)
 - The paper identifies richer normalization/compilation of iterative constructs and controlled interleaving among concurrent transactions as future work.[1] (§6.)
 - Transaction annotations are a modeler-level semantic commitment. Their correctness is not inferred from a flat ATS automatically.
-- Caller-local underscore resolution remains specified but not implemented or proved; its implementation requirements are in `kb/todo.md`.
 
 ## Sources
 

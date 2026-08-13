@@ -35,8 +35,8 @@ For transactional safety, the notes state that the standard pre-image analysis a
 
 ## Current transaction contract
 
-`-tract bwd` checks transactional safety at transaction boundaries, whereas
-`-tract fwd` changes only finite invariant generation. The transaction
+`-tx bwd` checks transactional safety at transaction boundaries, whereas
+`-tx fwd` changes only finite invariant generation. The transaction
 semantics, including caller-local underscore selection and forward treatment of
 intermediate states, is integrated in `kb/transactional-mcmt.md`. Unfinished
 underscore implementation work is in `kb/todo.md`.

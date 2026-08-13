@@ -21,8 +21,9 @@ Keep the layout flat until enough real notes exist to justify subdirectories. Us
 | Note | Role |
 |---|---|
 | `architecture.md` | Current generic execution, symbolic backward-reachability, and BRAB call path. |
+| `coding-style.md` | Source-grounded guide to Cubicle's OCaml error, module, interface, and implementation conventions. |
 | `scientific-foundations.md` | Published Cubicle/BRAB theory and its stated assumptions. |
-| `transactions.md` | Current-source map for triggers, `part` elaboration, `-tract` modes, and recorded smoke checks. |
+| `transactions.md` | Current-source map for triggers, `part` elaboration, `-tx` modes, and recorded smoke checks. |
 | `mcmt-notes.md` | ATS/TATS formal vocabulary and safety-observation hierarchy. |
 | `transactional-mcmt.md` | Primary onboarding note: submitted TxCubicle paper semantics, algorithms, implementation correspondence, and engineering checklist. |
 | `todo.md` | Specified transactional work that is not yet implemented or proved. |
