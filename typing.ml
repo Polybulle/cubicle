@@ -299,80 +299,6 @@ let unique_transition_names s =
       []
       s.trans)
 
-let rec all_permutations = function
-  | [] -> [[]]
-  | lst ->
-    let rec pick_one acc = function
-      | [] -> []
-      | x :: xs ->
-        let rest = List.rev_append acc xs in
-        let perms = List.map (fun p -> x :: p) (all_permutations rest) in
-        perms @ pick_one (x :: acc) xs
-    in
-    pick_one [] lst
-
-let transition_from_part tr part =
-  let name =
-    let open Hstring in
-    make @@ (view tr.tr_name) ^ "." ^ (view part.tract_part_name) in
-  {tr_name = name;
-   tr_args = tr.tr_args;
-   tr_reqs = SAtom.empty;
-   tr_ureq = [];
-   tr_lets = part.tract_lets;
-   tr_assigns = part.tract_assigns;
-   tr_upds = part.tract_upds;
-   tr_nondets = part.tract_nondets;
-   tr_loc = part.tract_part_loc;
-   tr_is_triggered = true;
-   tr_may_yield = false;
-   tr_nexts = [];
-   tr_parts = []}
-
-let transitions_of_transaction tr =
-  let with_check t =
-    { t with tr_name = tr.tr_name;
-      tr_args = tr.tr_args;
-      tr_reqs = tr.tr_reqs;
-      tr_ureq = tr.tr_ureq;
-      tr_is_triggered = false } in
-  let trs = List.map (transition_from_part tr) tr.tr_parts in
-  let trs' = ref trs in
-  let[@warning "-8"] add_head ((t,args)::rest) =
-    let t' = with_check t in
-    trs' := t' :: !trs';
-    (t',args)::rest in
-  let paths =
-    let calls = List.map (fun t -> (t, t.tr_args)) trs in
-    let paths = all_permutations calls in
-    List.map (fun p -> (tr.tr_args, add_head p)) paths in
-  (!trs', paths)
-
-let transaction_paths s =
-  let tracts = List.filter (fun tr -> tr.tr_parts <> []) s.trans in
-  let base = {s with trans = List.filter (fun tr -> tr.tr_parts = []) s.trans} in
-  let (s,ps) = ListLabels.fold_left tracts ~init:(base,[]) ~f:(fun (s,ps) tr ->
-      let trs, ps' = transitions_of_transaction tr in
-      {s with trans = trs @ s.trans}, ps @ ps') in
-  if Options.verbose > 0 then begin
-    let open Format in
-    let print_tcall fmt (tr, args) =
-      fprintf fmt "%a(%a) ->@ "
-        Hstring.print tr.tr_name
-        Variable.print_vars args in
-    let print_path fmt (_, calls) =
-      fprintf fmt "@[%aEND@]" (pp_print_list print_tcall) calls in
-    if List.length ps = 0 then
-      printf "Found 0 paths through model transactions.@."
-    else begin
-      printf "@[<v 2>Found following %n paths through model transactions.@;%a@]@."
-        (List.length ps)
-        (pp_print_list ~pp_sep:pp_print_cut print_path) ps
-    end
-  end ;
-  (s,ps)
-
-
 let next trs tr ({tc_name; tc_args; tc_loc}) =
   (* are proc arguments in scope ? *)
   List.iter (function
@@ -394,122 +320,16 @@ let next trs tr ({tc_name; tc_args; tc_loc}) =
 
 let nexts trs ({tr_nexts} as t) = List.iter (next trs t) tr_nexts
 
-type resolved_call = {
-  args : Variable.t list;
-  in_scope : Variable.t list;
-}
-
-let fresh_process_var () =
-  let v = Variable.gen_var () in
-  Smt.Symbol.declare v [] Smt.Type.type_proc;
-  v
-
-let resolve_call subst caller in_scope {tc_args; _} =
-  let caller_vars = List.map (Variable.subst subst) caller.tr_args in
-  let available =
-    List.filter (fun v -> not (Hstring.list_mem v caller_vars)) in_scope in
-  let fresh_vars =
-    List.init
-      (List.fold_left (fun n -> function None -> n + 1 | Some _ -> n) 0 tc_args)
-      (fun _ -> fresh_process_var ()) in
-  let rec resolve available fresh_vars fresh_args rev_args = function
-    | [] ->
-      let fresh_args = List.rev fresh_args in
-      [{args = List.rev rev_args; in_scope = in_scope @ fresh_args}]
-    | Some var :: rest ->
-      resolve available fresh_vars fresh_args
-        (Variable.subst subst var :: rev_args) rest
-    | None :: rest ->
-      let resolved_without =
-        List.concat_map (fun var ->
-            let available =
-              List.filter (fun v -> not (Hstring.equal var v)) available in
-            resolve available fresh_vars fresh_args (var :: rev_args) rest)
-          available in
-      let var, fresh_vars = List.hd fresh_vars, List.tl fresh_vars in
-      let resolved_with =
-        resolve available fresh_vars (var :: fresh_args) (var :: rev_args) rest in
-      resolved_without @ resolved_with in
-  resolve available fresh_vars [] [] tc_args
-
-let path_to_futures (src,p) =
-  let rec aux subst in_scope rev_calls = function
-    | [] -> [in_scope, List.rev rev_calls]
-    | (caller, call, callee) :: rest ->
-      List.concat_map (fun {args; in_scope} ->
-          let subst = Variable.build_subst callee.tr_args args in
-          aux subst in_scope ((callee, args) :: rev_calls) rest)
-        (resolve_call subst caller in_scope call) in
-  aux [] src.tr_args [src, src.tr_args] p
-
-let finalize_future trs
-  (globs, calls :  Variable.t list * (transition_info * Hstring.t list) list) =
-  match calls with
-  | [] -> failwith "Invariant break: empty path"
-  | (args,_)::_ ->
-    let find tri = List.find (fun t -> t.tr_info == tri) trs in
-    (globs, List.rev_map (fun (tri, args) -> (find tri, args)) calls)
-
-(* Validates the triggers if transactions are enabled. Return the paths through
-   transition triggers. *)
-let triggers s =
+(* Validates the triggers if transactions are enabled. *)
+let check_triggers s =
   unique_transition_names s;
-  List.iter (nexts s.trans) s.trans;
-  let nodes = Array.of_list s.trans in
-  let module G = struct
-    type node = transition_info
-    type edge = transition_call
-    let nodes = nodes
-    let is_input tr = not tr.tr_is_triggered && tr.tr_parts = []
-    let is_output tr = tr.tr_may_yield && tr.tr_parts = []
-    let edges_from tr = tr.tr_nexts
-    let dest_node tc = List.find (fun t -> t.tr_name = tc.tc_name) s.trans
-  end in
-  try
-    let module G = Graph.Make(G) in
-    if not G.is_acyclic then failwith "invariant break";
-    Graph.debug_paths G.paths;
-    let res = List.concat_map path_to_futures G.paths in
-    res
-  with
-  | Graph.Cycle involved ->
-    let involved = List.map (fun i -> nodes.(i).tr_name) involved in
-    let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
-    error (CycleInTriggers involved) dummy_loc
+  List.iter (nexts s.trans) s.trans
 
 (* Check that system doesn't use transaction features. *)
 let no_transactions s =
   ListLabels.iter s.trans ~f:(fun t ->
       if not t.tr_may_yield || t.tr_is_triggered || t.tr_nexts <> [] || t.tr_parts <> [] then
         error (HasTracts t.tr_name) t.tr_loc)
-
-(* Expand a trigger path by substituting each transaction node with its permutation
-   sub-paths from ps'. Each transaction in the path multiplies the result by the
-   number of permutations for that transaction. *)
-let expand_trigger_path ps' (globs, calls) =
-  let perms_for tri =
-    List.filter (fun (_, perm_calls) ->
-      match perm_calls with
-      | [] -> false
-      | (head, _) :: _ -> head.tr_name = tri.tr_name
-    ) ps'
-  in
-  let rec aux = function
-    | [] -> [[]]
-    | (tri, args) :: rest ->
-      let rest_exps = aux rest in
-      if tri.tr_parts = [] then
-        List.map (fun r -> (tri, args) :: r) rest_exps
-      else
-        let subst = Variable.build_subst tri.tr_args args in
-        List.concat_map (fun (_, perm_calls) ->
-          let substituted = List.map
-            (fun (t, pargs) -> (t, List.map (Variable.subst subst) pargs))
-            perm_calls in
-          List.map (fun r -> substituted @ r) rest_exps
-        ) (perms_for tri)
-  in
-  List.map (fun expanded -> (globs, expanded)) (aux calls)
 
 let transitions =
   List.iter
@@ -774,11 +594,14 @@ let system s =
         (match List.find_opt (fun tr -> tr.tr_parts <> []) s.trans with
          | Some tr -> error (HasPartsNeedAll tr.tr_name) tr.tr_loc
          | None -> ());
-      let ps = triggers s in
-      let s, ps' = transaction_paths s in
+      check_triggers s;
+      let s, ps =
+        try Transaction.paths s
+        with Transaction.Cycle involved ->
+          let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
+          error (CycleInTriggers involved) dummy_loc in
       let t_trans = List.map add_tau s.trans in
-      let expanded_ps = List.concat_map (expand_trigger_path ps') ps in
-      let t_transactions = List.map (finalize_future t_trans) (expanded_ps @ ps') in
+      let t_transactions = Transaction.finalize t_trans ps in
       s, t_trans, t_transactions
     end else begin
       (* Trigger annotations are accepted but ignored.
