@@ -1,6 +1,6 @@
 # Transactional MCMT / TxCubicle: developer onboarding reference
 
-**Purpose.** This is the primary onboarding reference for work on transactional Cubicle: its intended language and semantics, the paper algorithm, the current implementation map, and the proof/engineering boundaries that must not be blurred. It is based primarily on the submitted TxCubicle paper, which is the detailed account of the feature.[1][2] Current-source observations were checked on 2026-08-09 in this checkout; they are not proof that current code implements every paper definition unchanged. Read `kb/mcmt-notes.md` for the antecedent ATS/TATS formulation and `kb/transactions.md` for the code-level feature map and smoke-test record.
+**Purpose.** This is the primary onboarding reference for work on transactional Cubicle: its intended language and semantics, the paper algorithm, the current implementation map, and the proof/engineering boundaries that must not be blurred. It is based primarily on the submitted TxCubicle paper, which is the detailed account of the feature.[1][2] Current-source observations were last checked on 2026-08-20 in this checkout; they are not proof that current code implements every paper definition unchanged. Read `kb/mcmt-notes.md` for the antecedent ATS/TATS formulation and `kb/transactions.md` for the code-level feature map and smoke-test record.
 
 **Terminology.** This KB uses **transactional MCMT** as the umbrella term. **TxCubicle** is the paper's name for the extension. A paper-level **transaction path** is an acyclic initial-to-final trigger path over a shared process slice. The current implementation additionally elaborates `part` bodies into permutations; that extension is documented as code behavior, not silently identified with the paper relation.
 
@@ -58,13 +58,13 @@ where the call after step \(i\) supplies actuals \(\vec{y}_i\) to the formals \(
 
 The resulting path is a sequence of transition instances over one accumulated process slice.[1] (§4.2.)
 
-An underscore is introduced by the outgoing call of a caller transition and becomes an actual argument of the callee. If `u` is introduced by the outgoing call of `tᵢ(vᵢ)`, then `u` must differ from every active process argument in `vᵢ`; multiple underscores introduced by that one call are pairwise distinct. The selected identity is propagated by later named calls in the ordinary way. Separate underscore occurrences may alias when their respective caller-local constraints permit it. Thus a normalized path has the form
+The submitted paper describes an underscore as an out-of-scope argument, distinct from the active caller arguments.[1] The current language decision differs: after resolving named actuals, underscore values need only make the complete callee actual tuple pairwise distinct. They may equal caller arguments omitted from that tuple. The selected identity is propagated by later named calls in the ordinary way, and separate calls may alias. Thus a normalized path has the form
 
 \[
  T(\vec z)=t_1(\vec z_1)\to\cdots\to t_n(\vec z_n),
 \]
 
-where \(\vec z\) is the complete set of path variables and underscore placeholders relevant to that path execution. The caller-local underscore constraints are part of the transaction relation.
+where \(\vec z\) is the complete set of path variables and underscore placeholders relevant to that path execution. Callee-tuple distinctness constraints are part of the current transaction relation. This is an intentional divergence from the submitted paper and must be reflected in any revised formal account.
 
 **Engineering implication.** The path’s shared substitution is a semantic object. Normalizing or renaming an intermediate cube without updating the stored path substitution can invalidate the connection between a predecessor and its remaining future.
 
@@ -139,7 +139,7 @@ This section is an implementation map, not a new theorem.
 ### 7.1 Typing and elaboration
 
 - `Typing.check_triggers` validates names and calls. `Transaction.trigger_paths` identifies inputs (`not triggered` and no parts) and outputs (yielding and no parts), rejects trigger cycles, and enumerates source paths (`typing.ml`; `transaction.ml`).
-- `Transaction.resolve_call` and `path_to_futures` implement caller-local underscore resolution: `_` may reuse an in-scope representative not active in its caller or introduce the next canonical fresh representative; simultaneous underscores remain distinct and named arguments propagate identity (`transaction.ml`).
+- `Transaction.resolve_call` and `path_to_futures` implement callee-tuple underscore resolution: `_` may reuse an in-scope representative absent from the current callee tuple or introduce the next canonical fresh representative; the complete callee tuple remains pairwise distinct and named arguments propagate identity (`transaction.ml`).
 - `Transaction.transaction_paths` lowers every part-bearing transition into primitive part transitions and enumerates every permutation of its parts; the guarded source-level head is copied for each permutation (`transaction.ml`).
 - `Transaction.expand_trigger_path` replaces part-bearing elements in a trigger path with matching permutations and applies the call substitution (`transaction.ml`).
 

@@ -1,0 +1,17 @@
+var Bad : bool
+
+init () { Bad = False }
+
+unsafe () { Bad = True }
+
+transition start (x)
+requires { Bad = False }
+{
+}
+triggers finish (x _)
+
+triggered transition finish (a b)
+requires { a = b }
+{
+  Bad := True;
+}

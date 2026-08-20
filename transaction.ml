@@ -216,10 +216,13 @@ let fresh_process_var () =
   Smt.Symbol.declare v [] Smt.Type.type_proc;
   v
 
-let resolve_call subst caller in_scope {tc_args; _} =
-  let caller_vars = List.map (Variable.subst subst) caller.tr_args in
+let resolve_call subst in_scope {tc_args; _} =
+  let tc_args = List.map (function
+      | None -> None
+      | Some var -> Some (Variable.subst subst var)) tc_args in
+  let named_args = List.filter_map (fun x -> x) tc_args in
   let available =
-    List.filter (fun v -> not (Hstring.list_mem v caller_vars)) in_scope in
+    List.filter (fun v -> not (Hstring.list_mem v named_args)) in_scope in
   let fresh_vars =
     List.init
       (List.fold_left (fun n -> function None -> n + 1 | Some _ -> n) 0 tc_args)
@@ -229,8 +232,7 @@ let resolve_call subst caller in_scope {tc_args; _} =
       let fresh_args = List.rev fresh_args in
       [{args = List.rev rev_args; in_scope = in_scope @ fresh_args}]
     | Some var :: rest ->
-      resolve available fresh_vars fresh_args
-        (Variable.subst subst var :: rev_args) rest
+      resolve available fresh_vars fresh_args (var :: rev_args) rest
     | None :: rest ->
       let resolved_without =
         List.concat_map (fun var ->
@@ -247,11 +249,11 @@ let resolve_call subst caller in_scope {tc_args; _} =
 let path_to_futures (src,p) =
   let rec aux subst in_scope rev_calls = function
     | [] -> [in_scope, List.rev rev_calls]
-    | (caller, call, callee) :: rest ->
+    | (_, call, callee) :: rest ->
       List.concat_map (fun {args; in_scope} ->
           let subst = Variable.build_subst callee.tr_args args in
           aux subst in_scope ((callee, args) :: rev_calls) rest)
-        (resolve_call subst caller in_scope call) in
+        (resolve_call subst in_scope call) in
   aux [] src.tr_args [src, src.tr_args] p
 
 let expand_trigger_path ps' (globs, calls) =

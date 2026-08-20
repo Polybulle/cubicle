@@ -1,617 +1,533 @@
-#+title: Transaction Loops in TxCubicle
-#+subtitle: Feature Delimitation and Research Plan
+#+title: Guarded Transaction Loops in TxCubicle
+#+subtitle: A Backward-Only Acceleration Proposal
 #+author: Hector Suzanne and Tetra
-#+date: 2026-08-13
+#+date: 2026-08-20
 #+startup: overview
 #+options: toc:2 num:t
 
-* Status and scope
+* Status and objective
 
-This document delimits a proposed extension of TxCubicle with a restricted
-looping construct and records the research plan for determining which
-transitions can be supported exactly and effectively.
+This document proposes a deliberately restricted transaction loop for
+TxCubicle.  The first objective is to verify =examples/german_looped.cub= with a
+direct cube-level predecessor for an iterated transition.  It is not a proposal
+for arbitrary cyclic transaction graphs or for compiling a general transitive
+closure into a two-state transition relation.
 
-The proposal is preliminary.  It defines an intended semantic target and a
-sequence of proof and implementation questions; it does not claim that the
-current Cubicle implementation supports loops, that every unary transition can
-be accelerated, or that the proposed syntax is final.
+The experimental feature is enabled only by:
 
-The initial scope is deliberately narrow:
-
-- one transition is repeated;
-- the transition has one process argument;
-- the loop belongs to a transaction and exposes only its terminal state as a
-  transaction boundary;
-- the first candidate examples are order-insensitive and never re-enable a
-  process;
-- the outer transaction call graph remains acyclic after a supported loop has
-  been compiled to a finite symbolic macro-step.
-
-The end goal is not necessarily to support every unary transition.  It is to
-identify a useful, mechanically recognizable subset for which maximal
-iteration has a precise semantics, terminates on every finite instance, and
-admits an exact symbolic treatment compatible with Cubicle.
-
-* Motivation
-
-TxCubicle transactions are currently finite, acyclic initial-to-final paths.
-Acyclicity makes path enumeration finite and permits both finite forward
-exploration and symbolic backward reachability to consume precomputed paths.
-Lifting this restriction for arbitrary cyclic transaction graphs would require
-reasoning about unbounded control flow inside a transaction and is considered a
-substantially more ambitious problem.
-
-Many protocol actions nevertheless contain a simpler recurring pattern: apply
-one local transition to enabled processes until no process remains enabled.
-Examples may include invalidating every sharer, clearing every pending request,
-or normalizing every marked local state.  A dedicated loop construct could
-express this pattern without admitting arbitrary cyclic control flow.
-
-The working hypothesis is that useful subclasses of such loops can be
-*accelerated*: their unbounded iteration can be replaced by an exact finite
-symbolic relation or by an exact predecessor transformer.  Prior work on
-array-program acceleration shows that transitive closures of some guarded
-array assignments are definable, while also warning that acceleration can
-introduce quantifier alternation requiring specialized reasoning [1,2].
-
-* Preliminary surface syntax
-
-A first syntax sketch is:
-
-#+begin_src cubicle
-transition t(i)
-requires { G_t(i) }
-{
-  R_t(i)
-}
-triggers loop(_)
+#+begin_src text
+-tx bwd+loop
 #+end_src
 
-Its informal reading is:
+The existing =-tx bwd= mode retains its current acyclic input class and
+behavior.  Forward transaction exploration and =-tx all= do not support loops
+in the first implementation.  A loop in any mode other than =bwd+loop= is a
+located unsupported-feature error, not a verification verdict.
 
-1. choose an enabled process =i=;
-2. execute =t(i)=;
-3. repeatedly execute =t(j)= for an enabled process =j=;
-4. commit the transaction fragment only when no process enables =t=.
-
-The syntax is not settled.  In current TxCubicle, =_= in an ordinary trigger
-call has caller-local distinctness semantics.  A loop chooses a process anew at
-each iteration and may need a distinct notation so that =_= is not silently
-given a second meaning.  For a non-re-enabling local cleanup loop, selecting
-the same process immediately is impossible anyway, but the general language
-contract must not depend on that accident.
-
-The placement after the body means that at least one iteration has already
-succeeded.  The proposed relation therefore uses positive closure, not
-reflexive closure.  A future syntax that tests the loop before its first
-iteration would have different semantics.
-
-* Candidate semantics
-
-** Ordinary step relation
-
-Let the state be denoted by $a$, including all global and array values.  For a
-unary transition =t(i)=, let
+The central operation is
 
 \[
-  \tau_t(a,a',i)
+  \operatorname{Pre}_{t^*}(C),
 \]
 
-include its complete guard and update relation.  Define the process-abstracted
-one-step relation
-
-\[
-  T_t(a,a') \;:=\; \exists i.\,\tau_t(a,a',i).
-\]
-
-"Complete guard" includes any universal =forall_other= component, not only the
-local atoms represented by =tr_reqs= in the implementation.
-
-** Terminal states
-
-A state is terminal for =t= when no process enables another iteration:
-
-\[
-  \operatorname{Terminal}_t(a)
-  \;:=\;
-  \neg\exists i,a'.\,\tau_t(a,a',i).
-\]
-
-When transition applicability is exactly its guard, this becomes
-
-\[
-  \operatorname{Terminal}_t(a)
-  \;\equiv\;
-  \forall i.\,\neg G_t(a,i).
-\]
-
-** Maximal positive iteration
-
-The initial candidate loop relation is
-
-\[
-  L_t(a,a')
-  \;:=\;
-  T_t^+(a,a')
-  \wedge
-  \operatorname{Terminal}_t(a').
-\]
-
-Thus the loop relation contains only completed, boundary-to-boundary
-executions.  A finite prefix that still enables =t= is not a committed result.
-A sequence on which a constituent guard cannot be satisfied contributes no
-completed result, consistently with the existing relational account of
-transaction rollback.
-
-This is a semantic definition, not yet an effective construction.  In
-particular, transitive closure is not first-order definable in general.
-
-** Choice, order, and divergence
-
-Unless a supported fragment proves a stronger property, the relation above is
-existential and nondeterministic:
-
-- every process order that reaches a terminal state contributes its result;
-- different orders may contribute different terminal states;
-- an infinite execution contributes no transaction boundary;
-- if the same entry state admits both an infinite execution and a finite
-  terminal execution, the finite result is included.
-
-The first intended examples are order-insensitive and never re-enabling, so
-these distinctions should collapse.  They remain part of the general semantic
-boundary and must not be decided accidentally by an implementation.
-
-** Safety observation
-
-A compiled loop is intended first for TxCubicle's transaction-boundary
-relation.  Consequently, =-tx bwd= with loops would establish transactional
-safety, not low-level ATS safety.  A bad state reached during an iteration and
-repaired before the terminal boundary is not observed by this boundary-only
-relation.
-
-The finite forward oracle is a separate question.  Current =-tx fwd= records
-intermediate states as negative evidence for BRAB candidates while only
-queueing transaction-boundary states.  A loop may have an unbounded symbolic
-number of intermediate steps, although every fixed finite process instance may
-still have finitely many.  The desired observation policy for loop
-intermediates must therefore be specified independently from backward safety.
-
-* Backward terminal-state filtering
-
-Let a backward cube be $C(a,\vec{x})$, where $\vec{x}$ are existentially named
-processes.  If the cube entails that at least one named process enables the
-loop,
-
-\[
-  C(a,\vec{x})
-  \models
-  \bigvee_{x\in\vec{x}} G_t(a,x),
-\]
-
-then the cube contains no terminal loop state and the loop predecessor branch
-can be dropped soundly.  The entailment can be checked by asking whether
-
-\[
-  C(a,\vec{x})
-  \wedge
-  \bigwedge_{x\in\vec{x}}\neg G_t(a,x)
-\]
-
-is unsatisfiable.  The combined disjunction is stronger than checking whether
-one fixed named variable is forced to satisfy the guard.
-
-This is a one-sided rejection test.  If the formula is satisfiable, the cube is
-only *possibly terminal*: an unnamed process in the parameterized system may
-still enable the loop.  Named cube variables do not enumerate the process
-domain, so finite inspection cannot in general replace the universal terminal
-condition.
-
-The filter may nevertheless avoid carrying terminality into some accelerated
-predecessor computations.  Its practical value is an experimental question.
-For transitions with universal guards, the check must use the complete guard
-semantics; checking only local guard atoms would be unsound.
-
-* Acceleration rather than widening
-
-The primary operation under investigation is *acceleration*: an exact
-representation of $T_t^+$, of $L_t$, or of the corresponding predecessor
-transformer.  This should be distinguished from abstract-interpretation
-*widening*, which deliberately computes an approximation to force convergence.
-
-Approximation may later be useful, but its direction determines the verdicts
-it can support:
-
-- an over-approximate loop relation may preserve sound safety proofs but can
-  introduce spurious unsafe paths;
-- an under-approximation may find validated concrete behaviors but cannot prove
-  safety;
-- an approximation used only by BRAB's finite candidate-rejection oracle has a
-  different contract from one used by symbolic backward reachability.
-
-No approximation should be introduced under the name of compilation without
-an explicit soundness argument and result contract.
-
-* Three possible compilation targets
-
-The research should not assume that a supported loop must be converted to an
-ordinary =Ast.transition=.  There are at least three targets.
-
-** Relation compilation
-
-Construct a finite exact formula for
-
-\[
-  L_t(a,a').
-\]
-
-This is the most reusable result, but it may introduce quantifiers outside the
-fragment currently handled by ordinary Cubicle transitions.
-
-** Backward compilation
-
-For each cube $C$, construct an exact finite representation of
-
-\[
-  \operatorname{PreLoop}_t(C)(a)
-  \;:=\;
-  \exists a'.\,L_t(a,a')\wedge C(a').
-\]
-
-An exact cube-to-cubes predecessor operation may exist even when materializing
-the complete two-state relation is inconvenient.  This target is closest to
-=-tx bwd= and should be considered independently.
-
-** Finite forward execution
-
-For a fixed finite set of processes, execute enabled iterations until a
-terminal state is reached.  This may support a broader terminating fragment
-than exact symbolic backward acceleration.  Direction-specific support is
-possible in principle, but the user-facing complexity of accepting different
-loop classes under =-tx fwd=, =-tx bwd=, and =-tx all= must be evaluated.
-
-* What it means for a transition class to be supported
-
-For a candidate fragment $\mathcal F$, support requires separate answers to the
-following questions.
-
-** Semantic well-definedness
-
-The maximal-iteration relation must have a declared treatment of process
-choice, order, divergence, terminality, and safety observation.
-
-** Termination or boundary existence
-
-The first fragment should guarantee that every enabled entry state in every
-finite process instance reaches a terminal boundary.  A simple sufficient
-argument is strict decrease of the enabled-process set:
-
-\[
-  E(a) := \{i \mid G_t(a,i)\},
-  \qquad
-  E(a') \subsetneq E(a)
-\]
-
-for every iteration $\tau_t(a,a',i)$.  More general well-founded measures may
-be studied later.
-
-** Order independence, if required
-
-Order independence is not necessary to define a nondeterministic relation, but
-it can make exact bulk compilation possible.  For the initial fragment, it is
-desirable to prove that iterations at distinct enabled processes commute and
-that every maximal execution reaches the same result.
-
-** Exact definability
-
-The loop relation or predecessor transformer must be definable in a logic that
-can be represented and manipulated effectively.  Existence of a mathematical
-closure is not sufficient.
-
-** Symbolic closure
-
-Applying the compiled predecessor to a Cubicle cube must yield a finite and
-sound representation accepted by the remaining backward algorithm, or a
-controlled extension with its own decision procedure and proof.  Acceleration
-literature for arrays shows that exact accelerated relations may introduce
-$\exists^*\forall^*$ formulas [1,2]; compatibility with Cubicle's current cube
-and solver pipeline must therefore be established rather than assumed.
-
-** Mechanical recognition
-
-Cubicle should accept only a conservative, decidable class for which the
-required properties have been proved.  Syntactic recognition is preferable
-for the initial implementation.  SMT queries may discharge explicit local
-side conditions, but =unknown=, timeout, or unsupported theory must mean
-"unsupported", never implicit acceptance.
-
-** Trace and diagnostic support
-
-An accelerated unsafe edge must admit an independently checkable witness or a
-sound expansion scheme.  Unsupported loops should be rejected with a located
-source diagnostic rather than silently interpreted as ordinary annotations.
-
-* Candidate fragment ladder
-
-This ladder is exploratory.  The motivating example should determine the
-actual first boundary.
-
-** Fragment 0: elementary cleanup
-
-A unary transition recognizes one local array value and replaces it with a
-disabling value:
-
-\[
-  G(i) \equiv A(i)=c,
-  \qquad
-  A(i):=d,
-  \qquad c\neq d,
-\]
-
-with no relevant global update.  The candidate bulk effect is
-
-\[
-  A'(j)=
-  \begin{cases}
-    d    & \text{if } A(j)=c,\\
-    A(j) & \text{otherwise.}
-  \end{cases}
-\]
-
-Required proof: the bulk update is exactly the terminal positive closure.
-
-** Fragment 1: pointwise local transformation
-
-Permit a guard over a tuple of selected local cells and a pointwise update
-
-\[
-  G(i) \equiv P(A_1(i),\ldots,A_k(i)),
-\]
-
-\[
-  (A_1(i),\ldots,A_k(i))
-  := F(A_1(i),\ldots,A_k(i)),
-\]
-
-under at least the disabling condition
-
-\[
-  P(v) \Longrightarrow \neg P(F(v)).
-\]
-
-If an update at =i= cannot affect enabledness at =j\neq i=, maximal iteration
-may again be a pointwise bulk update.
-
-** Fragment 2: read-only global context
-
-Permit local guards and updates to inspect globals that remain stable throughout
-the loop:
-
-\[
-  G(a,i) \equiv P(g,A(i)),
-  \qquad
-  A(i):=F(g,A(i)).
-\]
-
-The bulk transformation is then pointwise relative to the fixed entry value of
-=g=.
-
-** Fragment 3: controlled global aggregation
-
-Permit iteration to update a global accumulator only when the aggregate admits
-an exact, order-independent acceleration expressible in the selected theories.
-This may require counts or distributed aggregates not expressible in current
-Cubicle and should not be assumed supportable.
-
-** Fragment 4: cross-index interference
-
-An iteration at =i= may inspect or change whether another process =j= is
-enabled.  This admits enabling, re-enabling, order dependence, and potentially
-nonterminating behavior.  It is an initial unsupported boundary unless a
-separate exact acceleration rule is developed.
-
-* Proof obligations for an accepted rule
-
-Every acceleration rule added to the supported fragment should discharge the
-following obligations.
-
-1. *Progress:* every enabled finite-instance execution reaches a terminal
-   boundary, or the rule states and correctly handles a weaker divergence
-   semantics.
-2. *Coverage:* every concrete maximal loop execution is represented by the
-   compiled relation or predecessor.
-3. *Precision:* every behavior represented by an exact compiled rule is a
-   concrete maximal loop execution.
-4. *Terminality:* every compiled result disables the loop globally, not only at
-   the cube's named process variables.
-5. *Positive iteration:* a compiled edge exists only when at least one ordinary
-   loop step can execute.
-6. *Parameter discipline:* process choices and distinctness constraints agree
-   with the selected loop syntax and with transaction argument propagation.
-7. *Symbolic closure:* the predecessor result is finite and belongs to the
-   representation consumed by Cubicle, under explicit theory assumptions.
-8. *Backward soundness:* replacing the loop by the compiled predecessor
-   preserves the declared transaction-boundary reachability result.
-9. *Forward correspondence:* if transaction-aware finite forward exploration
-   supports the rule, its completed states agree with the same loop semantics.
-10. *Trace validity:* an unsafe accelerated edge can be validated against
-    ordinary iterations on the relevant finite witness.
-
-For a deterministic, independent cleanup fragment, the central theorem should
-have the form:
-
-#+begin_quote
-For every finite process instance and every entry state enabling =t=, maximal
-iteration terminates; every maximal execution processes exactly the initially
-enabled processes; all execution orders reach the same final state; and that
-state is exactly the result of the compiled bulk update.
-#+end_quote
-
-* Research plan
-
-** Phase 1: examples and semantic delimitation
-
-- Recover and document the motivating example developed by Hector Suzanne and
-  Sylvain Conchon.
-- Add one intentionally order-sensitive example and one re-enabling or
-  nonterminating example, even if both are rejected by the first fragment.
-- Decide whether loop iteration may select the same process on consecutive
-  steps and choose syntax that does not accidentally overload ordinary =_=
-  semantics.
-- Confirm positive-iteration, terminal-boundary, existential-choice, rollback,
-  and divergence semantics.
-- State separately the observation policy for backward safety and finite
-  forward candidate filtering.
-
-Deliverable: a small suite of hand-checkable semantic examples and a stable
-mathematical definition of $L_t$.
-
-** Phase 2: prove the smallest fragment
-
-- Write the narrowest candidate syntactic fragment, initially expected to be an
-  independent disabling local update.
-- Define its compiled bulk relation or direct predecessor transformer.
-- Prove progress, terminality, order independence, coverage, and precision.
-- Identify every assumption on index, element, and global-variable theories.
-- Determine whether the result is representable as current Cubicle updates or
-  requires a dedicated symbolic operator.
-
-Deliverable: a theorem and proof for the first exact acceleration rule.
-
-** Phase 3: symbolic backward feasibility
-
-- Derive the exact pre-image of representative cubes through the compiled rule
-  by hand.
-- Determine whether the result remains a finite disjunction of differentiated
-  existential cubes.
-- Audit interactions with universal guards, relevant-instance generation,
-  simplification, subsumption, and variable normalization.
-- Specify and prototype the named-variable terminal rejection test.
-- Compare direct predecessor compilation with materializing an accelerated
-  two-state relation.
-
-Deliverable: an executable throwaway prototype or a documented impossibility
-for current Cubicle's symbolic fragment.
-
-** Phase 4: finite forward feasibility
-
-- Implement the semantic loop on fixed finite instances in isolation.
-- Confirm termination for accepted transitions and explicit rejection outside
-  the fragment.
-- Decide whether intermediate loop states are recorded as negative BRAB evidence
-  and how that choice relates to transaction-boundary semantics.
-- Compare final states against the bulk compilation on exhaustive small
-  instances.
-
-Deliverable: a differential finite-instance oracle for the accepted fragment.
-
-** Phase 5: fragment expansion
-
-Relax one restriction at a time:
-
-1. multiple local arrays;
-2. richer local guards and updates;
-3. stable read-only globals;
-4. selected global accumulations;
-5. limited interference across process indices.
-
-For each relaxation, record which property fails or requires new machinery:
-termination, order independence, exact definability, cube closure, solver
-decidability, trace reconstruction, or only implementation convenience.
-
-Deliverable: a supported-fragment table with a proof or counterexample for each
+where $C$ is a Cubicle cube obtained after the acyclic suffix and exit
+transition have already been pre-imaged.  The keystone is a finite-relevance
+theorem: for the initial transition class, process variables already in scope
+plus at most one fresh process suffice to represent this starred predecessor.
+The accepted fragment is chosen so that this bound has a direct proof.
+
+The current implementation does not support loop acceleration.  It rejects
+every trigger cycle and has no =bwd+loop= mode.  It does implement the
+callee-tuple underscore rule used below.
+
+* Language and control semantics
+
+** The =loop= continuation
+
+A unary triggered transition may offer =loop= among its continuations:
+
+#+begin_src cubicle
+triggered
+transition inv_shr(i)
+requires { Shr[i] = True && Curcmd = Reqe } {
+  Exg := False;
+  Cache[i] := Invalid;
+  Shr[i] := False
+}
+triggers gnt_excl(_) or loop
+#+end_src
+
+For a transition =t(i)=, =loop= is syntactic sugar for a self-call =t(_)=.
+After each successful turn, the self-call and the other continuations are
+ordinary nondeterministic alternatives.  The self-call has no priority.  Each
+selected transition must satisfy its guard; a failed branch contributes no
+completed transaction.  An infinite internal execution exposes no transaction
 boundary.
 
-** Phase 6: production integration
+Consequently, a loop node followed by an exit denotes guarded Kleene-star
+iteration before that exit.  A caller that offers both the loop transition and
+the exit supplies the zero-turn case.  In the German example the two shapes are:
 
-Only after the semantic and symbolic obligations are met:
+#+begin_src text
+req_excl(r); gnt_excl(r)
+req_excl(r); inv_shr(i); inv_shr*; gnt_excl(r)
+#+end_src
 
-- add final surface syntax to =lexer.mll= and =parser.mly=;
-- extend transaction AST data with source locations;
-- recognize supported loops during typing/elaboration;
-- compile them without introducing an enumerable cycle into
-  =Transaction.trigger_paths=;
-- integrate the exact predecessor with =Pre= and finite execution with
-  =Enumerative= as supported by the proved fragment;
-- retain the exception-based =Typing.Error= diagnostic boundary;
-- reject unsupported loops explicitly;
-- add focused safe, unsafe, nonterminal, unsupported, and trace-validation
-  regressions;
-- run the full Cubicle regression suite and differential finite-instance tests.
+Thus the self-loop after the first =inv_shr= represents zero or more additional
+turns; the complete positive branch contains one or more turns.
 
-Deliverable: a small reviewable implementation backed by theorem-level and
-experimental evidence.
+This remains transaction-boundary semantics.  =-tx bwd+loop= does not establish
+safety at intermediate ATS states inside the transaction.
 
-* Validation strategy
+** Underscores constrain the callee tuple
 
-Each proposed acceleration rule should be tested by non-substitutable forms of
-evidence.
+Consider a call
 
-- *Minimal semantic examples:* safe and unsafe boundary cases, including a bad
-  intermediate state hidden by a terminal boundary.
-- *Exhaustive finite differential checking:* enumerate small states and compare
-  ordinary repeated execution with the compiled loop relation.
-- *Order exploration:* enumerate every enabled process order for small instances
-  and verify confluence where claimed.
-- *Native versus reference encoding:* when practical, compile the loop to an
-  explicit finite control/process-memory encoding and compare results.
-- *Backward formula inspection:* record generated predecessors and validate them
-  independently on small finite instances.
-- *Verdict discipline:* timeout, solver =unknown=, unsupported syntax, failure to
-  accelerate, and nontermination are not =SAFE= or =UNSAFE=.
-- *Reproducibility:* record revision, command, model, solver/toolchain, resource
-  limit, exit status, and relevant output for experiments.
+\[
+  t_1(\vec x)\;\texttt{triggers}\;t(\vec a),
+\]
 
-A passing build or benchmark is regression evidence, not a proof of semantic
-correctness.
+where $\vec a$ contains named actuals and underscores.  Resolve the named
+actuals, then choose values for the underscores so that the complete ordered
+callee tuple $\vec a$ is pairwise distinct.  There is no inequality with caller
+arguments omitted from $\vec a$.
 
-* Initial open questions
+For example, =t1(x,y,z) triggers t2(x,_,_)= produces =t2(x,u,v)= with
 
-1. What is the recovered motivating transition, and which arrays, globals, and
-   theories does it use?
-2. What is Hector's proposed trivially supported fragment?
-3. Should the loop have dedicated syntax independent of ordinary trigger-call
-   =_= semantics?
-4. Is the initial feature required to support =-tx all=, or may forward-only and
-   backward-only support differ?
-5. Can the smallest useful bulk update be represented by existing Cubicle case
-   updates, or is a dedicated accelerated transformer necessary?
-6. Does the exact predecessor remain in Cubicle's cube fragment?
-7. Can the universal terminal condition be proved from the compiled bulk
-   relation for every accepted transition, leaving named-variable checking as
-   an optimization only?
-8. How should concrete error traces expand or witness an accelerated loop?
-9. Should finite forward exploration retain all loop intermediates as negative
-   candidate evidence?
-10. Which theory restrictions are intrinsic to acceleration, and which are only
-    limitations of the current implementation?
+\[
+  x\ne u,\qquad x\ne v,\qquad u\ne v,
+\]
 
-* Sources and provenance
+but $u$ and $v$ may reuse $y$ or $z$ when those inequalities permit it.  A
+unary call =t1(x) triggers t2(_)= imposes no inequality between the selected
+argument and $x$.  Separate calls may therefore reuse any earlier process when
+the callee tuples remain well formed.
 
-This document synthesizes the feature discussion of 2026-08-13 with the current
-transaction implementation and maintained project notes.  It distinguishes
-intended semantics, proposed algorithms, and implementation observations.
+In particular, the implicit unary self-call =t(_)= may select the process used
+by the preceding turn.  For the initial supported fragment that attempted turn
+then fails, because the transition is self-disabling.  No additional
+cross-iteration distinctness constraint is part of the loop semantics.
 
-Local sources consulted:
+This rule replaced the former caller-argument exclusion rule and has focused
+forward and backward regressions.  The loop proof below relies on it when
+compressing several unnamed turns to one.
 
-- =transaction.ml= and =transaction.mli=;
-- =typing.ml=, especially transaction elaboration in =Typing.system=;
-- =pre.ml= and =bwd.ml= for transaction-path predecessor scheduling;
-- =enumerative.ml= for transaction-aware finite forward exploration;
-- =ast.mli=, =parser.mly=, and =options.ml=;
-- =kb/transactions.md=;
-- =kb/transactional-mcmt.md=;
-- =kb/mcmt-notes.md=;
-- =kb/todo.md=;
-- =/Users/hector/Desktop/ICFEM26/paper.tex=, especially Sections 2--5.
+* Backward decomposition
 
-External research starting points:
+Suppose a transaction branch has the shape
 
-[1] Francesco Alberti, Silvio Ghilardi, and Natasha Sharygina,
-/Abstraction and Acceleration in SMT-based Model-Checking for Array Programs/,
-arXiv:1304.4499v2, 2013.
-https://arxiv.org/abs/1304.4499v2
+\[
+  P\;;\;t^*\;;\;E\;;\;S,
+\]
 
-[2] Francesco Alberti, Silvio Ghilardi, and Natasha Sharygina,
-/Definability of Accelerated Relations in a Theory of Arrays and Its
-Applications/, FroCoS 2013, LNCS 8152, pp. 23--39.
-https://doi.org/10.1007/978-3-642-40885-4_3
+where $P$ and $S$ are acyclic prefix and suffix fragments and $E$ is an exit
+transition.  Backward search computes
+
+\[
+  C_{bad}
+  \mapsto{\operatorname{Pre}_S}
+  C_1
+  \mapsto{\operatorname{Pre}_E}
+  C
+  \mapsto{\operatorname{Pre}_{t^*}}
+  C_0
+  \mapsto{\operatorname{Pre}_P}
+  \cdots.
+\]
+
+The input $C$ to the starred transformer already represents loop-exit states
+from which the ordinary exit and suffix can reach the unsafe predicate.  There
+is no additional loop postcondition and no separate universal cleanup predicate
+to reconstruct.  Exit guards are handled by the ordinary transition-level
+pre-image before acceleration starts.
+
+For one process instance $i$, retain the existing operation
+
+\[
+  \operatorname{Pre}_i(X)(a)
+  := \exists a'.\,R_i(a,a')\land X(a'),
+\]
+
+where $R_i$ contains the complete guard and update relation of =t(i)=.  The loop
+algorithm composes this existing operation on selected arguments; it does not
+reimplement transition substitution.
+
+* Initial supported transition class
+
+The following is a semantic class with a conservative mechanical recognizer.
+It is intentionally broader than the names and concrete types in the German
+example, but narrower than all transitions whose closure might be definable.
+
+Let =t(i)= have one process argument.  Write $G_i$ for its guard and $U_i$ for
+its deterministic update.
+
+1. *One local process.* Every array access in the guard and update is of the
+   form =A[i]= for a unary process-indexed array.  There is no access at another
+   process, no universal loop-body guard, and no multi-process array access.
+2. *Deterministic local effect.* The transition has no nondeterministic update.
+   It writes only cells =A[i]=; every other process cell is unchanged.
+3. *Separated globals.* Let $G_r$ be the globals read by the guard or any update
+   right-hand side, and $G_w$ the globals written by the transition.  Require
+   $G_r\cap G_w=\varnothing$.
+4. *Constant shared writes.* Every global in $G_w$ is assigned a fixed literal
+   constant, independent of the state and of $i$.  Every successful turn writes
+   the same tuple of constants.
+5. *Self-disabling.* A successful turn falsifies its own guard:
+
+   \[
+     R_i(a,a')\Longrightarrow \neg G_i(a').
+   \]
+6. *Unobserved current argument at exit.* A non-loop continuation of =t(i)=
+   does not pass =i= as a named actual.  Its underscores are resolved by the
+   callee-tuple rule.  Thus the exit choice does not observe which process made
+   the final loop turn.
+
+The first recognizer may establish self-disabling through a syntactic guard
+literal forced false by the update, such as =Shr[i] = True= together with
+=Shr[i] := False=.  This is a conservative proof rule, not the representation
+used by the accelerator.  Later recognizers may establish the same semantic
+property differently without changing the starred algorithm.
+
+These restrictions imply the properties needed below.  For $i\ne j$:
+
+- $R_i$ preserves whether $G_j$ holds;
+- $R_i;R_j=R_j;R_i$ as guarded relations;
+- after a successful $R_i$, no later distinct-process turn can re-enable $i$;
+- every successful loop word uses each concrete process at most once.
+
+The implication must be checked from the accepted syntax rather than assumed
+from these names.  A transition outside the recognizer is unsupported even if a
+human can see that it belongs to a larger accelerable class.
+
+* Finite relevance
+
+** Observable process set
+
+Let $C(\vec x)$ be the target cube.  Its variables $\vec x$ denote pairwise
+distinct processes.  Let $\vec k$ contain the distinct process identities
+retained by the surrounding transaction context.  Reuse one representative
+when a target and context identity are already known to coincide, and define
+
+\[
+  N := \{\vec x\}\cup\{\vec k\}.
+\]
+
+For a concrete state $a$, let $\pi_N(a)$ retain:
+
+- every global value; and
+- every array cell =A[n]= for $n\in N$.
+
+The target cube depends only on this projection.  A process outside $N$ is
+called unnamed relative to this predecessor problem.
+
+** One-fresh-process lemma
+
+*Lemma.*  Assume the initial supported transition class and the underscore
+semantics above.  A /loop word/ here is only the sequence of =t(_)= turns; its
+exit transition has already been pre-imaged and, by condition 6, does not name
+the final iterator.  For every finite process domain $D$, every $N\subseteq D$,
+every state $a$, and every legal finite loop word $w$, there is a legal word
+$\widehat w$ such that:
+
+1. $\widehat w$ uses each process in $N$ at most once;
+2. $\widehat w$ contains no process outside $N$ when $w$ contains none;
+3. $\widehat w$ contains exactly one process outside $N$ when $w$ contains at
+   least one; and
+4. the final states agree on the observation:
+
+   \[
+     \pi_N(w(a))=\pi_N(\widehat w(a)).
+   \]
+
+*Proof.*  Self-disabling and enabledness preservation imply that a successful
+word already uses every concrete process at most once.  By commutation, reorder
+it into its subsequence over $N$ followed by its subsequence outside $N$ without
+invalidating a guard.
+
+If the unnamed subsequence is empty, keep the named subsequence.  Otherwise,
+choose one process $q$ from it and delete all other unnamed turns.  The retained
+turn at $q$ was enabled in the original word.  Enabledness non-interference and
+commutation make it enabled after the retained named subsequence as well.
+
+Deleting the other unnamed turns changes only their own local cells, which
+$\pi_N$ does not observe.  One retained unnamed turn performs exactly the same
+constant shared-global assignments as the entire nonempty unnamed subsequence.
+It does not affect the local results of named turns.  The two final projections
+are therefore equal.
+
+Finally, a unary =t(_)= call imposes no inequality with the previous turn, and
+the exit does not name the final iterator.  The compressed word is therefore
+accepted by the transaction control.  Every retained turn satisfies its
+ordinary guard, hence the word is a concrete legal execution.  This proves the
+four claims.  QED.
+
+The converse required for precision is immediate: a generated word using one
+fresh representative denotes an ordinary concrete loop word whenever its
+ordinary transition pre-image is satisfiable.
+
+The lemma is an observational compression result, not equality of complete
+final states.  Deleted unnamed turns may leave different values in unnamed
+cells; those values cannot affect $C$, a retained turn, or a supported shared
+effect under the stated assumptions.
+
+** Starred predecessor theorem
+
+Let $N=\{n_1,\ldots,n_m\}$.  Define
+
+\[
+  \operatorname{Close}_i(X)
+  := X\lor\operatorname{Pre}_i(X).
+\]
+
+For one fresh process variable $q$ distinct from every member of $N$, define
+
+\[
+\begin{aligned}
+  X_N
+    &:= \operatorname{Close}_{n_1}\circ\cdots\circ
+        \operatorname{Close}_{n_m}(C),\\
+  X_{fresh}
+    &:= \exists q.\,
+        \left(\bigwedge_{n\in N}q\ne n\right)
+        \land \operatorname{Pre}_q(X_N).
+\end{aligned}
+\]
+
+Then, over every finite process domain,
+
+\[
+  \operatorname{Pre}_{(\bigcup_{i\in D}R_i)^*}(C)
+  \equiv X_N\lor X_{fresh}.
+\]
+
+For coverage, take a concrete witnessing word and apply the one-fresh-process
+lemma.  Its retained subset of $N$ is represented by the corresponding choices
+inside the =Close= composition.  If it has an unnamed turn, instantiate $q$ by
+that process and take the fresh branch.  For precision, every =Close= choice and
+the optional fresh branch is a composition of ordinary guarded transition
+pre-images and therefore has a concrete loop word.  Pairwise commutation makes
+the fixed order of the =Close= composition immaterial.
+
+If $D\setminus N$ is empty, the distinctness constraints make the fresh branch
+unsatisfiable, as required.  If the target does not observe a written global,
+the fresh branch normally strengthens an already present zero-turn branch only
+with the guard of =t(q)= and is removed by subsumption.  Thus one is a uniform
+upper bound; some cubes need no fresh representative.
+
+This theorem is the boundary between the accepted fragment and acceleration
+complexity.  Relaxing a restriction is acceptable only with a new finite bound
+and a replacement proof.
+
+* Cube-family algorithm
+
+Represent a disjunction by a finite family of cubes.  Let =reduce= perform only:
+
+- removal of inconsistent cubes; and
+- removal of a cube whose represented state set is included in that of another
+  cube, using an existing sound Cubicle subsumption test.
+
+This is minimization under represented-state inclusion, not optimization under
+a numeric metric.
+
+Given a target family initially containing $C$:
+
+1. Build $N$ from the cube variables and transaction-context representatives.
+2. For each $n\in N$, compute the ordinary one-step pre-images of the current
+   family under =t(n)= and set
+
+   \[
+     X\leftarrow\operatorname{reduce}
+       \bigl(X\cup\operatorname{Pre}_n(X)\bigr).
+   \]
+
+3. Introduce one process variable $q$ distinct from $N$.  Compute the positive
+   unnamed branch $Y:=\operatorname{Pre}_q(X)$ with the ordinary one-step
+   machinery.
+4. Return =reduce(X union Y)=.
+
+Step 3 must introduce one fresh representative once.  It must not call ordinary
+relevant-instance generation recursively: doing so could manufacture an
+unbounded sequence of fresh variables and would not implement the theorem.
+
+The algorithm is independent of German variable names.  Its inputs are a typed
+transition, a target cube family, the retained transaction representatives, and
+the footprint/self-disabling facts produced by the recognizer.
+
+* Transaction integration
+
+The trigger graph should treat =loop= as a distinguished continuation, not as
+an ordinary edge enumerated by acyclic path collection.  Only a unary
+self-loop accepted by the recognizer is supported; every other cycle remains a
+typing error.
+
+Backward scheduling proceeds as follows:
+
+1. Enumerate the acyclic transaction skeleton and preserve its shared process
+   substitution as today.
+2. Pre-image the suffix and exit transitions with the ordinary path machinery.
+3. At a loop marker, apply the cube-family starred transformer to the remaining
+   target cubes.
+4. Pre-image the current invocation of the loop transition once.  This accounts
+   for the mandatory first turn on a positive branch; the star accounts for its
+   additional turns.
+5. Continue through the acyclic prefix.  Only future-free cubes return to the
+   ordinary backward queue.
+
+The zero-turn transaction branch is the caller's direct edge to the exit, not a
+fabricated successful execution of the loop transition.  A failed first turn
+therefore still rolls back the positive branch.
+
+The exact shape of loop metadata in transaction futures is an implementation
+question.  It must preserve the existing invariant that intermediate cube
+variables and the stored transaction substitution refer to the same names.
+
+* German instance
+
+For =inv_shr(i)=,
+
+\[
+  G_i(a)
+  \equiv
+  \mathit{Shr}[i]=\mathsf{True}
+  \land \mathit{Curcmd}=\mathsf{Reqe}.
+\]
+
+One turn performs
+
+\[
+  \mathit{Shr}[i]:=\mathsf{False},\qquad
+  \mathit{Cache}[i]:=\mathsf{Invalid},\qquad
+  \mathit{Exg}:=\mathsf{False}.
+\]
+
+It belongs to the initial class:
+
+- all local accesses are at $i$;
+- the update is deterministic;
+- =Curcmd= is read and not written;
+- =Exg= is written with a constant and not read by the loop;
+- writing =Shr[i] := False= falsifies the local guard;
+- different process turns preserve each other's guards and commute.
+
+The ordinary backward pre-image of =gnt_excl(r)= is computed before the loop
+closure.  Its ordinary and universal guards therefore contribute through the
+existing transition-predecessor operation; the loop rule has no special
+=forall_other= case.
+
+For a loop-exit cube with relevant set $N$, turns at members of $N$ account for
+changes to named =Shr= and =Cache= cells.  If a positive turn at an unnamed
+process is relevant because it establishes =Exg = False=, the one fresh
+representative supplies its guard and shared effect.  Any additional unnamed
+invalidations have no further effect on the cube projection and are compressed
+by the lemma.
+
+Under the revised underscore rule, =inv_shr(i) triggers gnt_excl(_)= permits the
+grant argument to equal $i$: the callee has one argument, so its actual tuple is
+automatically pairwise distinct.  The previous first/last-iteration ordering
+problem does not arise.
+
+This establishes that German is inside the proposed semantic fragment.  It is
+not yet evidence that the current cube implementation realizes the theorem or
+that the example verifies; those require the implementation and tests below.
+
+* The fragment/complexity frontier
+
+The one-fresh bound fails or requires a different proof when an extension makes
+the number or identities of unnamed turns observable.  The following are
+outside the first fragment.
+
+| Relaxation | Likely additional requirement |
+|------------+-------------------------------|
+| A loop transition has several process arguments | Enough fresh representatives for one or more distinct callee tuples |
+| Calls impose inequalities across iterations | Representatives sufficient for a legal compressed word |
+| An exit names the final loop argument | A distinguished final-turn representative and constrained canonical order |
+| A turn changes another process's enabledness | Dependency/order analysis; no subset factorization in general |
+| Shared writes depend on local state | One representative per distinguishable shared effect, if finite |
+| Shared updates count, toggle, or accumulate | A saturation bound or an aggregate acceleration; possibly no finite bound |
+| A target observes cardinality or a universal array property directly | A richer symbolic target and a new relevance theorem |
+| A process can execute successfully more than once | A uniform local saturation bound and repeated per-process pre-images |
+| Nondeterministic updates have several observable effects | Relational effect classes and enough witnesses for their combinations |
+
+This table is a research map, not a promise that every row admits an exact
+extension.  The Pareto frontier should be explored by relaxing one condition at
+a time and proving the resulting representative bound before changing the
+recognizer.
+
+* Proof and implementation obligations
+
+Before =-tx bwd+loop= can be considered sound:
+
+1. Formalize the one-fresh-process lemma for Cubicle's actual term, cube, and
+   differentiated-variable semantics.
+2. Prove that the syntactic footprint and self-disabling recognizer implies all
+   assumptions of the lemma.
+3. Prove coverage and precision of the generated cube family, including the
+   fresh-variable distinctness case on small process domains.
+4. Audit ordinary universal-guard instantiation at the exit; acceleration must
+   consume its resulting cubes without inventing a second exit semantics.
+5. Preserve the callee-tuple underscore semantics and its aliasing and
+   distinctness regressions while integrating loops.
+6. Add =bwd+loop= without changing the behavior of =bwd=, =fwd=, or =all=.
+7. Preserve transaction-future substitutions and intermediate-cube naming.
+8. Produce a replayable finite sequence of ordinary turns for an accelerated
+   unsafe edge, or explicitly disable unsupported trace modes initially.
+9. Reject unsupported loops, solver =unknown=, timeout, and failed recognition
+   as diagnostics rather than =SAFE= or =UNSAFE=.
+
+* Validation plan
+
+1. *Mathematical examples.* Derive the generated predecessor families for zero
+   named processes, one named process, several named processes, and domains with
+   and without an additional process.
+2. *Finite differential oracle.* For small domains, enumerate every state and
+   every legal loop word, then compare the concrete starred predecessor with the
+   generated finite cube family.
+3. *Negative recognizer cases.* Reject a toggling local update, an incrementing
+   global, a local-state-dependent shared write, cross-index interference, a
+   universal loop guard, and a multi-process loop.
+4. *Underscore regressions.* Check reuse of omitted caller arguments, pairwise
+   distinctness within a multi-argument callee, and unary reuse across a loop or
+   exit.
+5. *German regression.* Run =examples/german_looped.cub= under =-tx bwd+loop=
+   and compare small finite instances with explicit ordinary iteration.
+6. *Mode isolation.* Confirm that the same input is rejected as unsupported
+   under =-tx bwd=, =-tx fwd=, and =-tx all=.
+7. *Project regression.* Run the complete =make test= suite and review all
+   changed verdicts and diagnostics.
+
+Finite-instance agreement is regression evidence for the implementation; it
+does not replace the parameterized finite-relevance proof.
+
+* Remaining design questions
+
+The following do not block this proposal, but must be answered before or during
+implementation rather than silently resolved in code:
+
+- What is the smallest source-located representation of a loop marker and its
+  retained transaction context?
+- Should the first self-disabling recognizer be purely syntactic, or may explicit
+  SMT validity checks establish its side conditions?  If SMT is used, =unknown=
+  and timeout must reject the loop.
+- Which existing subsumption operation is sound for reducing cube families with
+  different variable sets, including the one-fresh branch?
+- Which trace and certificate modes can replay an accelerated edge in the first
+  implementation?
+
+Any proposed relaxation of the transition class must first state its new
+finite-relevance bound and exhibit either a proof or a counterexample.
+
+* Sources
+
+Current implementation points to inspect before coding are =transaction.ml=,
+=transaction.mli=, =typing.ml=, =pre.ml=, =variable.ml=, =cube.ml=, =node.ml=,
+=options.ml=, and =examples/german_looped.cub=.  Current transaction behavior is
+mapped in =kb/transactions.md= and =kb/transactional-mcmt.md=.
+
+General acceleration background:
+
+- Francesco Alberti, Silvio Ghilardi, and Natasha Sharygina, /Abstraction and
+  Acceleration in SMT-based Model-Checking for Array Programs/, 2013,
+  https://arxiv.org/abs/1304.4499v2.
+- Francesco Alberti, Silvio Ghilardi, and Natasha Sharygina, /Definability of
+  Accelerated Relations in a Theory of Arrays and Its Applications/, FroCoS
+  2013, https://doi.org/10.1007/978-3-642-40885-4_3.

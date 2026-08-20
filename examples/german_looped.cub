@@ -1,0 +1,83 @@
+type msg = Empty | Reqs | Reqe
+type state =
+  Invalid | Shared | Exclusive
+
+var Exg : bool
+var Curcmd : msg
+var Curptr : proc
+
+array Cache[proc] : state
+array Shr[proc] : bool
+
+init (z) {
+     Cache[z] = Invalid
+  && Shr[z] = False
+  && Exg = False
+  && Curcmd = Empty
+}
+
+unsafe (z1 z2) {
+     Cache[z1] = Exclusive
+  && Cache[z2] <> Invalid
+}
+
+transition req_shr(n)
+requires { Curcmd = Empty
+        && Cache[n] = Invalid} {
+  Curcmd := Reqs;
+  Curptr := n
+}
+triggers gnt_shr(n) or inv_excl(_)
+
+transition req_excl (n)
+requires { Curcmd = Empty
+        && Cache[n]<>Exclusive} {
+  Curcmd := Reqe;
+  Curptr := n
+}
+triggers inv_shr(_) or gnt_excl(n)
+
+triggered
+transition inv_shr(n)
+requires { Shr[n]=True
+        && Curcmd = Reqe} {
+  Exg := False;
+  Cache[n] := Invalid;
+  Shr[n] :=False
+}
+triggers gnt_excl(_) or loop
+
+triggered
+transition inv_excl(n)
+requires { Shr[n]=True
+        && Curcmd = Reqs
+        && Exg=True} {
+  Exg := False;
+  Cache[n] := Invalid;
+  Shr[n] := False
+}
+triggers gnt_shr(_)
+
+triggered
+transition gnt_shr(n)
+requires { Curptr = n
+        && Curcmd = Reqs
+        && Exg = False} {
+  Curcmd := Empty;
+  Shr[n] := True;
+  Cache[n] := Shared
+}
+
+triggered
+transition gnt_excl(n)
+requires { Shr[n] = False
+        && Curcmd = Reqe
+        && Exg = False
+        && Curptr = n
+        && forall_other l.
+             Shr[l]=False} {
+  Curcmd := Empty;
+  Exg := True;
+  Shr[n] := True;
+  Cache[n] := Exclusive
+}

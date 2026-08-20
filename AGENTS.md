@@ -169,7 +169,7 @@ Transaction behavior is correctness-sensitive. Before changing it, read:
 - `kb/todo.md` for unresolved implementation and semantic work.
 
 Do not infer semantics solely from names such as `trigger`, `part`, `path`, or
-`future`. Preserve caller-local underscore resolution, process-identity
+`future`. Preserve callee-tuple underscore distinctness, process-identity
 propagation, traversal/path ordering, cycle diagnostics, and `part` permutation
 behavior unless the requested change explicitly alters them.
 

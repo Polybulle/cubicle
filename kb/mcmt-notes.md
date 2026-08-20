@@ -37,9 +37,8 @@ For transactional safety, the notes state that the standard pre-image analysis a
 
 `-tx bwd` checks transactional safety at transaction boundaries, whereas
 `-tx fwd` changes only finite invariant generation. The transaction
-semantics, including caller-local underscore selection and forward treatment of
-intermediate states, is integrated in `kb/transactional-mcmt.md`. Unfinished
-underscore implementation work is in `kb/todo.md`.
+semantics, including callee-tuple underscore selection and forward treatment of
+intermediate states, is integrated in `kb/transactional-mcmt.md`.
 
 ## Sources
 
