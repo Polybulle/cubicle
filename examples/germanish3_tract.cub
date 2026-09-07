@@ -73,7 +73,7 @@ requires { Chan[n] = Empty && Shrset[n]=True  &&
   	      | j = n : Inv 
 	      | _ : Chan[j] 
 }
-next recv_inv(n)
+triggers recv_inv(n)
 
 triggered 
 transition recv_inv(n)
@@ -86,7 +86,7 @@ requires { Chan[n] = Inv }
   	       | j = n : Invalid 
 	       | _ : Cache[j] 
 }
-next recv_invack(n)
+triggers recv_invack(n)
 
 triggered
 transition recv_invack(n)
