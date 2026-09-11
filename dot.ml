@@ -99,7 +99,11 @@ let rec print_atoms fmt = function
   | a::l -> fprintf fmt "%a\\n%a" Atom.print a print_atoms l
 
 let print_cube fmt c =
-  fprintf fmt "%a" print_atoms (SAtom.elements c.Cube.litterals)
+  let elts = (SAtom.elements c.Cube.litterals) in 
+  if elts = [] then
+    fprintf fmt "\"⊤\""
+  else
+    fprintf fmt "\"%a\"" print_atoms elts
 
 let print_node_info fmt s = match display_node_contents with
   | Empty -> if s.kind = Orig then fprintf fmt "%d" s.tag
@@ -114,7 +118,7 @@ let nb_nodes = ref 0
 
 let print_node_c confstr fmt s =
   incr nb_nodes;
-  fprintf fmt "%d [label=\"%a\"%s]" s.tag print_node_info s confstr
+  fprintf fmt "%d [label=%a%s]" s.tag print_node_info s confstr
 
 let print_node fmt s = print_node_c (config s.kind) fmt s
 

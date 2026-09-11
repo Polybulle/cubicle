@@ -197,18 +197,18 @@ end
 (* let print = Latex.print *)
 
 let print_history fmt n =
-  let last = List.fold_left 
-    (fun last (tr, args, a) ->
-      if dmcmt then 
-	fprintf fmt "[%a%a]" Hstring.print tr.tr_name Variable.print_vars args
-      else 
-	fprintf fmt "%a(%a) ->@ " Hstring.print tr.tr_name
-                Variable.print_vars args;
-      a
-    ) n n.from in
+    let last = List.fold_left
+      (fun last (tr, args, a) ->
+         if dmcmt then
+	   fprintf fmt "[%a%a]" Hstring.print tr.tr_name Variable.print_vars args
+         else
+	   fprintf fmt "%a(%a) ->@ " Hstring.print tr.tr_name
+             Variable.print_vars args;
+         a
+      ) n n.from in
   if dmcmt then fprintf fmt "[0]  "
   else
-    if last.kind = Approx then 
-      fprintf fmt "@{<fg_blue>approx[%d]@}" last.tag
-    else 
-      fprintf fmt "@{<fg_magenta>unsafe[%d]@}" last.tag
+  if last.kind = Approx then
+    fprintf fmt "@{<fg_blue>approx[%d]@}" last.tag
+  else
+    fprintf fmt "@{<fg_magenta>unsafe[%d]@}" last.tag
