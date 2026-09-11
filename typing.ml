@@ -27,10 +27,14 @@ type error =
   | DuplicateAssign of Hstring.t
   | DuplicateName of Hstring.t 
   | DuplicateUpdate of Hstring.t
+  | DuplicateTransition of Hstring.t
   | UnknownArray of Hstring.t
   | UnknownName of Hstring.t
   | DuplicateInit of Hstring.t
   | NoMoreThanOneArray
+  | HasTracts of Hstring.t
+  | HasPartsNeedAll of Hstring.t
+  | CycleInTriggers of Hstring.t list
   | ClashParam of Hstring.t
   | MustBeAnArray of Hstring.t
   | MustBeOfType of Hstring.t * Hstring.t
@@ -59,6 +63,10 @@ let report fmt = function
       fprintf fmt 
 	"duplicate array update for %a (You may want to use a case construct)"
 	Hstring.print s
+  | DuplicateTransition t ->
+     fprintf fmt
+       "duplicate transition name %a (incompatible with -triggers option)"
+       Hstring.print t
   | UnknownVar x ->
       fprintf fmt "unknown variable %a" Hstring.print x
   | UnknownArray a ->
@@ -71,6 +79,16 @@ let report fmt = function
       fprintf fmt "duplicate initialization for %a" Hstring.print a
   | NoMoreThanOneArray ->
       fprintf fmt "sorry, no more than one array"
+  | HasTracts t ->
+      fprintf fmt "transition %a requires the -tx option"
+      Hstring.print t
+  | HasPartsNeedAll t ->
+      fprintf fmt "transition %a has sequential parts and requires -tx all"
+      Hstring.print t
+  | CycleInTriggers names ->
+    fprintf fmt "Found a cycle of triggers within transitions (forbidden). Cycle \
+                 involves those transitions:\n  %a"
+      (pp_print_list ~pp_sep:pp_print_space Hstring.print) names
   | ClashParam x ->
       fprintf fmt "%a already used as a transition's parameter" Hstring.print x
   | MustBeAnArray s ->
@@ -271,13 +289,55 @@ let check_lets loc args l =
      let _ = term loc args t in ()
     ) l
 	       
-let transitions = 
-  List.iter 
-    (fun ({tr_args = args; tr_loc = loc} as t) -> 
-       unique (fun x-> error (DuplicateName x) loc) args; 
+let unique_transition_names s =
+  ignore (List.fold_left
+      (fun names t ->
+        if List.mem t.tr_name names then
+          error (DuplicateTransition t.tr_name) t.tr_loc
+        else
+          t.tr_name :: names)
+      []
+      s.trans)
+
+let next trs tr ({tc_name; tc_args; tc_loc}) =
+  (* are proc arguments in scope ? *)
+  List.iter (function
+      | None -> ()
+      | Some p when List.mem p tr.tr_args -> ()
+      | Some p -> error (UnknownName p) tc_loc)
+    tc_args;
+  (* are proc arguments a cube ? *)
+  unique (fun p -> error (DuplicateName p) tc_loc)
+    (List.filter_map (fun x -> x) tc_args);
+  (* does called transition exists ? *)
+  match List.find_opt (fun t -> t.tr_name = tc_name) trs with
+  | None ->  error (UnknownName tc_name) tc_loc
+  | Some called ->
+     (* correct number of args ? *)
+     let expected = List.length called.tr_args in
+     if List.length tc_args <> expected then
+       error (WrongNbArgs (tc_name, expected)) tc_loc
+
+let nexts trs ({tr_nexts} as t) = List.iter (next trs t) tr_nexts
+
+(* Validates the triggers if transactions are enabled. *)
+let check_triggers s =
+  unique_transition_names s;
+  List.iter (nexts s.trans) s.trans
+
+(* Check that system doesn't use transaction features. *)
+let no_transactions s =
+  ListLabels.iter s.trans ~f:(fun t ->
+      if not t.tr_may_yield || t.tr_is_triggered || t.tr_nexts <> [] then
+        error (HasTracts t.tr_name) t.tr_loc)
+
+let transitions =
+  List.iter
+    (fun ({tr_args = args; tr_loc = loc} as t) ->
+       unique (fun x-> error (DuplicateName x) loc) args;
        atoms loc args t.tr_reqs;
-       List.iter 
-	 (fun (x, cnf) -> 
+       List.iter
+	 (fun (x, cnf) ->
 	  List.iter (atoms loc (x::args)) cnf)  t.tr_ureq;
        check_lets loc args t.tr_lets;
        updates args t.tr_upds;
@@ -510,7 +570,7 @@ let add_tau tr =
     tr_tau = pre;
     tr_reset = reset_memo;
   }
-    
+
 let system s = 
   let l = init_global_env s in
   if not Options.notyping then init s.init;
@@ -522,7 +582,22 @@ let system s =
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();
   end;
-
+  let s,t_trans,t_transactions = if Options.tx_check then begin
+      check_triggers s;
+      let s, ps =
+        try Transaction.paths s
+        with Transaction.Cycle involved ->
+          let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
+          error (CycleInTriggers involved) dummy_loc in
+      let t_trans = List.map add_tau s.trans in
+      let t_transactions = Transaction.finalize t_trans ps in
+      s, t_trans, t_transactions
+    end else begin
+      if not Options.tx_allow then no_transactions s;
+      (* Trigger annotations are accepted but ignored. *)
+      let t_trans = List.map add_tau s.trans in
+      s, t_trans, []
+    end in
   let init_woloc = let _,v,i = s.init in v,i in
   let invs_woloc =
     List.map (fun (_,v,i) -> create_node_rename Inv v i) s.invs in
@@ -539,5 +614,5 @@ let system s =
     t_init_instances = init_instances;
     t_invs = invs_woloc;
     t_unsafe = unsafe_woloc;
-    t_trans = List.map add_tau s.trans;
+    t_trans;
   }

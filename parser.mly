@@ -84,6 +84,8 @@
 %}
 
 %token VAR ARRAY CONST TYPE INIT TRANSITION INVARIANT CASE
+%token TRIGGERED TRIGGERS OORR YIELDS
+%token PART
 %token FORALL EXISTS FORALL_OTHER EXISTS_OTHER
 %token SIZEPROC
 %token REQUIRE UNSAFE PREDICATE
@@ -233,18 +235,48 @@ transition_name:
   | lident {$1}
   | mident {$1}
 
+triggered_annot:
+  | TRIGGERED {true}
+  | {false}
+
+targs:
+  | UNDERSCORE targs { None :: $2 }
+  | lident targs { (Some $1) :: $2 }
+  | { [] }
+
+tcall:
+  | transition_name LEFTPAR targs RIGHTPAR
+    { {ptc_name = $1; ptc_args = $3; ptc_loc = loc ()} }
+
+tcalls:
+  | YIELDS {(true, [])}
+  | tcall {(false, [$1])}
+  | tcall OORR tcalls {let x,y = $3 in (x, $1::y)}
+
+next_clause:
+  | {(true, [])}
+  | TRIGGERS tcalls {$2}
+
+transition_body:
+  | LEFTBR let_assigns_nondets_updates RIGHTBR
+    { let lets, (assigns, nondets, upds) = $2 in lets, assigns, nondets, upds, [] }
+;
+
 transition:
-  | TRANSITION transition_name LEFTPAR lidents RIGHTPAR 
-      require
-      LEFTBR let_assigns_nondets_updates RIGHTBR
-      { let lets, (assigns, nondets, upds) = $8 in
+  | triggered_annot TRANSITION transition_name LEFTPAR lidents RIGHTPAR
+      require transition_body next_clause
+      { let lets, assigns, nondets, upds, parts = $8 in
+        let ptr_may_yield, ptr_nexts = $9 in
 	{   ptr_lets = lets;
-	    ptr_name = $2;
-            ptr_args = $4; 
-	    ptr_reqs = $6;
-	    ptr_assigns = assigns; 
-	    ptr_nondets = nondets; 
+	    ptr_name = $3;
+            ptr_args = $5;
+	    ptr_reqs = $7;
+	    ptr_assigns = assigns;
+	    ptr_nondets = nondets;
 	    ptr_upds = upds;
+            ptr_is_triggered = $1;
+            ptr_may_yield;
+            ptr_nexts;
             ptr_loc = loc ();
           }
       }

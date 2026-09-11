@@ -196,6 +196,12 @@ end
 
 (* let print = Latex.print *)
 
+let print_tcall subst fmt (tr, args) =
+  let open Format in
+  fprintf fmt "%a(%a) ->@ "
+    Hstring.print tr.tr_info.tr_name
+    Variable.print_vars (List.map (Variable.subst subst) args)
+
 let print_history fmt n =
     let last = List.fold_left
       (fun last (tr, args, a) ->

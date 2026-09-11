@@ -45,6 +45,10 @@ val mu_cmd : string
 val mu_opts : string
 val cpp_cmd : string
 
+val tx_fwd : bool
+val tx_bwd : bool
+val tx_check : bool
+val tx_allow : bool
 
 val limit_forward_depth : bool
 val forward_depth : int

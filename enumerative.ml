@@ -83,9 +83,9 @@ end
 
 type st_req = int * op_comp * int
 
-type st_action = 
+type st_action =
   | St_ignore
-  | St_assign of int * int 
+  | St_assign of int * int
   | St_arith of int * int * int
   | St_ite of st_req list * st_action * st_action
 
@@ -93,6 +93,8 @@ type st_action =
 (* Raised when a transition's guards are not satisfied by the current state *)
 exception Not_applicable
 
+(* A compiled transition, ready for execution on concrete states.
+   [st_f] may raise [Not_applicable] *)
 type state_transistion = {
   st_name : Hstring.t;
   st_reqs : st_req list;
@@ -102,6 +104,14 @@ type state_transistion = {
 }
 
 
+(** Environment for enumerative exploration.
+    This record contains all the mappings and state needed to execute
+    transitions on concrete states. Symbolic terms
+    are encoded as integers, and states are int arrays where:
+    - Indices 0..max_id_vars are state variables (globals, arrays)
+    - Indices first_proc..extra_proc-1 are process identifiers
+    - Higher indices are constructors and constants
+*)
 type env = {
   model_cardinal : int;     (** Number of processes in the finite model *)
   nb_vars : int;            (** Number of state variables (array size) *)
@@ -151,12 +161,9 @@ let empty_env = {
 
 
 
-
-exception Found of term
-
-
 (* inefficient but only used for debug *)
 let id_to_term env id =
+  let exception Found of term in
   try
     HT.iter (fun t i -> if id = i then raise (Found t)) env.id_terms;
     raise Not_found
@@ -686,7 +693,7 @@ let rec apply_action env st sts' = function
 	List.iter (fun st' -> st'.(i1) <- v2) sts';
         sts'
       with Not_found -> sts'
-    end 
+    end
   | St_arith (i1, i2, c) when abstr_num ->
     begin
       try
@@ -715,6 +722,7 @@ let rec apply_action env st sts' = function
           | _, _ -> List.rev_append sts'1 sts'2
       end
   | _ (* St_ignore or St_arith when ignoring nums *) -> sts'
+
 
 let apply_actions env st acts =
   let st' = Array.copy st in
@@ -922,15 +930,21 @@ let install_sigint () =
 let search procs init =
   TimeForward.start ();
   let procs = procs in
+  (* Step 1: Initialize term-to-ID mappings *)
   let env = init_tables procs init in
+  (* Step 2: Convert initial formula to concrete states *)
   let st_inits = init_to_states env procs init in
-  if debug then 
+  if debug then
     List.iter (fun (_, st) ->
       eprintf "init : %a\n@." SAtom.print (state_to_cube env st))
       st_inits;
-  let env = { env with st_trs = transitions_to_func procs env init.t_trans } in
+  (* Step 3: Compile transitions to executable closures *)
+  let st_trs = transitions_to_func procs env init.t_trans in
+  let env = { env with st_trs } in
+  (* Register environment for later candidate checking *)
   global_envs := env :: !global_envs;
   install_sigint ();
+  (* Step 4: Run BFS exploration *)
   begin try
     forward_bfs init procs env st_inits;
     with Exit -> ()
@@ -951,13 +965,23 @@ let satom_to_cand env sa =
     sa []
 
 
+(** Raised when a candidate invariant survives checking against all states *)
 exception Sustainable of Node.t list
 
 
-(*********************************************************************)
-(* Check if there exists one (or many) approximation candidates that *)
-(* cannot be disproved by the finite model                           *)
-(*********************************************************************)
+(******************************************************************************)
+(*                  CANDIDATE INVARIANT CHECKING                              *)
+(*                                                                            *)
+(* These functions check if candidate invariants (approximations) can be      *)
+(* disproved by the finite model built during exploration.                    *)
+(*                                                                            *)
+(* The key insight: if a candidate is violated by ANY explored state, it      *)
+(* cannot be a valid invariant of the full (infinite) system. This provides   *)
+(* a fast way to filter out bad candidates before expensive SMT checking.     *)
+(*                                                                            *)
+(* A candidate that survives (is not disproved by any state) is "sustainable" *)
+(* and is returned for further verification by the BRAB algorithm.            *)
+(******************************************************************************)
 
 
 let alpha_renamings env procs s =
@@ -1102,6 +1126,9 @@ let fast_resist_on_trace ls =
 (* TODO Extract unsat cores to find minimal candidate *)
 (******************************************************)
 
+(******************************************************************************)
+(*                  PUBLIC INTERFACE                                          *)
+(******************************************************************************)
 
 let init system =
   set_liberal_gc ();
@@ -1116,7 +1143,6 @@ let init system =
     if not quiet then printf "%a@." Pretty.print_double_line ();
   done;
   reset_gc_params ()
-   
 
 let first_good_candidate candidates =
   match fast_resist_on_trace candidates with

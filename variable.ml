@@ -25,13 +25,19 @@ module Set = Hstring.HSet
 let compare = Hstring.compare
 let compare_list = Hstring.compare_list
 	       
+let gen_var =
+  let n = ref 1 in
+  fun () ->
+    let v = Hstring.make ("_v" ^ (string_of_int !n)) in
+    incr n; v
+  
+
 let gen_vars s n = 
   let l = ref [] in
   for i = 1 to max_proc do
     l := Hstring.make (s^(string_of_int i)) :: !l
   done;
   List.rev !l
-
 
 let alphas = gen_vars "$" max_proc
 

@@ -55,6 +55,34 @@ let mu_cmd = ref "mu"
 let mu_opts = ref ""
 let cpp_cmd = ref "g++ -O4"
 
+let tx_fwd = ref false
+let tx_bwd = ref false
+let tx_check = ref false
+let tx_allow = ref false
+
+let set_tx arg =
+  let  fwd, bwd, check, allow = match arg with
+  | "none" ->   false, false, true,  true
+  | "fwd" ->    true,  false, true,  true
+  | "bwd" ->    false, true,  true,  true
+  | "all" ->    true,  true,  true,  true
+  | "ignore" -> false, false, false, true
+  | s -> raise (Arg.Bad ("tx argument '"^s^"' must be none, fwd, bwd, all, or ignore")) in
+  tx_bwd := bwd; tx_fwd := fwd; tx_allow := allow; tx_check := check
+
+(* Normalize argv: -tx without a following keyword becomes -tx all *)
+let preprocess_argv () =
+  let rec process = function
+    | [] -> []
+    | "-tx" :: rest ->
+      (match rest with
+       | ("none" | "fwd" | "bwd" | "all" | "ignore") :: _ ->
+         "-tx" :: process rest
+       | _ -> "-tx" :: "all" :: process rest)
+    | x :: rest -> x :: process rest
+  in
+  Array.of_list (process (Array.to_list Sys.argv))
+
 let brab = ref (-1)
 let brab_up_to = ref false
 let forward_depth = ref (-1)
@@ -161,6 +189,8 @@ let specs =
     "-mu-opt", Arg.Set_string mu_opts,
     " Murphi compiler options (passed as is, no options by default)";
     "-cpp", Arg.Set_string cpp_cmd, " C++ compiler command line (default: g++ -O4)";
+    "-tx", Arg.Symbol (["none"; "fwd"; "bwd"; "all"; "ignore"], set_tx),
+    " transaction support: none=off, fwd=forward only, bwd=backward only, all=both, ignore=accept but ignore annotations (bare -tx means all)";
     "-forward-depth", Arg.Set_int forward_depth,
     "<d> Limit the depth of the forward exploration to at most d";
     "-max-forward", Arg.Set_int max_forward,
@@ -213,7 +243,7 @@ let cin =
     if Filename.check_suffix s ".cub" then ofile := Some s
     else raise (Arg.Bad "no .cub extension");
   in
-  Arg.parse alspecs set_file usage;
+  Arg.parse_argv (preprocess_argv ()) alspecs set_file usage;
   match !ofile with 
   | Some f -> file := f ; open_in f 
   | None -> stdin
@@ -247,6 +277,11 @@ let murphi_uopts = !murphi_uopts
 let mu_cmd = !mu_cmd
 let mu_opts = !mu_opts
 let cpp_cmd = !cpp_cmd
+
+let tx_fwd = !tx_fwd
+let tx_bwd = !tx_bwd
+let tx_check = !tx_check
+let tx_allow = !tx_allow
 
 let max_cands = !max_cands
 let max_forward = !max_forward

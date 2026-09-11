@@ -348,6 +348,12 @@ end
 
 
 let select_oracle =
+
+  if (tx_fwd || tx_bwd) && murphi then begin
+    eprintf "Option -tx is incompatible with -murphi";
+    exit 1
+  end;
+
   if do_brab then
     if murphi then
       (module Murphi : Oracle.S)

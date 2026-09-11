@@ -67,6 +67,12 @@
     ("(\\*\\([^*]\\|\\*[^)]\\)*\\*)" . font-lock-comment-face)
     ; transitions need not have a return type
     ("\\(transition\\)\\s-+\\(\\sw+\\)" (1 font-lock-keyword-face) (2 font-lock-function-name-face))
+    ("\\(transaction\\)\\s-+\\(\\sw+\\)" (1 font-lock-keyword-face) (2 font-lock-function-name-face))
+    ("\\(part\\)\\s-+\\(\\sw+\\)" (1 font-lock-keyword-face) (2 font-lock-function-name-face))
+    ("\\(triggered\\)\\s-+\\(\\sw+\\)" (1 font-lock-keyword-face) (2 font-lock-function-name-face))
+    ("\\(triggers\\)\\s-+\\(\\sw+\\)" (1 font-lock-keyword-face) (2 font-lock-function-name-face))
+    ("\\(or\\)\\s-+\\(\\sw+\\)" (1 font-lock-keyword-face) (2 font-lock-function-name-face))
+    ("\\(yield\\)\\s-+\\(\\sw+\\)" (1 font-lock-keyword-face) (2 font-lock-function-name-face))
     ("\\(predicate\\)\\s-+\\(\\sw+\\)" (1 font-lock-keyword-face) (2 font-lock-function-name-face))
     ("\\(type\\)\\s-+\\(\\sw+\\)" (1 font-lock-keyword-face) (2 font-lock-type-face))
     ("\\(var\\)\\s-+\\sw+\\s-+:\\s-+\\(\\sw+\\)" (1 font-lock-keyword-face) (2 font-lock-type-face))
