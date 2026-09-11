@@ -821,8 +821,8 @@ let print_system fmt { type_defs;
   pp_print_newline fmt ();
   print_unsafe fmt unsafe;
   pp_print_newline fmt ();
-  print_trans fmt (List.rev trans)
-
+  print_trans fmt (List.rev trans);
+  pp_print_newline fmt ()
 
 let encode_psystem psys =
   let sys = encode_psystem psys in
