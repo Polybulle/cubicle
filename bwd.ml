@@ -88,7 +88,7 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
                             backtrack, just forget it. *)
                end
              in
-             let ls, post = Pre.pre_image system.t_trans n in
+             let ls, post = Pre.pre_image system n in
              if delete then
                visited :=
                  Cubetrie.delete_subsumed ~cpt:Stats.cpt_delete n !visited;
@@ -170,14 +170,14 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
             Stats.check_limit n;
             match Approx.good n with
             | None ->
-               WR_PreNormal (Pre.pre_image system.t_trans n)
+               WR_PreNormal (Pre.pre_image system n)
             | Some c ->
                try
                  (* Replace node with its approximation *)
                  Safety.check system c;
-                 WR_PreCandidate (c, (Pre.pre_image system.t_trans n))
+                 WR_PreCandidate (c, (Pre.pre_image system n))
                with Safety.Unsafe _ ->
-                 WR_PreNormal (Pre.pre_image system.t_trans n)
+                 WR_PreNormal (Pre.pre_image system n)
        with
        | Safety.Unsafe faulty  ->
           WR_Unsafe faulty
@@ -263,7 +263,7 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
            end
          in
 
-         let ls, post = Pre.pre_image system.t_trans n in
+         let ls, post = Pre.pre_image system n in
          if delete then
            visited :=
              Cubetrie.delete_subsumed ~cpt:Stats.cpt_delete n !visited;

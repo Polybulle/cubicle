@@ -657,6 +657,12 @@ let simplify { litterals = sa; } =
 let elim_ite_simplify { litterals = sa; } =
   List.map create_normal (elim_ite_atoms sa)
 
+let elim_ite_simplify_unnorm { litterals = sa; } =
+  List.map (fun sa ->
+    let vars = Variable.Set.elements (SAtom.variables_proc sa) in
+    create vars sa
+  ) (elim_ite_atoms sa)
+
 let simplify_atoms_base = simplification_atoms
 let simplify_atoms sa = simplification_atoms SAtom.empty sa
 let elim_ite_simplify_atoms = elim_ite_atoms

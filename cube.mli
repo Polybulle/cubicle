@@ -90,6 +90,10 @@ val elim_ite_simplify : t -> t list
 (** lifts [if-then-else] constructs and simplify a cube *)
 
 
+val elim_ite_simplify_unnorm : t -> t list
+(** lifts [if-then-else] constructs and simplify a cube, while keeping variable names *)
+
+
 (** {2 Misc } *)
 
 val resolve_two : t -> t -> t option

@@ -134,6 +134,15 @@ type init_instance = {
 }
 (** Type of instantiated initial formulas *)
 
+
+type event = { evt_trans : transition; evt_args : Hstring.t list; }
+
+type cfg = {
+      parent_calls_of : node_cube -> event list;
+      should_check_safety : node_cube -> bool;
+      should_check_fixpoint : node_cube -> bool;
+    }
+
 type t_system = {
   t_globals : Hstring.t list; (** Global variables *)
   t_consts : Hstring.t list; (** Existential constants *)
@@ -149,5 +158,7 @@ type t_system = {
   (** unsafe formulas (in the form of cubes *)
   t_trans : transition list;
   (** transition relation in the form of a list of transitions *)
+  cfg : cfg;
+  (** Utilities to move through the system's traces *)
 }
 (** type of typed transition systems *)

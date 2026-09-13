@@ -33,8 +33,6 @@ type error =
   | DuplicateInit of Hstring.t
   | NoMoreThanOneArray
   | HasTracts of Hstring.t
-  | HasPartsNeedAll of Hstring.t
-  | CycleInTriggers of Hstring.t list
   | ClashParam of Hstring.t
   | MustBeAnArray of Hstring.t
   | MustBeOfType of Hstring.t * Hstring.t
@@ -82,13 +80,6 @@ let report fmt = function
   | HasTracts t ->
       fprintf fmt "transition %a requires the -tx option"
       Hstring.print t
-  | HasPartsNeedAll t ->
-      fprintf fmt "transition %a has sequential parts and requires -tx all"
-      Hstring.print t
-  | CycleInTriggers names ->
-    fprintf fmt "Found a cycle of triggers within transitions (forbidden). Cycle \
-                 involves those transitions:\n  %a"
-      (pp_print_list ~pp_sep:pp_print_space Hstring.print) names
   | ClashParam x ->
       fprintf fmt "%a already used as a transition's parameter" Hstring.print x
   | MustBeAnArray s ->
@@ -133,6 +124,7 @@ let infer_type x1 x2 =
     in
     let ref_ty, ref_cs =
       try Hstring.H.find refinements h1 with Not_found -> [], [] in
+
     match x2 with
       | Elem (e2, Constr) -> Hstring.H.add refinements h1 (e2::ref_ty, ref_cs)
       | Elem (e2, Glob) -> Hstring.H.add refinements h1 (ref_ty, e2::ref_cs)
@@ -582,22 +574,17 @@ let system s =
     Smt.Variant.close ();
     if Options.debug then Smt.Variant.print ();
   end;
-  let s,t_trans,t_transactions = if Options.tx_check then begin
-      check_triggers s;
-      let s, ps =
-        try Transaction.paths s
-        with Transaction.Cycle involved ->
-          let dummy_loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
-          error (CycleInTriggers involved) dummy_loc in
-      let t_trans = List.map add_tau s.trans in
-      let t_transactions = Transaction.finalize t_trans ps in
-      s, t_trans, t_transactions
-    end else begin
-      if not Options.tx_allow then no_transactions s;
-      (* Trigger annotations are accepted but ignored. *)
-      let t_trans = List.map add_tau s.trans in
-      s, t_trans, []
-    end in
+  if Options.tx_check then
+      check_triggers s
+  else if not Options.tx_allow then
+    no_transactions s
+  else
+    ();
+  let t_trans = List.map add_tau s.trans in
+  let cfg =
+    let module S = struct let it = t_trans end in
+    let module CFG = Transaction.CFG_of(S) in
+    CFG.it in
   let init_woloc = let _,v,i = s.init in v,i in
   let invs_woloc =
     List.map (fun (_,v,i) -> create_node_rename Inv v i) s.invs in
@@ -615,4 +602,5 @@ let system s =
     t_invs = invs_woloc;
     t_unsafe = unsafe_woloc;
     t_trans;
+    cfg;
   }
