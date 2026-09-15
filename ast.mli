@@ -97,6 +97,8 @@ type system = {
 
 (** {2 Typed transition system} *)
 
+type event = { evt_trans : Hstring.t; evt_args : Hstring.t list; }
+
 (** the kind of nodes *)
 type kind = 
   | Approx (** approximation *)
@@ -104,6 +106,8 @@ type kind =
   | Node   (** reguar node *)
   | Inv    (** or user supplied invariant*)
 
+
+type node_position = Before of event
 
 type node_cube =
     { 
@@ -116,6 +120,7 @@ type node_cube =
                                   simplification detects subsumption
                                   (see {! Cubetrie.delete_subsumed}) *)
       from : trace;           (** history of the node *)
+      state : node_position
     }
 (** the type of nodes, i.e. cubes with extra information *)
 
@@ -134,13 +139,11 @@ type init_instance = {
 }
 (** Type of instantiated initial formulas *)
 
-
-type event = { evt_trans : transition; evt_args : Hstring.t list; }
-
 type cfg = {
       parent_calls_of : node_cube -> event list;
       should_check_safety : node_cube -> bool;
       should_check_fixpoint : node_cube -> bool;
+      transition_for_event : event -> transition;
     }
 
 type t_system = {

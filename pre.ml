@@ -268,7 +268,10 @@ let cube ?(origin : Node.t option) s tr cnp acc sigma =
 	          end
 	        else
               let new_cube = Cube.create nargs np in
-              let new_s = Node.create new_cube
+              let new_pos = Before {
+                  evt_trans = tr.tr_name;
+                  evt_args = tr_args} in
+              let new_s = Node.create ~pos:new_pos new_cube
                   ~from:(Some (tr, tr_args, s)) in
 	          match post_strategy with
 	          | 0 -> add_list new_s ls, post
@@ -338,7 +341,7 @@ let pre ?(normalize=true) ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t)
 
 
 let pre_image_by_tcall ?origin sys c acc (call : event) =
-  let t = call.evt_trans in
+  let t = sys.cfg.transition_for_event call in
   let pre_u, _ = pre ~normalize:false t (Node.litterals c) in
   let sigma = Variable.build_subst t.tr_info.tr_args call.evt_args in
   cube ?origin c t.tr_info pre_u acc sigma

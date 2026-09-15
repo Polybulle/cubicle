@@ -515,11 +515,11 @@ let debug_init_instances insts =
     ) insts
 
 
-let create_node_rename kind vars sa =
+let create_node_rename pos kind vars sa =
   let sigma = Variable.build_subst vars Variable.procs in
   let c = Cube.subst sigma (Cube.create vars sa) in
   let c = Cube.normal_form c in
-  Node.create ~kind c
+  Node.create ~pos ~kind c
 
 
 let fresh_args ({ tr_args = args; tr_upds = upds} as tr) = 
@@ -575,7 +575,7 @@ let system s =
     if Options.debug then Smt.Variant.print ();
   end;
   if Options.tx_check then
-      check_triggers s
+    check_triggers s
   else if not Options.tx_allow then
     no_transactions s
   else
@@ -587,9 +587,9 @@ let system s =
     CFG.it in
   let init_woloc = let _,v,i = s.init in v,i in
   let invs_woloc =
-    List.map (fun (_,v,i) -> create_node_rename Inv v i) s.invs in
+    List.map (fun (_,v,i) -> create_node_rename Node.dummy_pos Inv v i) s.invs in
   let unsafe_woloc =
-    List.map (fun (_,v,u) -> create_node_rename Orig v u) s.unsafe in
+    List.map (fun (_,v,u) -> create_node_rename Node.neutral_pos Orig v u) s.unsafe in
   let init_instances = create_init_instances init_woloc invs_woloc in
   if Options.debug && Options.verbose > 0 then
     debug_init_instances init_instances;

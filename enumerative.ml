@@ -991,7 +991,8 @@ let alpha_renamings env procs s =
      perm can be disproved *)
   List.fold_left (fun p sigma ->
     let c = Cube.subst sigma s.cube in
-    let s' = Node.create ~kind:Approx c in
+    let pos = Node.subst_pos sigma s.state in
+    let s' = Node.create ~pos ~kind:Approx c in
     (satom_to_cand env (Node.litterals s'), s') :: p
   ) [] d
 

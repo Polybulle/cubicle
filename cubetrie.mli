@@ -65,7 +65,6 @@ val all_vals : 'a t -> 'a list
 val consistent : Atom.t list -> 'a t -> 'a list
 (** All values whose keys (cubes) are not inconsistent with the given cube. *)
 
-val add_and_resolve : Node.t -> Node.t t -> Node.t t
 
 val delete_subsumed : ?cpt:int ref -> Node.t -> Node.t t -> Node.t t
 (** Delete from the trie nodes that are subsumed by the first arguments *)

@@ -36,8 +36,18 @@ val dim : t -> int
 val size : t -> int
 (** returns the size of the associated cube (see {! Cube.size}) *)
 
+val neutral_pos : node_position
+(** Tags nodes that exists in-between transactions *)
+
+val dummy_pos : node_position
+(** Tags nodes that don't represent concrete system states, i.e invariants. *)
+
+val subst_pos : Variable.subst -> node_position -> node_position
+(** Rename a position with an injective substitution covering the cube variables.
+    Extend it to control-only variables without colliding with its images. *)
+
 val create :
-  ?kind:kind -> ?from:trace_step option -> Cube.t -> t
+  pos:node_position -> ?kind:kind -> ?from:trace_step option -> Cube.t -> t
 (** given a cube creates a node with a given kind, and a history *)
 
 val compare_by_breadth : t -> t -> int

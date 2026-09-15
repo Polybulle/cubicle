@@ -15,13 +15,15 @@ module CFG_of (S : System) : Cfg = struct
 
   let sys = S.it
 
-  let reverse_call caller callee call =
-    let subst = (List.combine call.tc_args callee.tr_args) in
+  let neutral = Types.neutral_name
+
+  let reverse_call caller caller_args callee_args call =
+    let subst = (List.combine call.tc_args callee_args) in
     let subst = LL.filter_map subst ~f:(function
         | None, _ -> None
         | Some var, arg -> Some (var, arg)) in
-    let args = List.map (fun var -> List.assoc_opt var subst) caller.tr_args in
-    {call with tc_name = caller.tr_name; tc_args = args}
+    let args = List.map (fun var -> List.assoc_opt var subst) caller_args in
+    {call with tc_name = caller; tc_args = args}
 
 
   let trans_hashtbl f =
@@ -34,38 +36,43 @@ module CFG_of (S : System) : Cfg = struct
 
   let transition_named s = Hstring.H.find nodes s
 
+  let args_named s =
+    if Hstring.equal s neutral then []
+    else (transition_named s).tr_info.tr_args
+
   let entrypoints = LL.filter_map sys ~f:(fun {tr_info = tr; _} ->
       if tr.tr_is_triggered then None
       else Some {tc_name = tr.tr_name;
                  tc_args = List.map (fun _ -> None) tr.tr_args;
                  tc_loc = tr.tr_loc})
 
-  let yielders = LL.filter_map sys ~f:(fun {tr_info = tr; _} ->
-      if not tr.tr_may_yield then None
-      else Some {tc_name = tr.tr_name;
-                 tc_args = List.map (fun _ -> None) tr.tr_args;
-                 tc_loc = tr.tr_loc})
+  let nexts =
+    let nexts = trans_hashtbl (fun {tr_info = tr} ->
+        if tr.tr_may_yield then
+          tr.tr_nexts @ [{tc_name = neutral; tc_args = []; tc_loc = tr.tr_loc}]
+        else tr.tr_nexts) in
+    Hstring.H.add nexts neutral entrypoints;
+    nexts
 
-  let nexts = trans_hashtbl (fun {tr_info = tr} ->
-      if tr.tr_may_yield then tr.tr_nexts @ entrypoints else tr.tr_nexts)
-
-  let formal_after (t : transition) : Ast.transition_call list =
-    Hstring.H.find nexts t.tr_info.tr_name
+  let formal_after name : Ast.transition_call list =
+    Hstring.H.find nexts name
 
   let prevs =
     let prevs = trans_hashtbl (fun t -> ref []) in
-    LL.iter sys ~f:(fun t ->
-        let caller = t.tr_info in
-        let callees = Hstring.H.find nexts caller.tr_name in
+    Hstring.H.add prevs neutral (ref []);
+    let names = List.map (fun t -> t.tr_info.tr_name) sys @ [neutral] in
+    LL.iter names ~f:(fun caller ->
+        let caller_args = args_named caller in
+        let callees = formal_after caller in
         LL.iter callees ~f:(fun call ->
-            let callee = (Hstring.H.find nodes call.tc_name).tr_info in
+            let callee_args = args_named call.tc_name in
             let calls = Hstring.H.find prevs call.tc_name in
-            calls := reverse_call caller callee call :: !calls));
+            calls := reverse_call caller caller_args callee_args call :: !calls));
     Hstring.H.iter (fun _ calls -> calls := List.rev !calls) prevs;
     prevs
 
-  let formal_before (t : transition) : Ast.transition_call list =
-    !(Hstring.H.find prevs t.tr_info.tr_name)
+  let formal_before name : Ast.transition_call list =
+    !(Hstring.H.find prevs name)
 
 
   let fresh_process_vars scope n =
@@ -88,34 +95,44 @@ module CFG_of (S : System) : Cfg = struct
       resolved_without @ resolved_with
 
   let fill_call scope subst (cube : Node.t) (next : Ast.transition_call) =
-    let trans = Hstring.H.find nodes next.tc_name in
     let tc_args = List.map (Option.map (Variable.subst subst)) next.tc_args in
     let named_tc_args = List.filter_map (fun x -> x) tc_args in
     let available =
       List.filter (fun v -> not (Hstring.list_mem v named_tc_args)) scope in
     let underscore_count = List.length tc_args - List.length named_tc_args in
     let fresh_vars = fresh_process_vars scope underscore_count in
-    let finalize procs : event = {evt_trans = trans; evt_args = procs} in
+    let finalize procs : event = {evt_trans = next.tc_name; evt_args = procs} in
     resolve finalize available fresh_vars [] tc_args
 
   let parent_calls_of (n : Node.t) =
     match n.from with
     | [] ->
-      List.concat_map (fill_call n.cube.Cube.vars [] n) yielders
+      if n.kind = Orig then
+        List.concat_map (fill_call n.cube.Cube.vars [] n) (formal_before neutral)
+      else
+        failwith "invariant break"
     | (tri, args, _) :: _ ->
       let trans = transition_named tri.tr_name in
-      let parents = formal_before trans in
+      let parents = formal_before tri.tr_name in
       let subst = Variable.build_subst trans.tr_info.tr_args args in
       let in_scope = List.sort_uniq compare (n.cube.Cube.vars @ args) in
       List.concat_map (fill_call in_scope subst n) parents
 
-  let should_check_safety = failwith "not implemented"
-  let should_check_fixpoint = failwith "not implemented"
+  let should_check_safety (c : node_cube) = match c.from with
+      | (last_tr,_,_)::_ -> not last_tr.tr_is_triggered
+      | [] -> match c.kind with
+        | Orig | Inv | Approx -> true
+        | Node -> failwith "invariant break"
+
+  let should_check_fixpoint  = should_check_safety
+
+  let transition_for_event e = transition_named e.evt_trans
 
   let it = {
     parent_calls_of;
     should_check_safety;
-    should_check_fixpoint
+    should_check_fixpoint;
+    transition_for_event
   }
 
 end

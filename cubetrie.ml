@@ -302,16 +302,6 @@ and consistent_list atom cube ((atom', t') as n) = match (atom, atom') with
         | atom::cube -> consistent_list atom cube n
       else consistent (atom::cube) t'
 
-
-let rec add_and_resolve n visited =
-  let visited =
-    fold (fun visited nv ->
-      match Cube.resolve_two n.cube nv.cube with
-        | None -> visited
-        | Some cube_res -> add_and_resolve (Node.create cube_res) visited
-    ) visited visited in
-  add_array (Node.array n) n visited
-
 let delete_subsumed ?(cpt=ref 0) p nodes =
   let vars, ap = Node.variables p, Node.array p in
   let substs = Variable.all_permutations vars vars in

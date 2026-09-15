@@ -84,8 +84,20 @@ let new_tag =
   | Approx -> decr cpt_neg; !cpt_neg
   | _ -> incr cpt_pos; !cpt_pos
 
+let neutral_pos = Before {evt_trans = Types.neutral_name; evt_args = []}
 
-let create ?(kind=Node) ?(from=None) cube =
+let dummy_pos = Before {evt_trans = Types.dummy_name; evt_args = []}
+
+let subst_pos sigma (Before evt) =
+  let vars = List.sort_uniq Hstring.compare evt.evt_args in
+  let vars = List.filter (fun v -> not (List.mem_assoc v sigma)) vars in
+  let used = List.map snd sigma in
+  let fresh =
+    List.filter (fun v -> not (Hstring.list_mem v used)) Variable.procs in
+  let sigma = sigma @ Variable.build_subst vars fresh in
+  Before {evt with evt_args = List.map (Variable.subst sigma) evt.evt_args}
+
+let create ~pos ?(kind=Node) ?(from=None) cube =
   let hist =  match from with
     | None -> []
     | Some ((_, _, n) as f) -> f :: n.from in
@@ -96,6 +108,7 @@ let create ?(kind=Node) ?(from=None) cube =
     depth = List.length hist;
     deleted = false;
     from = hist;
+    state = pos
   }
 
 let has_deleted_ancestor n =

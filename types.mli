@@ -16,6 +16,12 @@
 
 (** Terms, atoms and conjunctions *)
 
+val neutral_name : Hstring.t
+(** Name of the control point between transactions. *)
+
+val dummy_name : Hstring.t
+(** Name used for nodes without a concrete control position. *)
+
 
 (** {2 Terms } *)
 

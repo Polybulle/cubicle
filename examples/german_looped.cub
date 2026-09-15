@@ -45,7 +45,7 @@ requires { Shr[n]=True
   Cache[n] := Invalid;
   Shr[n] :=False
 }
-triggers gnt_excl(_) or loop
+triggers gnt_excl(_) or inv_shr(_)
 
 triggered
 transition inv_excl(n)

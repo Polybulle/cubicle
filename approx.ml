@@ -277,7 +277,11 @@ let approximations s =
          else
            let c = Cube.create_normal sa' in
            if cube_known_bad c || cube_likely_bad c then acc
-           else (Node.create ~kind:Approx c) :: acc
+           else
+             let vars = Variable.Set.elements (SAtom.variables_proc sa') in
+             let sigma = Variable.build_subst vars Variable.procs in
+             let pos = Node.subst_pos sigma s.state in
+             (Node.create ~pos ~kind:Approx c) :: acc
       ) parts []
   in
   (* Sorting heuristic of approximations with most general ones first *)

@@ -20,6 +20,9 @@ open Util
 
 module HSet = Hstring.HSet
 
+let neutral_name = Hstring.make "__neutral__"
+let dummy_name = Hstring.make "__dummy__"
+
 type op_comp = Eq | Lt | Le | Neq
 
 type sort = Glob | Constr | Var
