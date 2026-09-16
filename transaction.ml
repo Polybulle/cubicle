@@ -105,24 +105,16 @@ module CFG_of (S : System) : Cfg = struct
     resolve finalize available fresh_vars [] tc_args
 
   let parent_calls_of (n : Node.t) =
-    match n.from with
-    | [] ->
-      if n.kind = Orig then
-        List.concat_map (fill_call n.cube.Cube.vars [] n) (formal_before neutral)
-      else
-        failwith "invariant break"
-    | (tri, args, _) :: _ ->
-      let trans = transition_named tri.tr_name in
-      let parents = formal_before tri.tr_name in
-      let subst = Variable.build_subst trans.tr_info.tr_args args in
-      let in_scope = List.sort_uniq compare (n.cube.Cube.vars @ args) in
-      List.concat_map (fill_call in_scope subst n) parents
+    let Before evt = n.state in
+    let parents = formal_before evt.evt_trans in
+    let subst = Variable.build_subst (args_named evt.evt_trans) evt.evt_args in
+    let in_scope =
+      List.sort_uniq compare (n.cube.Cube.vars @ evt.evt_args) in
+    List.concat_map (fill_call in_scope subst n) parents
 
-  let should_check_safety (c : node_cube) = match c.from with
-      | (last_tr,_,_)::_ -> not last_tr.tr_is_triggered
-      | [] -> match c.kind with
-        | Orig | Inv | Approx -> true
-        | Node -> failwith "invariant break"
+  let should_check_safety (c : node_cube) =
+    let Before evt = c.state in
+    Hstring.equal evt.evt_trans neutral
 
   let should_check_fixpoint  = should_check_safety
 

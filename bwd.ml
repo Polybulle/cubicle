@@ -42,12 +42,20 @@ module type Strategy = sig
 end
 
 
+(* Internal obligations are expanded, but never used as boundary covers. *)
+let at_boundary system n =
+  not tx_bwd || system.cfg.should_check_safety n
+
 module Make ( Q : PriorityNodeQueue ) : Strategy = struct
 
   module Fixpoint = Fixpoint.FixpointTrie
   module Approx = Approx.Selected
 
   let nb_remaining q post () = Q.length q, List.length !post
+
+  let enqueue q postponed ls =
+    Q.push_list ls q;
+    Stats.remaining (nb_remaining q postponed)
 
   let search ?(invariants=[]) ?(candidates=[]) system =
     
@@ -65,8 +73,14 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
     try
       while not (Q.is_empty q) do
         let n = Q.pop q in
-        Safety.check system n;
-        begin
+        if not (at_boundary system n) then begin
+          Stats.check_limit n;
+          Stats.new_node n;
+          let ls, post = Pre.pre_image system n in
+          postponed := List.rev_append post !postponed;
+          enqueue q postponed ls
+        end else begin
+          Safety.check system n;
           match Fixpoint.check n !visited with
           | Some db ->
              Stats.fixpoint n db
@@ -94,8 +108,7 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
                  Cubetrie.delete_subsumed ~cpt:Stats.cpt_delete n !visited;
 	     postponed := List.rev_append post !postponed;
              visited := Cubetrie.add_node n !visited;
-             Q.push_list ls q;
-             Stats.remaining (nb_remaining q postponed);
+             enqueue q postponed ls
         end;
         
         if Q.is_empty q then
@@ -137,12 +150,12 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
 
   let do_sync_barrier = true
 
-  let gentasks nodes visited =
+  let gentasks system nodes visited =
     let tasks, _ = 
       List.fold_left
         (fun (tasks, visited) n ->
          (Task_node (n, visited), ()) :: tasks,
-         Cubetrie.add_node n visited
+         if at_boundary system n then Cubetrie.add_node n visited else visited
         ) ([], visited) nodes
     in
     List.rev tasks
@@ -151,11 +164,15 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
     let tasks, _ = 
       List.fold_left
         (fun (tasks, visited) n ->
-         Safety.check system n;
-         if Fixpoint.peasy_fixpoint n visited <> None then tasks, visited
-         else
+         if not (at_boundary system n) then
+           (Task_node (n, visited), ()) :: tasks, visited
+         else begin
+           Safety.check system n;
+           if Fixpoint.peasy_fixpoint n visited <> None then tasks, visited
+           else
            (Task_node (n, visited), ()) :: tasks,
-         Cubetrie.add_node n visited
+           Cubetrie.add_node n visited
+         end
         ) ([], visited) nodes
     in
     (* List.rev *) tasks
@@ -163,21 +180,26 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
   let worker system = function
     | Task_node (n, visited) ->
        try
-         Safety.check system n;
-         match Fixpoint.check n visited with
-         | Some db -> WR_Fixpoint db
-         | None ->
-            Stats.check_limit n;
-            match Approx.good n with
-            | None ->
-               WR_PreNormal (Pre.pre_image system n)
-            | Some c ->
-               try
-                 (* Replace node with its approximation *)
-                 Safety.check system c;
-                 WR_PreCandidate (c, (Pre.pre_image system n))
-               with Safety.Unsafe _ ->
+         if not (at_boundary system n) then begin
+           Stats.check_limit n;
+           WR_PreNormal (Pre.pre_image system n)
+         end else begin
+           Safety.check system n;
+           match Fixpoint.check n visited with
+           | Some db -> WR_Fixpoint db
+           | None ->
+              Stats.check_limit n;
+              match Approx.good n with
+              | None ->
                  WR_PreNormal (Pre.pre_image system n)
+              | Some c ->
+                 try
+                   (* Replace node with its approximation *)
+                   Safety.check system c;
+                   WR_PreCandidate (c, (Pre.pre_image system n))
+                 with Safety.Unsafe _ ->
+                   WR_PreNormal (Pre.pre_image system n)
+         end
        with
        | Safety.Unsafe faulty  ->
           WR_Unsafe faulty
@@ -198,7 +220,8 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
   let worker_fix system = function
     | Task_node (n, visited) ->
        try
-         match Fixpoint.hard_fixpoint n visited with
+         if not (at_boundary system n) then WR_NoFixpoint
+         else match Fixpoint.hard_fixpoint n visited with
          | Some db -> WR_Fixpoint db
          | None -> WR_NoFixpoint
        with
@@ -209,12 +232,15 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
        | Smt.Error e -> print_smt_error e; assert false
 
 
-  let populate_pre q postponed visited n ls post =
-    if delete then
-      visited :=
-        Cubetrie.delete_subsumed ~cpt:Stats.cpt_delete n !visited;
-    postponed := List.rev_append post !postponed;
-    visited := Cubetrie.add_node n !visited;
+  let populate_pre system q postponed visited n ls post =
+    if at_boundary system n then begin
+      if delete then
+        visited :=
+          Cubetrie.delete_subsumed ~cpt:Stats.cpt_delete n !visited;
+      postponed := List.rev_append post !postponed;
+      visited := Cubetrie.add_node n !visited
+    end else
+      postponed := List.rev_append post !postponed;
     Q.push_list ls q;
     Stats.remaining (nb_remaining q postponed)
 
@@ -236,18 +262,20 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
          Stats.fixpoint n db
       | WR_PreNormal (ls, post), (Task_node (n, _), ()) ->
          Stats.new_node n;
-         populate_pre q postponed visited n ls post
+         populate_pre system q postponed visited n ls post
       | WR_PreCandidate (c, (ls, post)), (Task_node (n, _), ()) ->
          Stats.new_node n;
          candidates := c :: !candidates;
          Stats.candidate n c;
-         populate_pre q postponed visited c ls post
+         populate_pre system q postponed visited c ls post
       | WR_NoFixpoint, (Task_node (n, _), ()) ->
          begin
          if not quiet && debug then eprintf "\nRECIEVED NO_FIX\n@."; 
          Stats.check_limit n;
          Stats.new_node n;
-         let n = begin
+         let n =
+           if not (at_boundary system n) then n
+           else begin
              match Approx.good n with
              | None -> n
              | Some c ->
@@ -264,13 +292,7 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
          in
 
          let ls, post = Pre.pre_image system n in
-         if delete then
-           visited :=
-             Cubetrie.delete_subsumed ~cpt:Stats.cpt_delete n !visited;
-	 postponed := List.rev_append post !postponed;
-         visited := Cubetrie.add_node n !visited;
-         Q.push_list ls q;
-         Stats.remaining (nb_remaining q postponed);
+         populate_pre system q postponed visited n ls post;
          end
          
     end;

@@ -341,10 +341,18 @@ let pre ?(normalize=true) ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t)
 
 
 let pre_image_by_tcall ?origin sys c acc (call : event) =
-  let t = sys.cfg.transition_for_event call in
-  let pre_u, _ = pre ~normalize:false t (Node.litterals c) in
-  let sigma = Variable.build_subst t.tr_info.tr_args call.evt_args in
-  cube ?origin c t.tr_info pre_u acc sigma
+  if Hstring.equal call.evt_trans Types.neutral_name then
+    (* Crossing the boundary is not an executable step. Keep cube witnesses and
+       the complete trace, but release the active control bindings. *)
+    let n = Node.create ~pos:Node.neutral_pos ~kind:c.kind c.cube in
+    let n = {n with from = c.from; depth = c.depth} in
+    let ls, post = acc in
+    n :: ls, post
+  else
+    let t = sys.cfg.transition_for_event call in
+    let pre_u, _ = pre ~normalize:false t (Node.litterals c) in
+    let sigma = Variable.build_subst t.tr_info.tr_args call.evt_args in
+    cube ?origin c t.tr_info pre_u acc sigma
 
 let pre_image_tx sys c =
   TimePre.start ();
