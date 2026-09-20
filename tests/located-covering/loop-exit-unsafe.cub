@@ -1,0 +1,8 @@
+type bit = Zero | One
+array A[proc] : bit
+init (i) { A[i] = Zero }
+unsafe (i) { A[i] = One }
+transition enter (i) requires { A[i] = Zero } { A[i] := One; }
+triggers spin (i)
+triggered transition spin (i) requires { A[i] = One } { A[i] := One; }
+triggers spin (i) or yields

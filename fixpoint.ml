@@ -485,3 +485,59 @@ end = struct
     TimeFix.pause ();
     r
 end
+
+(* Experimental internal covering, disabled pending review.
+   Bwd currently expands internal obligations without storing or covering them.
+module Internal = struct
+
+  (* Include control-only witnesses in the SMT goal's distinct variables. *)
+  let normalize n =
+    let Before e = n.state in
+    let vars = List.sort_uniq Variable.compare (Node.variables n @ e.evt_args) in
+    let sigma = Variable.build_subst vars Variable.procs in
+    let vars = List.map (Variable.subst sigma) vars in
+    let atoms = ArrayAtom.apply_subst sigma (Node.array n) in
+    {n with cube = Cube.create vars (ArrayAtom.to_satom atoms);
+            state = Node.subst_pos sigma n.state}
+
+  let instances goal cover =
+    let Before g = goal.state and Before c = cover.state in
+    if not (Hstring.equal g.evt_trans c.evt_trans) ||
+       List.length g.evt_args <> List.length c.evt_args then []
+    else
+      let fixed = List.sort_uniq Stdlib.compare
+          (List.combine c.evt_args g.evt_args) in
+      if not (Variable.well_formed_subst fixed) then []
+      else
+        let from = List.filter (fun v -> not (List.mem_assoc v fixed))
+            (Node.variables cover) in
+        let used = List.map snd fixed in
+        let into = List.filter (fun v -> not (Hstring.list_mem v used))
+            (Node.variables goal) in
+        if List.length from > List.length into then []
+        else List.map (fun sigma ->
+          ArrayAtom.apply_subst (fixed @ sigma) (Node.array cover))
+            (Variable.all_permutations from into)
+
+  let covers goal cover =
+    let goal = normalize goal in
+    List.exists (fun atoms -> ArrayAtom.subset atoms (Node.array goal))
+      (instances goal (normalize cover))
+
+  let peasy_fixpoint n nodes =
+    if delete && (n.deleted || Node.has_deleted_ancestor n) then Some []
+    else match List.find_opt (covers n) nodes with
+      | None -> None
+      | Some cover -> Some [cover.tag]
+
+  let hard_fixpoint n nodes =
+    try
+      let goal = normalize n in
+      Prover.assume_goal goal;
+      List.iter (fun cover ->
+        List.iter (Prover.assume_node cover)
+          (instances goal (normalize cover))) nodes;
+      None
+    with Smt.Unsat db -> Some db
+end
+*)

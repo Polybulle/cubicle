@@ -1,0 +1,10 @@
+type phase = Idle | Bad
+var X : phase
+var Y : phase
+init { X = Idle && Y = Idle }
+unsafe { Y = Bad }
+transition enter () requires { Y = Idle } { X := Idle; }
+triggers spin ()
+triggered transition spin () requires { Y = Idle } { X := Idle; }
+triggers spin () or yields
+transition bad () requires { Y = Bad } { Y := Bad; }

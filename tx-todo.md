@@ -75,11 +75,27 @@ Use focused internal tests and end-to-end models. Choose concrete fixtures after
 
 Always bound verifier test runs with timeouts and/or node limits. Enforce an external wall-clock timeout as well, at least until tests establish that internal cubes count toward Cubicle's enforced resource limits. Apply this safeguard to focused runs and regression suites, including child verifier processes. Verify internal-node accounting and limit enforcement explicitly in sequential and parallel search; source inspection alone is not sufficient evidence. Record the limits used and distinguish Cubicle limit exits, external timeouts, crashes, and conclusive verdicts.
 
-### 9. Make fixpoints, subsumption, and deletion work at arbitrary states
+### REOPENED 9. Review covering at arbitrary states
 
 For states `Before t1(xs1)` and `Before t2(xs2)`, subsumption requires `t1 = t2` and must be checked under a most general unifier (MGU) of `xs1` and `xs2`. This is the meaning of compatible bindings. Apply the unifier consistently to the associated cubes.
 
 Apply that rule to every covering path, including quick trie checks, SMT fixpoints, and subsumption-based deletion; merely gating the node being checked is insufficient. Supplied `Inv` nodes cover only neutral states, never internal obligations. Any resolution or normalization of located nodes must preserve a justified control context. Approximation selection remains boundary-only until step 11.
+
+The experimental internal covering is now commented out pending review. The fused
+`Fixpoint.Located` module and `Covers` alias have been removed. Search uses the
+existing `Cubetrie` storage and `FixpointTrie` checker, with boundary policy in
+`bwd.ml`. Internal obligations are expanded without covering, storage, or deletion;
+their accounting and limits remain active. A checker-only version of the former
+normalization and restricted-instantiation proposal is retained in a comment.
+
+Controlled before/after tests found that the two safe internal-loop cases lose
+their SAFE verdicts and reach node limits in both schedulers. A reachable-cycle
+case whose bad predecessors cannot enter the loop still proves SAFE. The unsafe
+loop-exit case remains UNSAFE under BFS and the tested parallel schedules, but
+sequential DFS with postponement 0/1 reaches the node limit. See
+`tests/located-covering/README.md` for the 84 bounded comparisons and regressions.
+Review the actual internal coverage algorithm before restoring it. Transaction
+certificate generation remains unverified.
 
 ### 10. Adapt forward and enumerative exploration
 

@@ -44,9 +44,10 @@ The models cover:
 - `initial-invariant.cub`: an intentionally inconsistent trusted invariant
   excludes the initial cube. SAFE is expected because supplied invariants are
   assumptions, not assertions proved by Cubicle.
-- `internal-cycle.cub`: an internal loop must stop at the node limit, without a
-  SAFE or UNSAFE verdict. The current strict `>` limit check visits 21 nodes for
-  `-nodes 20`.
+- `internal-cycle.cub`: step 8 reached the node limit after 21 nodes for
+  `-nodes 20`. The experimental step-9 covering closed this repetition, but is
+  now disabled pending review. This test again expects the node limit. The
+  located-covering suite records the controlled before/after comparison.
 
 All acyclic models run with postponement strategies 0, 1, and 2. Contract probes
 run with `-tx bwd` and `-tx none` to check preservation of ordinary behavior.

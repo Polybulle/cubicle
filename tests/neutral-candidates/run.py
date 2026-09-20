@@ -49,7 +49,7 @@ def main():
     assert code == 1 and "Reached Limit !" in output, output
     assert "Number of visited nodes          : 21" in output, output
     assert "UNSAFE" not in output and "The system is SAFE" not in output, output
-    print("PASS internal cycle counts nodes and reaches Cubicle limit")
+    print("PASS internal cycle reaches node limit with covering disabled")
 
 
 if __name__ == "__main__":
