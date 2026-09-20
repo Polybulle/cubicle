@@ -1,0 +1,5 @@
+type phase = Idle | Bad
+var X : phase
+init { X = Bad }
+invariant { X = Bad }
+unsafe { X = Bad }

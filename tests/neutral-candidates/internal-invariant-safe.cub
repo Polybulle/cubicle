@@ -1,0 +1,9 @@
+type phase = Idle | Bad
+var X : phase
+var Y : phase
+init { X = Idle && Y = Idle }
+invariant { X = Bad }
+unsafe { Y = Bad }
+transition enter () requires { Y = Bad } { X := Bad; }
+triggers finish ()
+triggered transition finish () requires { X = Bad } { X := Idle; Y := Bad; }

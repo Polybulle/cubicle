@@ -586,8 +586,9 @@ let system s =
     let module CFG = Transaction.CFG_of(S) in
     CFG.it in
   let init_woloc = let _,v,i = s.init in v,i in
+  let inv_pos = if Options.tx_bwd then Node.neutral_pos else Node.dummy_pos in
   let invs_woloc =
-    List.map (fun (_,v,i) -> create_node_rename Node.dummy_pos Inv v i) s.invs in
+    List.map (fun (_,v,i) -> create_node_rename inv_pos Inv v i) s.invs in
   let unsafe_woloc =
     List.map (fun (_,v,u) -> create_node_rename Node.neutral_pos Orig v u) s.unsafe in
   let init_instances = create_init_instances init_woloc invs_woloc in

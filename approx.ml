@@ -66,7 +66,8 @@ let rec remove_bad_candidates sys faulty candidates =
   let nc = 
     List.fold_left 
       (fun acc c' ->
-	if node_same cand c'
+        if tx_bwd && c'.state <> Node.neutral_pos then acc
+        else if node_same cand c'
 	then
 	  (* raise UNSAFE if we try to remove a candidate 
 	     which is an unsafe property *)
@@ -326,7 +327,9 @@ module Make ( O : Oracle.S ) : S = struct
     O.first_good_candidate approx
 
 
-  let good n = match n.kind with
+  let good n =
+    if tx_bwd && n.state <> Node.neutral_pos then None
+    else match n.kind with
     | Approx ->
        (* It's useless to look for approximations of an approximation *)
        None

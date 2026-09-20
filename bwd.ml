@@ -60,7 +60,7 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
   let search ?(invariants=[]) ?(candidates=[]) system =
     
     let visited = ref Cubetrie.empty in
-    let candidates = ref candidates in
+    let candidates = ref (List.filter (at_boundary system) candidates) in
     let q = Q.create () in
     let postponed = ref [] in
 
@@ -304,7 +304,7 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
   let search ?(invariants=[]) ?(candidates=[]) system =
     
     let visited = ref Cubetrie.empty in
-    let candidates = ref candidates in
+    let candidates = ref (List.filter (at_boundary system) candidates) in
     let q = Q.create () in
     let postponed = ref [] in
 

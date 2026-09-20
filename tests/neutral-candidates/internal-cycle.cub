@@ -1,0 +1,6 @@
+type phase = Idle | Bad
+var X : phase
+init { X = Idle }
+unsafe { X = Bad }
+triggered transition spin () requires { X = Bad } { X := Bad; }
+triggers spin () or yields
