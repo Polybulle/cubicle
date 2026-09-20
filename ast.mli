@@ -141,6 +141,8 @@ type init_instance = {
 
 type cfg = {
       parent_calls_of : node_cube -> event list;
+      child_calls_of : Variable.t list -> event -> event list;
+      (** Resolve successor calls over a fixed finite process domain. *)
       should_check_safety : node_cube -> bool;
       should_check_fixpoint : node_cube -> bool;
       transition_for_event : event -> transition;

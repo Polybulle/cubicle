@@ -608,7 +608,7 @@ let post init all_procs procs { tr_args = tr_args;
 
 
 
-let post_inst init all_procs procs { i_reqs = reqs;
+let post_inst ?(normalize=true) init all_procs procs { i_reqs = reqs;
 				     i_udnfs = udnfs;
 				     i_actions = actions;
 				     i_touched_terms = touched_terms } =
@@ -619,7 +619,8 @@ let post_inst init all_procs procs { i_reqs = reqs;
     List.fold_left (fun acc sa ->
       try
         let sa = wrapper_elim_prime p_init sa in
-        let csa = Cube.create_normal sa in
+        let csa = if normalize then Cube.create_normal sa
+          else Cube.create (Variable.Set.elements (SAtom.variables_proc sa)) sa in
         let sa, nargs = csa.Cube.litterals, csa.Cube.vars in
         (sa, nargs) :: acc
       with Stdlib.Exit -> acc)
@@ -817,6 +818,35 @@ let instance_of_transition { tr_args = tr_args;
   }
 
 
+let subst_inst_transition sigma tr = {
+    i_reqs = SAtom.subst sigma tr.i_reqs;
+    i_udnfs = List.map (List.map (SAtom.subst sigma)) tr.i_udnfs;
+    i_actions = SAtom.subst sigma tr.i_actions;
+    i_touched_terms = Term.Set.fold (fun t terms ->
+      Term.Set.add (Term.subst sigma t) terms) tr.i_touched_terms Term.Set.empty;
+  }
+
+let compile_generic_transitions procs trans =
+  let compiled = Hashtbl.create (List.length trans) in
+  ListLabels.iter trans ~f:(fun {tr_info = tr} ->
+      let instance =
+        if List.length tr.tr_args <= List.length procs then
+          let sigma = Variable.build_subst tr.tr_args procs in
+          try Some (List.map snd sigma, instance_of_transition tr procs [] sigma)
+          with Exit -> None
+        else None in
+      Hashtbl.add compiled tr.tr_name instance);
+  compiled
+
+let instantiate_compiled_transition procs compiled event =
+  match Hashtbl.find compiled event.evt_trans with
+  | None -> raise Exit
+  | Some (args, tr) ->
+     let others = List.filter (fun p -> not (H.list_mem p args)) procs in
+     let images = List.filter (fun p -> not (H.list_mem p event.evt_args)) procs in
+     let sigma = List.combine args event.evt_args @ List.combine others images in
+     subst_inst_transition sigma tr
+
 let instantiate_transitions all_procs procs trans = 
   let aux acc {tr_info = tr} =
     let tr_others,others = missing_args procs tr.tr_args in
@@ -845,14 +875,64 @@ let all_var_terms procs {t_globals = globals; t_arrays = arrays} =
       acc indexes)
     acc arrays
 
-let search procs init =
-  let inst_trans = instantiate_transitions procs procs init.t_trans in
-  forward init procs inst_trans (mkinits procs init)
+
+let iter_forward_transactions system procs register inits =
+  let module HLocated = Hashtbl.Make (struct
+      type t = SAtom.t * event
+      let equal (s, e) (s', e') = SAtom.equal s s' && e = e'
+      let hash (s, e) = Hashtbl.hash (SAtom.hash s, e)
+    end) in
+  let visited = HLocated.create 1024 in
+  let compiled = compile_generic_transitions procs system.t_trans in
+  let queue = Queue.create () in
+  let Before neutral = Node.neutral_pos in
+  List.iter (fun (sa, _) -> Queue.add (0, sa, neutral) queue) inits;
+  let count = ref 0 in
+  while not (Queue.is_empty queue) && (max_forward = -1 || !count < max_forward) do
+    let depth, sa, event = Queue.take queue in
+    let key = sa, event in
+    (* Neutral edges cost no executable step; retain the shortest depth. *)
+    if not (HLocated.mem visited key) || depth < HLocated.find visited key then begin
+      HLocated.replace visited key depth;
+      incr count;
+      register sa;
+      let successors = system.cfg.child_calls_of procs event in
+      if Hstring.equal event.evt_trans neutral_name then
+        List.iter (fun e -> Queue.add (depth, sa, e) queue) successors
+      else if not limit_forward_depth || depth < forward_depth then begin
+        let next = try
+            let tr = instantiate_compiled_transition procs compiled event in
+            post_inst ~normalize:false sa procs procs tr
+          with Exit -> [] in
+        ListLabels.iter next ~f:(fun (sa, _) ->
+            ListLabels.iter successors ~f:(fun e ->
+                Queue.add (depth + 1, sa, e) queue))
+      end
+    end
+  done;
+  if not quiet then eprintf "Total forward configurations : %d@." !count
+
+let search procs system =
+  if tx_fwd then
+    let h_visited = HSA.create 1024 in
+    let inits = mkinits procs system in
+    iter_forward_transactions system procs (fun sa -> HSA.replace h_visited sa ()) inits;
+    h_visited
+  else
+    let inst_trans = instantiate_transitions procs procs system.t_trans in
+    forward system procs inst_trans (mkinits procs system)
 
 let search_stateless procs init =
   let var_terms = all_var_terms procs init in
-  let inst_trans = instantiate_transitions procs procs init.t_trans in
-  stateless_forward init procs inst_trans var_terms (mkinits procs init)
+  if tx_fwd then begin
+    let companions = ref MA.empty in
+    iter_forward_transactions init procs (fun sa ->
+      companions := add_compagnions_from_node var_terms sa !companions)
+      (mkinits procs init);
+    !companions
+  end else
+    let inst_trans = instantiate_transitions procs procs init.t_trans in
+    stateless_forward init procs inst_trans var_terms (mkinits procs init)
 
 let search_only s = assert false
   (* let ex_args =  *)

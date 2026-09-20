@@ -7,7 +7,7 @@ This first implementation makes control context explicit instead of reconstructi
 - **Boundary semantics.** Initial and unsafe configurations are observed at transaction boundaries, preserving the older transaction semantics.
 - **Neutral is not dummy.** `Types.neutral_name` names the boundary control point. It has no active transaction-parameter bindings and no executable transition. `Types.dummy_name` tags nodes without a concrete control position; it must not confer global applicability on supplied invariants.
 - **Supplied invariants are boundary-only and trusted.** In backward transaction mode, `invariant (x ...) { phi }` asserts that the negative cube is unreachable at neutral states only. Its node may cover only neutral obligations, and its negated instances remain assumptions in initial-state checks. Internal states may violate it. Cubicle does not prove this assertion. This supersedes the earlier all-control-state interpretation. Preserve ordinary invariant behavior without backward transaction mode; state-local invariant syntax is deferred to step 11.
-- **The forward oracle remains a rejection filter.** Forward exploration has its own state representation. It may discard useful candidates, but must not certify their unreachability or replace backward verification. Its `Node.t` candidate renamings are covered by step 4. Forward and enumerative exploration changes are deferred to step 10.
+- **The forward oracle remains a rejection filter.** Forward exploration has its own state representation. It may discard useful candidates, but must not certify their unreachability or replace backward verification. Its `Node.t` candidate renamings are covered by step 4. Located forward traversal is implemented in step 10; intermediate data observations still participate in heuristic rejection.
 - **Candidates remain at neutral until step 11.** In backward transaction mode, do not generate approximation candidates at internal states. Reject any internal-state candidate supplied to candidate handling rather than attempting to prove it or retaining it across a restart. General located-candidate machinery is deferred to exploratory step 11.
 - **Scope through step 8.** Boundary-only covering and approximation selection are retained. Internal fixpoints and subsumption belong to step 9; boundary-only covering does not absorb internal cycles.
 - **Commit discipline.** Every step gets its own minimal commit. Do not combine separate steps or include unrelated changes.
@@ -97,9 +97,28 @@ sequential DFS with postponement 0/1 reaches the node limit. See
 Review the actual internal coverage algorithm before restoring it. Transaction
 certificate generation remains unverified.
 
-### 10. Adapt forward and enumerative exploration
+### DONE 10. Adapt forward and enumerative exploration
 
-Adapt forward and enumerative exploration to cyclic transactions, including neutral traversal. This later step is under Tetra's purview as an experiment in agentic coding. Agree its detailed specification separately; it is not part of step 8.
+Both engines now traverse `(data, control location, bindings)` in transaction-forward
+mode. The CFG resolves calls over a fixed finite process domain. Neutral traversal
+executes no transition; internal traversal follows only prescribed calls and yields.
+Visited keys include control context. Named bindings and callee-tuple distinctness
+are preserved, including underscore reuse of caller arguments omitted from the tuple.
+
+Keep finite process identities fixed rather than applying formula-only renaming or
+data-only symmetry normalization. Ordinary forward behavior is unchanged. Symbolic
+stateless exploration uses the same located traversal. Candidate rejection still
+uses intermediate data observations as a heuristic, not a located reachability proof.
+
+Depth limits count executable steps; configuration budgets also count neutral and
+internal configurations. These budgets are not directly comparable to old data-state
+counts. The visited depth is improved when a shorter path reaches the same configuration.
+
+`tests/forward-transactions/` compares both engines with an independent finite-state
+interpreter: 280 differential cases passed on OCaml 5.4.1 and 4.12.0. Six end-to-end
+BRAB checks passed sequentially and with real Functory. Step-8/9 regressions and
+`make test` passed. All runs had external timeouts. See the suite README for the
+German budget experiment, remaining abstraction assumptions, and reproduction commands.
 
 ### 11. Add local invariants
 

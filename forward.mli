@@ -50,6 +50,8 @@ val search_stateless : Hstring.t list -> t_system -> (SAtom.t * Term.Set.t) MA.t
 val instantiate_transitions : Variable.t list -> Variable.t list ->
   transition list -> inst_trans list
 
+val subst_inst_transition : Variable.subst -> inst_trans -> inst_trans
+
 val abstract_others : SAtom.t -> Hstring.t list -> SAtom.t
 
 val reachable_on_trace_from_init :

@@ -97,6 +97,7 @@ exception Not_applicable
    [st_f] may raise [Not_applicable] *)
 type state_transistion = {
   st_name : Hstring.t;
+  st_args : Variable.t list;
   st_reqs : st_req list;
   st_udnfs : st_req list list list;
   st_actions : st_action list;
@@ -793,6 +794,7 @@ let compile_transition_instance procs env
   in
   let st_tr = {
     st_name = name;
+    st_args = List.map (Variable.subst sigma) tr_args;
     st_reqs = st_reqs;
     st_udnfs = st_udnfs;
     st_actions = st_actions;
@@ -888,6 +890,38 @@ let forward_bfs _ _ env l =
 (* Forward enumerative search, states are insterted in the global hash- *)
 (* table explicit_states                                                *)
 (************************************************************************)
+let forward_transactions system procs env l =
+  let h_visited = Hashtbl.create env.table_size in
+  let trs = Hashtbl.create (List.length env.st_trs) in
+  ListLabels.iter env.st_trs ~f:(fun st_tr ->
+      Hashtbl.add trs {evt_trans = st_tr.st_name; evt_args = st_tr.st_args} st_tr);
+  let to_do = Queue.create () in
+  let Before neutral = Node.neutral_pos in
+  List.iter (fun (depth, st) -> Queue.add (depth, st, neutral) to_do) l;
+  let cpt_f = ref 0 in
+  while not (Queue.is_empty to_do) && (max_forward = -1 || !cpt_f < max_forward) do
+    let depth, st, event = Queue.take to_do in
+    let key = st, event in
+    if not (Hashtbl.mem h_visited key) || depth < Hashtbl.find h_visited key then begin
+      Hashtbl.replace h_visited key depth;
+      incr cpt_f;
+      if not (HST.mem env.explicit_states st) then begin
+        HST.add env.explicit_states st ();
+        env.states <- st :: env.states
+      end;
+      let successors = system.cfg.child_calls_of procs event in
+      if Hstring.equal event.evt_trans neutral_name then
+        List.iter (fun e -> Queue.add (depth, st, e) to_do) successors
+      else if not limit_forward_depth || depth < forward_depth then begin
+        let sts = try (Hashtbl.find trs event).st_f st with Not_applicable -> [] in
+        ListLabels.iter sts ~f:(fun s ->
+            ListLabels.iter successors ~f:(fun e ->
+                Queue.add (depth + 1, s, e) to_do))
+      end
+    end
+  done;
+  if not quiet then eprintf "Total forward configurations : %d@." !cpt_f
+
 let no_scan_states _env =
   (* Prevent the GC from scanning the list env.states as it is going to be
      kept in memory all the time. *)
@@ -946,7 +980,8 @@ let search procs init =
   install_sigint ();
   (* Step 4: Run BFS exploration *)
   begin try
-    forward_bfs init procs env st_inits;
+    if tx_fwd then forward_transactions init procs env st_inits
+    else forward_bfs init procs env st_inits;
     with Exit -> ()
   end ;
   finalize_search env

@@ -116,12 +116,28 @@ module CFG_of (S : System) : Cfg = struct
     let Before evt = c.state in
     Hstring.equal evt.evt_trans neutral
 
+  let child_calls_of procs evt =
+    let sigma = Variable.build_subst (args_named evt.evt_trans) evt.evt_args in
+    let rec fill available args = function
+      | [] -> [List.rev args]
+      | Some p :: rest -> fill available (p :: args) rest
+      | None :: rest ->
+         List.concat_map (fun (p, others) -> fill others (p :: args) rest)
+           (split_like_a_set available) in
+    List.concat_map (fun call ->
+      let args = List.map (Option.map (Variable.subst sigma)) call.tc_args in
+      let named = List.filter_map (fun p -> p) args in
+      let available = List.filter (fun p -> not (Hstring.list_mem p named)) procs in
+      List.map (fun args -> {evt_trans = call.tc_name; evt_args = args})
+        (fill available [] args)) (formal_after evt.evt_trans)
+
   let should_check_fixpoint  = should_check_safety
 
   let transition_for_event e = transition_named e.evt_trans
 
   let it = {
     parent_calls_of;
+    child_calls_of;
     should_check_safety;
     should_check_fixpoint;
     transition_for_event
