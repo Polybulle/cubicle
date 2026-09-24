@@ -47,6 +47,9 @@ let create vars sa =
     array = ArrayAtom.of_satom sa;
   }
 
+let with_vars vars c =
+  if vars = c.vars then c else {c with vars}
+
 
 let create_array vars ar =
   {

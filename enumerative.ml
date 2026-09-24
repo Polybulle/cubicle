@@ -1028,7 +1028,7 @@ let alpha_renamings env procs s =
     let c = Cube.subst sigma s.cube in
     let pos = Node.subst_pos sigma s.state in
     let s' = Node.create ~pos ~kind:Approx c in
-    (satom_to_cand env (Node.litterals s'), s') :: p
+    (satom_to_cand env c.Cube.litterals, s') :: p
   ) [] d
 
 

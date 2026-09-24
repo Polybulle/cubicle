@@ -97,7 +97,19 @@ let subst_pos sigma (Before evt) =
   let sigma = sigma @ Variable.build_subst vars fresh in
   Before {evt with evt_args = List.map (Variable.subst sigma) evt.evt_args}
 
+let normalize cube (Before evt as pos) =
+  let vars = List.fold_left (fun vars v -> Variable.Set.add v vars)
+      (SAtom.variables_proc cube.Cube.litterals) evt.evt_args in
+  let vars = Variable.Set.elements vars in
+  let sigma = Variable.build_subst vars Variable.procs in
+  let cube = Cube.with_vars vars cube in
+  if Variable.is_subst_identity sigma then cube, pos
+  else
+    Cube.subst sigma cube,
+    Before {evt with evt_args = List.map (Variable.subst sigma) evt.evt_args}
+
 let create ~pos ?(kind=Node) ?(from=None) cube =
+  let cube, pos = if pos = dummy_pos then cube,pos else normalize cube pos in
   let hist =  match from with
     | None -> []
     | Some ((_, _, n) as f) -> f :: n.from in

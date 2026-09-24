@@ -1,0 +1,6 @@
+type bit = Zero | One
+array A[proc] : bit
+var Owner : proc
+init (i) { A[i] = Zero }
+unsafe (i) { A[i] = One }
+transition touch (i) requires { A[i] = Zero } { A[i] := One; }

@@ -75,11 +75,6 @@ module CFG_of (S : System) : Cfg = struct
     !(Hstring.H.find prevs name)
 
 
-  let fresh_process_vars scope n =
-    let last = List.fold_left (fun last v -> max last (Variable.number v)) 0 scope in
-    (* Reserve through the last index: the current scope need not be contiguous. *)
-    Variable.extra_procs (Variable.give_procs last) (Variable.give_procs n)
-
   let split_like_a_set l =
     List.map (fun x -> (x, List.filter (fun y -> not (Hstring.equal x y)) l)) l
 
@@ -99,8 +94,8 @@ module CFG_of (S : System) : Cfg = struct
     let named_tc_args = List.filter_map (fun x -> x) tc_args in
     let available =
       List.filter (fun v -> not (Hstring.list_mem v named_tc_args)) scope in
-    let underscore_count = List.length tc_args - List.length named_tc_args in
-    let fresh_vars = fresh_process_vars scope underscore_count in
+    let n_blanks = List.length tc_args - List.length named_tc_args in
+    let fresh_vars = Variable.extra_procs scope (Variable.give_procs n_blanks) in
     let finalize procs : event = {evt_trans = next.tc_name; evt_args = procs} in
     resolve finalize available fresh_vars [] tc_args
 
@@ -108,9 +103,7 @@ module CFG_of (S : System) : Cfg = struct
     let Before evt = n.state in
     let parents = formal_before evt.evt_trans in
     let subst = Variable.build_subst (args_named evt.evt_trans) evt.evt_args in
-    let in_scope =
-      List.sort_uniq compare (n.cube.Cube.vars @ evt.evt_args) in
-    List.concat_map (fill_call in_scope subst n) parents
+    List.concat_map (fill_call n.cube.Cube.vars subst n) parents
 
   let should_check_safety (c : node_cube) =
     let Before evt = c.state in

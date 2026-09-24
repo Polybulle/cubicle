@@ -242,12 +242,8 @@ let cube ?(origin : Node.t option) s tr cnp acc sigma =
   (*   Cube.print cnp; *)
   let cnp =  (Cube.subst sigma cnp) in
   let tr_args = List.map (Variable.subst sigma) tr.tr_args in
-  (* Skip variable renaming normalization for intermediate cubes in transaction
-     paths: the toward field's glob_subst refers to the original variable names,
-     so renaming would create a mismatch. *)
-  let lnp =
-    if true then Cube.elim_ite_simplify_unnorm cnp
-    else Cube.elim_ite_simplify cnp in
+  (* Keep names until the formula and location can be normalized together. *)
+  let lnp = Cube.elim_ite_simplify_unnorm cnp in
   (* Use the origin node (if provided) for postponement decisions, so that
      intermediate nodes in transaction paths don't distort the search order. *)
   let post_ref = match origin with Some o -> o | None -> s in
@@ -268,7 +264,7 @@ let cube ?(origin : Node.t option) s tr cnp acc sigma =
 	          end
 	        else
               let new_cube = Cube.create nargs np in
-              let new_pos = Before {
+              let new_pos = if not tx_bwd then Node.neutral_pos else Before {
                   evt_trans = tr.tr_name;
                   evt_args = tr_args} in
               let new_s = Node.create ~pos:new_pos new_cube
@@ -276,7 +272,7 @@ let cube ?(origin : Node.t option) s tr cnp acc sigma =
 	          match post_strategy with
 	          | 0 -> add_list new_s ls, post
 	          | 1 ->
-		        if List.length nargs > List.length post_ref.cube.vars then
+		        if Node.dim new_s > Node.dim post_ref then
 		          ls, add_list new_s post
 		        else add_list new_s ls, post
 	          | 2 ->
@@ -326,7 +322,7 @@ let pre ?(normalize=true) ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t)
   if debug && verbose > 0 then Debug.pre tri pre_unsafe;
   reset();
   let args = pre_u.Cube.vars in
-  if tri.tr_args = [] then pre_u, args
+  if tri.tr_args = [] || not normalize then pre_u, args
   else
     let nargs = Variable.append_extra_procs args tri.tr_args in
     if !size_proc <> 0 && List.length nargs > !size_proc then
@@ -342,8 +338,7 @@ let pre ?(normalize=true) ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t)
 
 let pre_image_by_tcall ?origin sys c acc (call : event) =
   if Hstring.equal call.evt_trans Types.neutral_name then
-    (* Crossing the boundary is not an executable step. Keep cube witnesses and
-       the complete trace, but release the active control bindings. *)
+    (*  Crossing a transaction boundary is a no-op, the trace is preserved. *)
     let n = Node.create ~pos:Node.neutral_pos ~kind:c.kind c.cube in
     let n = {n with from = c.from; depth = c.depth} in
     let ls, post = acc in
