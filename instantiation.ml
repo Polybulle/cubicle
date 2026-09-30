@@ -171,15 +171,61 @@ let relevant_permutations np p l1 l2 =
     r
   with NoPermutations -> TimeRP.pause (); []
 
-let relevant ~of_cube ~to_cube =
-  let of_vars, to_vars = of_cube.Cube.vars, to_cube.Cube.vars in
-  let dif = Variable.extra_vars of_vars to_vars in
-  let to_vars = if dif = [] then to_vars else to_vars@dif in
-  relevant_permutations to_cube.Cube.array of_cube.Cube.array of_vars to_vars
+let extend of_vars ~up_to:to_vars =
+  let to_vars = List.sort_uniq Variable.compare to_vars in
+  let needed = List.length of_vars - List.length to_vars in
+  let rec fresh n = function
+    | _ when n <= 0 -> []
+    | [] -> invalid_arg "Instantiation.target_support: exhausted process names"
+    | v :: rest ->
+       if Hstring.list_mem v to_vars then fresh n rest
+       else v :: fresh (n - 1) rest in
+  to_vars @ fresh needed Variable.procs
 
-let exhaustive ~of_cube ~to_cube =
+let instantiate_unnorm exhaustive ~of_node ~to_node =
+  let of_cube, to_cube = of_node.cube, to_node.cube in
   let of_vars, to_vars = of_cube.Cube.vars, to_cube.Cube.vars in
-  let dif = Variable.extra_vars of_vars to_vars in
-  let to_vars = if dif = [] then to_vars else to_vars@dif in
-  Variable.all_permutations of_vars to_vars
+  if not tx_bwd || of_node.state = Node.neutral_pos && to_node.state = Node.neutral_pos then
+    let to_vars = extend of_vars ~up_to:to_vars in
+    if exhaustive then Variable.all_permutations of_vars to_vars
+    else relevant_permutations to_cube.Cube.array of_cube.Cube.array of_vars to_vars
+  else
+    let Before c = of_node.state and Before g = to_node.state in
+    if not (H.equal c.evt_trans g.evt_trans) ||
+       List.length c.evt_args <> List.length g.evt_args then []
+    else
+      let fixed = List.sort_uniq Stdlib.compare
+          (List.combine c.evt_args g.evt_args) in
+      if not (Variable.well_formed_subst fixed) then []
+      else
+        let source = List.filter (fun v -> not (List.mem_assoc v fixed)) of_vars in
+        let used = List.map snd fixed in
+        let vars = List.rev_append (List.map fst fixed) source in
+        let target = extend vars ~up_to:to_vars in
+        let target = List.filter (fun v -> not (H.list_mem v used)) target in
+        List.map (List.rev_append fixed) (Variable.all_permutations source target)
+
+let instantiate exhaustive ~of_node ~to_node =
+  let of_cube, to_cube = of_node.cube, to_node.cube in
+  let of_vars, to_vars = of_cube.Cube.vars, to_cube.Cube.vars in
+  if not tx_bwd || of_node.state = Node.neutral_pos && to_node.state = Node.neutral_pos then
+    let to_vars = extend of_vars ~up_to:to_vars in
+    if exhaustive then Variable.all_permutations of_vars to_vars
+    else relevant_permutations to_cube.Cube.array of_cube.Cube.array of_vars to_vars
+  else
+    let Before c = of_node.state and Before g = to_node.state in
+    if not (H.equal c.evt_trans g.evt_trans) then []
+    else
+      let target = if List.length of_vars > List.length to_vars then of_vars else to_vars in
+      let rec drop args vars = match args, vars with
+        | [], _ -> vars
+        | _ :: args, _ :: vars -> drop args vars
+        | _ -> assert false in
+      Variable.all_permutations (drop c.evt_args of_vars) (drop c.evt_args target)
+
+let relevant_unnorm = instantiate_unnorm false
+
+let relevant = instantiate false
+
+let exhaustive = instantiate true
 

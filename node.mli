@@ -42,6 +42,18 @@ val neutral_pos : node_position
 val dummy_pos : node_position
 (** Tags nodes that don't represent concrete system states, i.e invariants. *)
 
+val validate_posititon : t -> unit
+(** Reject dummy positions and non-neutral Inv/Orig nodes in transaction mode. *)
+
+val normalize : ?with_state:bool -> t -> t
+(** Rename process variables deterministically onto #1, #2, ... [with_state]
+    determines if the positional data. is normalized. By default, normalize iff
+    backward search is done transaction-wise. *)
+
+val subst : Variable.subst -> t -> t
+(** Apply a substitution to a node's data and control arguments
+    without changing its history. *)
+
 val subst_pos : Variable.subst -> node_position -> node_position
 (** Rename a position with an injective substitution covering the cube variables.
     Extend it to control-only variables without colliding with its images. *)

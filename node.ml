@@ -88,6 +88,54 @@ let neutral_pos = Before {evt_trans = Types.neutral_name; evt_args = []}
 
 let dummy_pos = Before {evt_trans = Types.dummy_name; evt_args = []}
 
+let validate_posititon n =
+  let Before e = n.state in
+  if tx_bwd then begin
+    if Hstring.equal e.evt_trans Types.dummy_name then
+      invalid_arg "Node.validate_posititon: dummy transaction position";
+    if Hstring.equal e.evt_trans Types.neutral_name && e.evt_args <> [] then
+      invalid_arg "Node.validate_posititon: neutral position has arguments";
+    if (n.kind = Inv || n.kind = Orig) && n.state <> neutral_pos then
+      invalid_arg "Node.validate_posititon: non-neutral invariant or unsafe root"
+  end
+
+let normalize ?(with_state=tx_bwd) n =
+  if with_state then validate_posititon n;
+  let Before e = n.state in
+  let args = if with_state then
+      List.rev (List.fold_left (fun args v ->
+        if Hstring.list_mem v args then args else v :: args) [] e.evt_args)
+    else [] in
+  let rec is_prefix vars procs = match vars, procs with
+    | [], _ -> true
+    | v :: vars, p :: procs when Hstring.equal v p -> is_prefix vars procs
+    | _ -> false in
+  let is_normal_form =
+    is_prefix (variables n) Variable.procs
+    && is_prefix args Variable.procs
+    && if with_state
+       then List.for_all (fun v -> Hstring.list_mem v (variables n)) e.evt_args
+       else n.state = neutral_pos in
+  if is_normal_form then n
+  else
+    let vars = args @ List.filter (fun v -> not (Hstring.list_mem v args))
+                 (List.sort_uniq Variable.compare (variables n)) in
+    let renaming = Variable.build_subst vars Variable.procs in
+    let cube =
+      if Variable.is_subst_identity renaming && vars = variables n then n.cube
+      else Cube.create (List.map snd renaming)
+          (ArrayAtom.to_satom (ArrayAtom.apply_subst renaming (array n))) in
+    let state =
+      if not with_state then neutral_pos
+      else if Variable.is_subst_identity renaming then n.state
+      else Before {e with evt_args = List.map (Variable.subst renaming) e.evt_args} in
+    {n with cube; state}
+
+let subst sigma n =
+  let Before e = n.state in
+  {n with cube = Cube.subst sigma n.cube;
+          state = Before {e with evt_args = List.map (Variable.subst sigma) e.evt_args}}
+
 let subst_pos sigma (Before evt) =
   let vars = List.sort_uniq Hstring.compare evt.evt_args in
   let vars = List.filter (fun v -> not (List.mem_assoc v sigma)) vars in
