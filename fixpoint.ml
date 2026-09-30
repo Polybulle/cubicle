@@ -67,7 +67,7 @@ end = struct
       List.fold_left
         (fun nodes vis_n ->
          let vis_cube = vis_n.cube in
-         let d = Instantiation.relevant ~of_cube:vis_cube ~to_cube:n.cube in
+         let d = Instantiation.relevant_unnorm ~of_node:vis_n ~to_node:n in
          List.fold_left
 	   (fun nodes ss ->
 	    let vis_renamed = ArrayAtom.apply_subst ss vis_cube.Cube.array in
@@ -76,7 +76,7 @@ end = struct
 	    (* Heuristic : throw away nodes too much different *)
 	    (* else if ArrayAtom.nb_diff pp anp > 2 then nodes *)
 	    (* line below useful for arith : ricart *)
-	    else if not pure_smt &&
+	    else if not pure_smt && n.state = Node.neutral_pos &&
                       Cube.inconsistent_2arrays vis_renamed n_array then nodes
 	    else if ArrayAtom.nb_diff vis_renamed n_array > 1 then
               (vis_n, vis_renamed)::nodes
@@ -102,9 +102,9 @@ end = struct
       let ars = Node.array s in
       ignore (List.exists 
 	        (fun sp -> 
-		 if ArrayAtom.subset (Node.array sp) ars then
-		 begin db := Some [sp.tag]; true end
-		 else false
+		   if (not tx_bwd || sp.state = s.state) && ArrayAtom.subset (Node.array sp) ars
+		   then begin db := Some [sp.tag]; true end
+		   else false
                 ) nodes);
       !db
 
@@ -119,6 +119,8 @@ end = struct
 
 
   let pure_smt_check s nodes =
+    let s = Node.normalize s in
+    if tx_bwd then List.iter Node.validate_posititon nodes;
     try
       check_fixpoint ~pure_smt:true s nodes;
       None
@@ -132,6 +134,8 @@ end = struct
   let check s visited =
     Debug.unsafe s;
     TimeFix.start ();
+    let s = Node.normalize s in
+    if tx_bwd then List.iter Node.validate_posititon visited;
     let r = 
       match easy_fixpoint s visited with
       | None -> hard_fixpoint s visited
@@ -178,7 +182,7 @@ end = struct
       List.fold_left
         (fun nodes vis_n ->
          let vis_cube = vis_n.cube in
-         let d = Instantiation.relevant ~of_cube:vis_cube ~to_cube:n.cube in
+         let d = Instantiation.relevant_unnorm ~of_node:vis_n ~to_node:n in
          List.fold_left
 	   (fun nodes ss ->
 	    let vis_renamed = ArrayAtom.apply_subst ss vis_cube.Cube.array in
@@ -262,6 +266,10 @@ end = struct
     r
 
   let useful_instances s visited =
+    if tx_bwd then invalid_arg "Transaction certificates are not supported";
+    let renaming = Variable.build_subst
+        (List.sort_uniq Variable.compare (Node.variables s)) Variable.procs in
+    let s = Node.normalize ~with_state:false s in
     let env = {
         hid_cubes = Hashtbl.create (3 * (List.length visited));
         cur_id = s.tag
@@ -276,7 +284,18 @@ end = struct
        (* Hashtbl.iter (fun id (n, sigma) ->  *)
        (*               eprintf "id:%d == %d[%a]@." id n.tag *)
        (*                       Variable.print_subst sigma) env.hid_cubes; *)
-       List.map (Hashtbl.find env.hid_cubes) db
+       let inverse = List.map (fun (x, y) -> y, x) renaming in
+       let instances = List.map (Hashtbl.find env.hid_cubes) db in
+       let names = List.sort_uniq Variable.compare
+           (List.concat_map (fun (_, sigma) -> List.map snd sigma) instances) in
+       let extra = List.filter (fun y -> not (List.mem_assoc y inverse)) names in
+       let used = List.map snd inverse in
+       let fresh = List.filter (fun y -> not (Hstring.list_mem y used)) Variable.procs in
+       let inverse = inverse @ Variable.build_subst extra fresh in
+       List.map (fun (n, sigma) ->
+         let sigma = List.map (fun (x, y) ->
+           x, Variable.subst inverse y) sigma in
+         n, sigma) instances
 
 
 end
@@ -285,13 +304,15 @@ end
 
 module FixpointTrie : sig
 
-  val easy_fixpoint : Node.t -> Node.t Cubetrie.t -> int list option
-  val peasy_fixpoint : Node.t -> Node.t Cubetrie.t -> int list option
-  val hard_fixpoint : Node.t -> Node.t Cubetrie.t -> int list option
+  val easy_fixpoint : Node.t -> Cubetrie.Selected.t -> int list option
+  val peasy_fixpoint : Node.t -> Cubetrie.Selected.t -> int list option
+  val hard_fixpoint : Node.t -> Cubetrie.Selected.t -> int list option
 
-  val check : Node.t -> Node.t Cubetrie.t -> int list option
+  val check : Node.t -> Cubetrie.Selected.t -> int list option
 
 end = struct
+
+  module Cubetrie = Cubetrie.Selected
 
   let first_action =
     match Prover.SMT.check_strategy with
@@ -309,11 +330,11 @@ end = struct
     | Smt.Lazy -> Prover.run
 
   
-  let check_and_add n nodes vis_n=
+  let check_and_add n nodes vis_n =
     let n_array = Node.array n in
     let vis_cube = vis_n.cube in
     let vis_array = vis_cube.Cube.array in
-    let d = Instantiation.relevant ~of_cube:vis_cube ~to_cube:n.cube in
+    let d = Instantiation.relevant ~of_node:vis_n ~to_node:n in
     List.fold_left
       (fun nodes ss ->
        let vis_renamed = ArrayAtom.apply_subst ss vis_array in
@@ -322,7 +343,8 @@ end = struct
        (* Heuristic : throw away nodes too much different *)
        (* else if ArrayAtom.nb_diff pp anp > 2 then nodes *)
        (* line below useful for arith : ricart *)
-       if Cube.inconsistent_2arrays vis_renamed n_array then nodes
+       if n.state = Node.neutral_pos &&
+          Cube.inconsistent_2arrays vis_renamed n_array then nodes
        else if true || ArrayAtom.nb_diff vis_renamed n_array > 1 then
          (vis_n, vis_renamed)::nodes
        else
@@ -337,7 +359,7 @@ end = struct
     let s_array = Node.array s in
     let unprioritize_cands = false in
     let nodes, cands =
-      Cubetrie.fold
+      Cubetrie.fold_at s
         (fun (nodes, cands) vis_p ->
          if unprioritize_cands && vis_p.kind = Approx then
            nodes, vis_p :: cands
@@ -368,17 +390,19 @@ end = struct
   let easy_fixpoint s nodes =
     if delete && (s.deleted || Node.has_deleted_ancestor s)
     then Some []
-    else Cubetrie.mem_array (Node.array s) nodes
+    else Cubetrie.mem s nodes
 
   let medium_fixpoint s visited  =
-    let vars, s_array = Node.variables s, Node.array s in
+    let Before e = s.state in
+    let vars = List.filter (fun v -> not tx_bwd ||
+        not (Hstring.list_mem v e.evt_args)) (Node.variables s) in
     let substs = Variable.all_permutations vars vars in
-    let substs = List.tl substs in (* Drop 'identity' permutation. 
+    let substs = List.tl substs in (* Drop 'identity' permutation.
                                     Already checked in easy_fixpoint. *)
     try
       List.iter (fun ss -> 
-                 let u = ArrayAtom.apply_subst ss s_array in
-                 match Cubetrie.mem_array u visited with
+                 let u = Node.subst ss s in
+                 match Cubetrie.mem u visited with
                  | Some uc -> raise (Fixpoint uc)
                  | None -> ()
                 ) substs;
@@ -418,14 +442,16 @@ end
 
 module FixpointTrieNaive : sig
 
-  val check : Node.t -> Node.t Cubetrie.t -> int list option
+  val check : Node.t -> Cubetrie.Selected.t -> int list option
 
 end = struct
 
-  let check_and_add n nodes vis_n=
+  module Cubetrie = Cubetrie.Selected
+
+  let check_and_add n nodes vis_n =
     let vis_cube = vis_n.cube in
     let vis_array = vis_cube.Cube.array in
-    let d = Instantiation.exhaustive ~of_cube:vis_cube ~to_cube:n.cube in
+    let d = Instantiation.exhaustive ~of_node:vis_n ~to_node:n in
     List.fold_left
       (fun nodes ss ->
        let vis_renamed = ArrayAtom.apply_subst ss vis_array in
@@ -435,26 +461,25 @@ end = struct
 
   let check_fixpoint s visited =
     let nodes =
-      Cubetrie.fold
-        (fun nodes vis_p ->
-         check_and_add s nodes vis_p) [] visited in
+      Cubetrie.fold_at s
+        (fun nodes vis_p -> check_and_add s nodes vis_p) [] visited in
     Prover.assume_goal_nodes s nodes
 
               
   let easy_fixpoint s nodes =
     if delete && (s.deleted || Node.has_deleted_ancestor s)
     then Some []
-    else Cubetrie.mem_array (Node.array s) nodes
+    else Cubetrie.mem s nodes
 
   let medium_fixpoint s visited  =
-    let vars, s_array = Node.variables s, Node.array s in
+    let vars = Node.variables s in
     let substs = Variable.all_permutations vars vars in
     let substs = List.tl substs in (* Drop 'identity' permutation. 
                                     Already checked in easy_fixpoint. *)
     try
       List.iter (fun ss -> 
-                 let u = ArrayAtom.apply_subst ss s_array in
-                 match Cubetrie.mem_array u visited with
+                 let u = Node.subst ss s in
+                 match Cubetrie.mem u visited with
                  | Some uc -> raise (Fixpoint uc)
                  | None -> ()
                 ) substs;
@@ -475,69 +500,6 @@ end = struct
     Debug.unsafe s;
     TimeFix.start ();
     let r = hard_fixpoint s nodes in
-    (*   match easy_fixpoint s nodes with *)
-    (*   | None -> *)
-    (*      (match medium_fixpoint s nodes with *)
-    (*       | None -> hard_fixpoint s nodes *)
-    (*       | r -> r) *)
-    (*   | r -> r *)
-    (* in *)
     TimeFix.pause ();
     r
 end
-
-(* Experimental internal covering, disabled pending review.
-   Bwd currently expands internal obligations without storing or covering them.
-module Internal = struct
-
-  (* Include control-only witnesses in the SMT goal's distinct variables. *)
-  let normalize n =
-    let Before e = n.state in
-    let vars = List.sort_uniq Variable.compare (Node.variables n @ e.evt_args) in
-    let sigma = Variable.build_subst vars Variable.procs in
-    let vars = List.map (Variable.subst sigma) vars in
-    let atoms = ArrayAtom.apply_subst sigma (Node.array n) in
-    {n with cube = Cube.create vars (ArrayAtom.to_satom atoms);
-            state = Node.subst_pos sigma n.state}
-
-  let instances goal cover =
-    let Before g = goal.state and Before c = cover.state in
-    if not (Hstring.equal g.evt_trans c.evt_trans) ||
-       List.length g.evt_args <> List.length c.evt_args then []
-    else
-      let fixed = List.sort_uniq Stdlib.compare
-          (List.combine c.evt_args g.evt_args) in
-      if not (Variable.well_formed_subst fixed) then []
-      else
-        let from = List.filter (fun v -> not (List.mem_assoc v fixed))
-            (Node.variables cover) in
-        let used = List.map snd fixed in
-        let into = List.filter (fun v -> not (Hstring.list_mem v used))
-            (Node.variables goal) in
-        if List.length from > List.length into then []
-        else List.map (fun sigma ->
-          ArrayAtom.apply_subst (fixed @ sigma) (Node.array cover))
-            (Variable.all_permutations from into)
-
-  let covers goal cover =
-    let goal = normalize goal in
-    List.exists (fun atoms -> ArrayAtom.subset atoms (Node.array goal))
-      (instances goal (normalize cover))
-
-  let peasy_fixpoint n nodes =
-    if delete && (n.deleted || Node.has_deleted_ancestor n) then Some []
-    else match List.find_opt (covers n) nodes with
-      | None -> None
-      | Some cover -> Some [cover.tag]
-
-  let hard_fixpoint n nodes =
-    try
-      let goal = normalize n in
-      Prover.assume_goal goal;
-      List.iter (fun cover ->
-        List.iter (Prover.assume_node cover)
-          (instances goal (normalize cover))) nodes;
-      None
-    with Smt.Unsat db -> Some db
-end
-*)

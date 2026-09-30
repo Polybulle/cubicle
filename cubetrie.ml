@@ -101,27 +101,32 @@ let add_array cube v trie = add (Array.to_list cube) v trie
 let add_array_force cube v trie = add_force (Array.to_list cube) v trie
 
 (* Is cube subsumed by some cube in the trie? *)
-let rec mem cube trie = match trie with 
+let rec find cube trie = match trie with
   | Empty -> None
-  | Full { tag = id } -> Some [id]
+  | Full v -> Some v
   | Node l -> match cube with
       | [] -> None
       | atom::cube -> 
-          mem_list atom cube l
-and mem_list atom cube l = match l with
+          find_list atom cube l
+and find_list atom cube l = match l with
   | [] -> None
   | (atom',t')::n ->
       (* let cmp = Atom.compare atom atom' in *)
       let cmp = - (Atom.trivial_is_implied atom' atom) in
-      if cmp = 0 then match mem cube t' with
+      if cmp = 0 then match find cube t' with
         | Some _ as r -> r
         | None -> match cube with
             | [] -> None
-            | atom::cube -> mem_list atom cube l
-      else if cmp > 0 then mem_list atom cube n
+            | atom::cube -> find_list atom cube l
+      else if cmp > 0 then find_list atom cube n
       else match cube with
           | [] -> None
-          | atom::cube -> mem_list atom cube l
+          | atom::cube -> find_list atom cube l
+
+
+let mem cube trie = match find cube trie with
+  | None -> None
+  | Some n -> Some [n.tag]
 
 let rec mem_poly cube trie = match trie with 
   | Empty -> false
@@ -302,8 +307,10 @@ and consistent_list atom cube ((atom', t') as n) = match (atom, atom') with
         | atom::cube -> consistent_list atom cube n
       else consistent (atom::cube) t'
 
-let delete_subsumed ?(cpt=ref 0) p nodes =
-  let vars, ap = Node.variables p, Node.array p in
+let delete_subsumed ?(cpt=ref 0) ?normalized p nodes =
+  let normalized = match normalized with
+    | Some n -> n | None -> Node.normalize ~with_state:false p in
+  let vars, ap = Node.variables normalized, Node.array normalized in
   let substs = Variable.all_permutations vars vars in
   List.iter (fun ss ->
     let u = ArrayAtom.apply_subst ss ap in
@@ -321,4 +328,105 @@ let delete_subsumed ?(cpt=ref 0) p nodes =
   delete (fun n -> n.deleted || Node.has_deleted_ancestor n) nodes
 
 
-let add_node p trie = add_array (Node.array p) p trie
+let add_node ?normalized p trie =
+  let normalized = match normalized with
+    | Some n -> n | None -> Node.normalize ~with_state:false p in
+  add_array (Node.array normalized) p trie
+
+module type S = sig
+  type t
+  val empty : t
+  val add_node : ?normalized:Node.t -> Node.t -> t -> t
+  val mem : Node.t -> t -> int list option
+  val fold : ('a -> Node.t -> 'a) -> 'a -> t -> 'a
+  val fold_at : Node.t -> ('a -> Node.t -> 'a) -> 'a -> t -> 'a
+  val all_vals : t -> Node.t list
+  val delete : (Node.t -> bool) -> t -> t
+  val delete_subsumed : ?cpt:int ref -> ?normalized:Node.t -> Node.t -> t -> t
+end
+
+module Ordinary = struct
+  type nonrec t = Node.t t
+  let empty = empty
+  let add_node = add_node
+  let mem n nodes = mem_array (Node.array n) nodes
+  let fold = fold
+  let fold_at _ f acc nodes = fold f acc nodes
+  let all_vals = all_vals
+  let delete = delete
+  let delete_subsumed = delete_subsumed
+end
+
+module Located = struct
+
+  module M = Map.Make(Hstring)
+  type bucket = (Node.t * Node.t) t
+  type t = bucket M.t
+
+  let empty = M.empty
+  let empty_bucket = Empty
+
+  let key n =
+    let Before e = n.state in
+    e.evt_trans
+
+  let is_canonical_pos n =
+    let Before e = n.state in
+    e.evt_args = Variable.give_procs (List.length e.evt_args)
+
+  let bucket k nodes = try M.find k nodes with Not_found -> empty_bucket
+
+  let add_node ?normalized n nodes =
+    let normalized = match normalized with
+      | Some n -> n | None -> Node.normalize n in
+    let k = key normalized in
+    let b = bucket k nodes in
+    M.add k (add_array (Node.array normalized) (n, normalized) b) nodes
+
+  let mem n nodes =
+    if not (is_canonical_pos n) then None else begin
+      TimerSubset.start ();
+      let res = match find (Array.to_list (Node.array n)) (bucket (key n) nodes) with
+        | None -> None
+        | Some (n, _) -> Some [n.tag] in
+      TimerSubset.pause ();
+      res
+    end
+
+  let fold_at n f acc nodes =
+    Node.validate_posititon n;
+    fold (fun acc (_, norm) -> f acc norm) acc (bucket (key n) nodes)
+
+  let fold f acc nodes = M.fold (fun _ b acc ->
+    fold (fun acc (n, _) -> f acc n) acc b) nodes acc
+
+  let all_vals nodes = fold (fun acc n -> n :: acc) [] nodes
+
+  let delete pred nodes =
+    M.map (delete (fun (n, _) -> pred n)) nodes
+
+  let delete_subsumed ?(cpt=ref 0) ?normalized p nodes =
+    let normalized = match normalized with
+      | Some n -> n | None -> Node.normalize p in
+    let Before e = normalized.state in
+    let vars = List.filter (fun v -> not (Hstring.list_mem v e.evt_args))
+        (Node.variables normalized) in
+    let substs = Variable.all_permutations vars vars in
+    ListLabels.iter substs ~f:(fun sigma ->
+      let permuted = Node.subst sigma normalized in
+      let mark n =
+        if not n.deleted &&
+           (Node.has_deleted_ancestor n || not (Node.ancestor_of n p)) then begin
+          n.deleted <- true;
+          if dot then Dot.delete_node_by n p;
+          incr cpt
+        end in
+      let b = bucket (key permuted) nodes in
+      iter_subsumed (fun (n, _) -> mark n) (Array.to_list (Node.array permuted)) b);
+    (* Descendant cleanup follows dependencies, not control locations. *)
+    delete (fun n -> n.deleted || Node.has_deleted_ancestor n) nodes
+
+end
+
+module Selected = (val (if tx_bwd then (module Located : S)
+                       else (module Ordinary : S)))

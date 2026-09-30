@@ -1,26 +1,20 @@
-# Internal covering: disabled pending review
+# Internal located covering
 
 ## Current implementation
 
-Search again uses `Cubetrie` for storage and `Fixpoint.FixpointTrie` for checks.
-`bwd.ml` contains the boundary policy in both schedulers. Internal obligations are
-expanded and counted toward resource limits, but are neither stored as covers nor
-subjected to quick covering, SMT fixpoints, or subsumption deletion. Boundary
-covering and neutral-only candidate handling remain active.
+Search uses `Cubetrie.Selected` for storage and `Fixpoint.FixpointTrie` for checks.
+The selected module is the ordinary trie without backward transactions, and
+`Cubetrie.Located` with backward transactions.
+Both schedulers cover and store internal obligations, preserving location and
+active bindings. Safety and approximation remain neutral-only. The obsolete
+commented checker was removed rather than re-enabled.
 
-The fused `Fixpoint.Located` store/checker and `Covers` alias are removed. The
-internal normalization, restricted instantiation, subset check, and SMT check are
-commented out in `fixpoint.ml` as a checker-only proposal. They are not exported
-or executed. Restoring actual internal coverage needs a separate review of the
-algorithm and its storage needs; uncommenting that proposal alone does not enable it.
+The comprehensive acceptance suite and its assumptions are documented in
+[../tx-fixpoint/README.md](../tx-fixpoint/README.md). The small suite here remains
+an integration regression. The comparison below records historical results from
+the earlier disabled implementation; it is not a description of current behavior.
 
-`bwd.ml` is identical to the step-8 version at `7e87574`. Relative to the branch
-starting point `12830fc`, its only remaining edits are the two candidate-admission
-filters. `fixpoint.mli` is restored to its pre-step-9 interface. No module selection
-layer is needed for this experiment because only the existing boundary checker is
-active.
-
-## Controlled cycle experiment
+## Historical controlled cycle experiment
 
 The before binaries were built from `1d92c67`, with internal covering enabled.
 The after binaries contain the disabled implementation. Each before/after pair
@@ -60,8 +54,7 @@ not a SAFE or UNSAFE verdict.
 
 ## Reproduce
 
-Build the enabled revision separately and retain its executable. For the current
-boundary-only contracts and integration checks:
+For the current located contracts and integration checks:
 
 ```sh
 make
@@ -70,7 +63,7 @@ python3 tests/located-covering/run.py
 TEST_CORES=2 python3 tests/located-covering/run.py # real Functory required
 ```
 
-For the controlled comparison:
+For the historical controlled comparison, build both recorded revisions separately:
 
 ```sh
 python3 tests/located-covering/compare.py \
@@ -85,13 +78,13 @@ and reports are local ignored artifacts, not committed dependencies.
 
 ## Regression coverage
 
-The current unit probe checks that identical internal obligations, different
-locations, and different bindings are all expanded rather than covered. A matching
-supplied invariant must not cover them, and the ordinary boundary fixpoint check
-must still work. Integration cases exercise the intentional node limits and the
-remaining SAFE/UNSAFE outcomes under all postponement settings.
+The unit probe checks that duplicate internal obligations are covered, while
+different locations and bindings remain separate. A matching supplied invariant
+must not cover them. Boundary covering remains active. The integration cases
+expect SAFE for the finite internal cycle, UNSAFE for a reachable loop exit, and
+a node-limit exit for the nonconvergent arithmetic loop.
 
-The current covering tests and step-8 suite passed sequentially and with Functory.
+Historically, the disabled-covering tests and step-8 suite passed sequentially and with Functory.
 The step-10 suite also passed in both builds: 280 forward differential cases and
 six end-to-end BRAB checks per build. `make test` passed in the main checkout,
 with its per-model timeouts and an outer 180-second deadline. The main compiler

@@ -66,8 +66,33 @@ val consistent : Atom.t list -> 'a t -> 'a list
 (** All values whose keys (cubes) are not inconsistent with the given cube. *)
 
 
-val delete_subsumed : ?cpt:int ref -> Node.t -> Node.t t -> Node.t t
+val delete_subsumed : ?cpt:int ref -> ?normalized:Node.t -> Node.t -> Node.t t -> Node.t t
 (** Delete from the trie nodes that are subsumed by the first arguments *)
 
-val add_node : Node.t -> Node.t t -> Node.t t
+val add_node : ?normalized:Node.t -> Node.t -> Node.t t -> Node.t t
 (** Add a node in the trie *)
+
+module type S = sig
+  type t
+  val empty : t
+  val add_node : ?normalized:Node.t -> Node.t -> t -> t
+  (** [normalized], when supplied, is the normalization of the original node. *)
+  val mem : Node.t -> t -> int list option
+  (** Lookup a normalized or permuted node without renaming it again. *)
+  val fold : ('a -> Node.t -> 'a) -> 'a -> t -> 'a
+  val fold_at : Node.t -> ('a -> Node.t -> 'a) -> 'a -> t -> 'a
+  (** Read-only covering traversal: normalized nodes for Located, original nodes
+      for Ordinary. Use [fold] or [all_vals] for original mutable nodes. *)
+  val all_vals : t -> Node.t list
+  val delete : (Node.t -> bool) -> t -> t
+  val delete_subsumed : ?cpt:int ref -> ?normalized:Node.t -> Node.t -> t -> t
+end
+
+module Ordinary : S with type t = Node.t t
+(** Node-facing interface to the non-tx trie with normalized data keys. *)
+
+module Located : S
+(** Bucketed cubetries, one tree per position. Necessary in tx_bwd mode *)
+
+module Selected : S
+(** Select Ordinary when Options.tx_bwd is false, Located otherwise. *)

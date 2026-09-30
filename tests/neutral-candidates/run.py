@@ -46,10 +46,9 @@ def main():
             print(f"PASS {name} postpone={postpone}")
     code, output = run(["./cubicle.opt", "-tx", "bwd", "-nodes", "20",
                         "-nocolor", str(HERE / "internal-cycle.cub")])
-    assert code == 1 and "Reached Limit !" in output, output
-    assert "Number of visited nodes          : 21" in output, output
-    assert "UNSAFE" not in output and "The system is SAFE" not in output, output
-    print("PASS internal cycle reaches node limit with covering disabled")
+    assert code == 0 and "The system is SAFE" in output, output
+    assert "Reached Limit !" not in output, output
+    print("PASS internal cycle closes with located covering")
 
 
 if __name__ == "__main__":

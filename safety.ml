@@ -35,12 +35,16 @@ let obviously_safe { t_init_instances = init_inst; } n =
   let { init_cdnf_a } = Hashtbl.find init_inst nb_procs in
   cdnf_asafe (Node.array n) init_cdnf_a
  
-let check s n =
+let check ?normalized s n =
+  if tx_bwd && n.state <> Node.neutral_pos then
+    invalid_arg "Safety.check: non-neutral transaction node";
+  let normalized = match normalized with
+    | Some n -> n | None -> Node.normalize ~with_state:false n in
   (*Debug.unsafe s;*)
   try
-    if not (obviously_safe s n) then
+    if not (obviously_safe s normalized) then
       begin
-	Prover.unsafe s n;
+	Prover.unsafe s normalized;
 	if not quiet then eprintf "\nUnsafe trace: @[%a@]@."
 				  Node.print_history n;
         raise (Unsafe n)

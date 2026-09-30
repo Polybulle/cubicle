@@ -131,7 +131,7 @@ module CFG_of (S : System) : Cfg = struct
       List.map (fun args -> {evt_trans = call.tc_name; evt_args = args})
         (fill available [] args)) (formal_after evt.evt_trans)
 
-  let should_check_fixpoint  = should_check_safety
+  let should_check_fixpoint (c : node_cube) = not (c.state = Node.dummy_pos)
 
   let transition_for_event e = transition_named e.evt_trans
 

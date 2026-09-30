@@ -19,7 +19,8 @@ exception Unsafe of Node.t
 (** exception to signal that a safety check failed. In this case the current
     search must be stopped. *)
 
-val check : Ast.t_system -> Node.t -> unit
+val check : ?normalized:Node.t -> Ast.t_system -> Node.t -> unit
 (** [check s n] raises [Unsafe n] if the node [n] is immediately reachable in
-    the system [s], i.e. if [n /\ s.init] is not unsatifiable. Otherwise it
-    does nothing.*)
+    the system [s], i.e. if [n /\ s.init] is not unsatifiable. Otherwise it does
+    nothing. Optionally, pass the [normalized] version of the cube is already
+    computed. . *)

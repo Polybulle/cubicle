@@ -20,15 +20,15 @@ let () =
     (match result with
      | Bwd.Unsafe _ -> failwith "internal obligation was checked as initial"
      | Bwd.Safe (visited, _) ->
-        require (List.for_all (fun n -> n.state = Node.neutral_pos) visited)
-          "internal obligation stored in cube-only trie");
-    require (List.length !expanded = List.length internal &&
-             List.for_all (fun n -> List.mem n.tag !expanded) internal)
-      "internal obligation was covered instead of expanded";
+        require (List.length (List.filter (fun n -> n.state <> Node.neutral_pos) visited) = 3)
+          "internal covering lost a distinct location or binding");
+    require (List.length !expanded = 3 &&
+             List.for_all (fun n -> List.mem n.tag !expanded) (List.tl (List.tl internal)))
+      "duplicate internal obligation not covered, or distinct obligation skipped";
     require (List.for_all (fun n -> not n.deleted) internal)
       "internal obligation was deleted";
-    let visited = Cubetrie.add_node inv Cubetrie.empty in
-    require (Fixpoint.FixpointTrie.check root visited <> None)
+    let visited = Cubetrie.Selected.add_node inv Cubetrie.Selected.empty in
+    require (Fixpoint.FixpointTrie.check (Node.normalize root) visited <> None)
       "ordinary boundary covering stopped working";
-    Printf.printf "PASS boundary-only covering contracts\n%!"
+    Printf.printf "PASS located covering contracts\n%!"
   with exn -> Printf.eprintf "FAIL %s\n%!" (Printexc.to_string exn); exit 1

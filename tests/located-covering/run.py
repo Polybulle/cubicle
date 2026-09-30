@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Boundary-only covering contracts while internal coverage is disabled."""
+"""Located covering contracts and bounded cyclic integration checks."""
 from pathlib import Path
 import runpy
 
@@ -8,9 +8,9 @@ run = runpy.run_path(str(HERE.parent / "neutral-candidates/run.py"))["run"]
 
 code, output = run([str(HERE / ".local/check.opt"), "-tx", "bwd", "-nodes", "100",
                     "-quiet", "-nocolor", str(HERE / "model.cub")])
-assert code == 0 and "PASS boundary-only covering contracts" in output, output
+assert code == 0 and "PASS located covering contracts" in output, output
 print(output.strip())
-for name, expected in (("swap-safe.cub", None), ("reachable-cycle-safe.cub", 0),
+for name, expected in (("swap-safe.cub", 0), ("reachable-cycle-safe.cub", 0),
                        ("loop-exit-unsafe.cub", 1),
                        ("unbounded-internal.cub", None)):
     for postpone in (0, 1, 2):
