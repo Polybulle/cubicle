@@ -1,0 +1,1889 @@
+{
+  "schema_version": 1,
+  "corpus_ref": "fork-hector/tetra",
+  "corpus_commit": "fe6170b318e8315f19937d18b0e8d7a251b5783f",
+  "builds": {
+    "baseline": {
+      "ref": "origin/master",
+      "commit": "3f7613542898174cc297d497d2b4b385fce813bd"
+    },
+    "tetra": {
+      "ref": "fork-hector/tetra",
+      "commit": "fe6170b318e8315f19937d18b0e8d7a251b5783f"
+    },
+    "old": {
+      "ref": "fork-hector/master",
+      "commit": "27fa97dce58ab39a4d09aa146b9d5c73635fd5ea"
+    }
+  },
+  "models": [
+    {
+      "path": "examples/bakery.cub",
+      "group": "ordinary",
+      "options": [],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 407,
+          "line_end": 407,
+          "text": "\t@$(call test_good,examples/bakery.cub)"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 385,
+          "line_end": 403,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef\n\ndefine test_bad\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2)  | grep -q \"^UNSAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Small SAFE regression/control; likely startup-sensitive, not an annotated transaction benchmark.",
+      "audit_suitability": "core-control"
+    },
+    {
+      "path": "examples/bakery_lamport.cub",
+      "group": "ordinary",
+      "options": [],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 408,
+          "line_end": 408,
+          "text": "\t@$(call test_good,examples/bakery_lamport.cub)"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 385,
+          "line_end": 403,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef\n\ndefine test_bad\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2)  | grep -q \"^UNSAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Established SAFE regression; supplied invariant is trusted rather than inferred. Pair with bogus for bug detection.",
+      "audit_suitability": "core-arithmetic"
+    },
+    {
+      "path": "examples/bakery_lamport_bogus.cub",
+      "group": "ordinary",
+      "options": [],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 420,
+          "line_end": 420,
+          "text": "\t@$(call test_bad,examples/bakery_lamport_bogus.cub)"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 385,
+          "line_end": 403,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef\n\ndefine test_bad\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2)  | grep -q \"^UNSAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "UNSAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Established UNSAFE regression; close family pair, not an independent protocol.",
+      "audit_suitability": "core-unsafe"
+    },
+    {
+      "path": "examples/bakery_lamport_na.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "2"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 409,
+          "line_end": 409,
+          "text": "\t@$(call test_good,examples/bakery_lamport_na.cub,-brab 2)"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 385,
+          "line_end": 403,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef\n\ndefine test_bad\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2)  | grep -q \"^UNSAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Established SAFE BRAB-2 regression; useful richer 2-D-array/arithmetic workload; do not transfer its options or verdict to wb variant.",
+      "audit_suitability": "core-brab"
+    },
+    {
+      "path": "examples/german.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "2"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "Makefile.in",
+          "line_start": 410,
+          "line_end": 410,
+          "text": "\t@$(call test_good,examples/german.cub,-brab 2)"
+        },
+        {
+          "path": "Makefile.in",
+          "line_start": 385,
+          "line_end": 393,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Core known-SAFE regression; duplicate of german_baukus after removing comments/whitespace. Keep only one in balanced corpus.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "redundant family variant"
+    },
+    {
+      "path": "examples/german.ctc.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "2"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "Makefile.in",
+          "line_start": 411,
+          "line_end": 411,
+          "text": "\t@$(call test_good,examples/german.ctc.cub,-brab 2)"
+        },
+        {
+          "path": "Makefile.in",
+          "line_start": 385,
+          "line_end": 393,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "BRAB recipe is tested; avoid conflating with control-only German; three unsafe declarations are bad-state specifications, not UNSAFE verdicts.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "core regression candidate"
+    },
+    {
+      "path": "examples/german_baukus.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "2"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "Makefile.in",
+          "line_start": 412,
+          "line_end": 412,
+          "text": "\t@$(call test_good,examples/german_baukus.cub,-brab 2)"
+        },
+        {
+          "path": "Makefile.in",
+          "line_start": 385,
+          "line_end": 393,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Known-SAFE regression but redundant with german.cub.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "redundant family variant"
+    },
+    {
+      "path": "examples/ricart_abdulla_int.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "2"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "Makefile.in",
+          "line_start": 413,
+          "line_end": 413,
+          "text": "\t@$(call test_good,examples/ricart_abdulla_int.cub,-brab 2)"
+        },
+        {
+          "path": "Makefile.in",
+          "line_start": 385,
+          "line_end": 393,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Core known-SAFE BRAB-2 regression; include for arithmetic and multi-index-array diversity.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "core regression candidate"
+    },
+    {
+      "path": "examples/szymanski_at.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "2"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "Makefile.in",
+          "line_start": 414,
+          "line_end": 414,
+          "text": "\t@$(call test_good,examples/szymanski_at.cub,-brab 2)"
+        },
+        {
+          "path": "Makefile.in",
+          "line_start": 385,
+          "line_end": 393,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Core known-SAFE BRAB-2 regression; useful atomic/non-atomic family pair.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "core regression candidate"
+    },
+    {
+      "path": "examples/szymanski_na.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "2"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "Makefile.in",
+          "line_start": 415,
+          "line_end": 415,
+          "text": "\t@$(call test_good,examples/szymanski_na.cub,-brab 2)"
+        },
+        {
+          "path": "Makefile.in",
+          "line_start": 385,
+          "line_end": 393,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Known-SAFE BRAB-2; t1 still atomic universal guard. Equivalent active model to na2 after X->Cpt renaming; keep one.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "core regression candidate"
+    },
+    {
+      "path": "examples/futurebus.cub",
+      "group": "ordinary",
+      "options": [],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 421,
+          "line_end": 421,
+          "text": "\t@$(call test_bad,examples/futurebus.cub)"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 385,
+          "line_end": 403,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef\n\ndefine test_bad\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2)  | grep -q \"^UNSAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "UNSAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Established UNSAFE regression without model-specific flags; independent protocol useful for unsafe side of corpus.",
+      "audit_suitability": "core-unsafe"
+    },
+    {
+      "path": "examples/swimming_pool.cub",
+      "group": "ordinary",
+      "options": [],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "Makefile.in",
+          "line_start": 422,
+          "line_end": 422,
+          "text": "\t@$(call test_bad,examples/swimming_pool.cub)"
+        },
+        {
+          "path": "Makefile.in",
+          "line_start": 395,
+          "line_end": 403,
+          "text": "define test_bad\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2)  | grep -q \"^UNSAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "UNSAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Known-UNSAFE plain-invocation regression. Header witness t8 -> t1 conflicts with active formulas: A becomes 1, while first property requires A=0. Trust UNSAFE recipe, not header witness.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "core regression candidate"
+    },
+    {
+      "path": "examples/mesi.cub",
+      "group": "ordinary",
+      "options": [],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "examples/bench",
+          "line_start": 11,
+          "line_end": 11,
+          "text": "FILES=\"bakery.cub bakery_lamport.cub bakery_uguard.cub berkeley.cub burns.cub crash.cub dekker.cub dekker_limbo.cub  dekker_loc.cub dekker_n.cub dijkstra.cub illinois.cub jml.cub mesi.cub moesi.cub motivating.cub mutex.cub mux_sem.cub peterson_two_proc.cub sense_barrier.cub synapse.cub two-semaphores.cub xerox_dragon.cub\""
+        },
+        {
+          "path": "examples/bench",
+          "line_start": 13,
+          "line_end": 28,
+          "text": "for f in $FILES; do\n    echo $f;\n    max=`expr $max + 1`;\n    timeout $to $cubicle $f > /dev/null 2>&1;\n    res=$?\n    case $res in\n\t\"1\") \n\t    echo\n\t    echo \"    ECHEC\";;\n\t\"0\") \n\t    echo \"    OK\";\n            score=`expr $score + 1`;;\n\t*) \t\n\techo\n\techo \"ECHEC sur \"$f;;\n    esac"
+        }
+      ],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Compact smoke/overhead workload; not independent repetitions of larger German.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/moesi.cub",
+      "group": "ordinary",
+      "options": [],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "examples/bench",
+          "line_start": 11,
+          "line_end": 11,
+          "text": "FILES=\"bakery.cub bakery_lamport.cub bakery_uguard.cub berkeley.cub burns.cub crash.cub dekker.cub dekker_limbo.cub  dekker_loc.cub dekker_n.cub dijkstra.cub illinois.cub jml.cub mesi.cub moesi.cub motivating.cub mutex.cub mux_sem.cub peterson_two_proc.cub sense_barrier.cub synapse.cub two-semaphores.cub xerox_dragon.cub\""
+        },
+        {
+          "path": "examples/bench",
+          "line_start": 13,
+          "line_end": 28,
+          "text": "for f in $FILES; do\n    echo $f;\n    max=`expr $max + 1`;\n    timeout $to $cubicle $f > /dev/null 2>&1;\n    res=$?\n    case $res in\n\t\"1\") \n\t    echo\n\t    echo \"    ECHEC\";;\n\t\"0\") \n\t    echo \"    OK\";\n            score=`expr $score + 1`;;\n\t*) \t\n\techo\n\techo \"ECHEC sur \"$f;;\n    esac"
+        }
+      ],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Related to MESI but not duplicate; compact smoke workload.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/sense_barrier.cub",
+      "group": "ordinary",
+      "options": [],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "examples/bench",
+          "line_start": 11,
+          "line_end": 11,
+          "text": "FILES=\"bakery.cub bakery_lamport.cub bakery_uguard.cub berkeley.cub burns.cub crash.cub dekker.cub dekker_limbo.cub  dekker_loc.cub dekker_n.cub dijkstra.cub illinois.cub jml.cub mesi.cub moesi.cub motivating.cub mutex.cub mux_sem.cub peterson_two_proc.cub sense_barrier.cub synapse.cub two-semaphores.cub xerox_dragon.cub\""
+        },
+        {
+          "path": "examples/bench",
+          "line_start": 13,
+          "line_end": 28,
+          "text": "for f in $FILES; do\n    echo $f;\n    max=`expr $max + 1`;\n    timeout $to $cubicle $f > /dev/null 2>&1;\n    res=$?\n    case $res in\n\t\"1\") \n\t    echo\n\t    echo \"    ECHEC\";;\n\t\"0\") \n\t    echo \"    OK\";\n            score=`expr $score + 1`;;\n\t*) \t\n\techo\n\techo \"ECHEC sur \"$f;;\n    esac"
+        }
+      ],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Good synchronization/arithmetic diversity; safety concerns entry levels, not liveness or full barrier correctness; plain bench recipe only.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/flash_nodata.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "2",
+        "-forward-depth",
+        "6"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 416,
+          "line_end": 416,
+          "text": "\t@$(call test_good,examples/flash_nodata.cub,-brab 2 -forward-depth 6)"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 385,
+          "line_end": 403,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef\n\ndefine test_bad\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2)  | grep -q \"^UNSAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120,
+        600
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Established SAFE BRAB-2/depth-6 Makefile regression and website configuration, versus header depth 5. Duplicate names block explicit tx none/all at current revision.",
+      "audit_suitability": "blocked-tx-name-validation"
+    },
+    {
+      "path": "examples/flash_buggy.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "2",
+        "-forward-depth",
+        "6"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 423,
+          "line_end": 423,
+          "text": "\t@$(call test_bad,examples/flash_buggy.cub,-brab 2 -forward-depth 6)"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/Makefile.in",
+          "line_start": 385,
+          "line_end": 403,
+          "text": "define test_good\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2) | grep -q \"The system is SAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef\n\ndefine test_bad\n\tprintf \"%-40s \" $(1) ; \\\n\tif timeout 30 ./$(OPT) -nocolor -quiet $(1) $(2)  | grep -q \"^UNSAFE\" ; then \\\n\t\tprintf \"\\033[0;32mOK\\033[0m\\n\" ; \\\n\telse \\\n\t\tprintf \"\\033[0;31mKO\\033[0m\\n\"; \\\n\t\texit 1; \\\n\tfi\nendef"
+        }
+      ],
+      "expected": "UNSAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        30,
+        120,
+        600
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Established UNSAFE Makefile regression at BRAB 2/depth 6, conflicting with header depth 5. Duplicate transition names block explicit tx none/all in current source.",
+      "audit_suitability": "blocked-tx-name-validation"
+    },
+    {
+      "path": "examples/flash_enum_simpl.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "3",
+        "-forward-depth",
+        "13"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/examples/flash_enum_simpl.cub",
+          "line_start": 4,
+          "line_end": 4,
+          "text": "(* Run cubicle with options: -brab 3 -forward-depth 13                    *)"
+        }
+      ],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120,
+        600
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Reduced transition system, not duplicate/full-model equivalent; inherited header recipe not verified. Duplicate names block explicit tx none/all.",
+      "audit_suitability": "blocked-tx-name-validation"
+    },
+    {
+      "path": "examples/flash_abstr.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "3",
+        "-forward-depth",
+        "14"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/examples/flash_abstr.cub",
+          "line_start": 4,
+          "line_end": 4,
+          "text": "(* Run cubicle with options: -brab 3 -forward-depth 14                    *)"
+        }
+      ],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120,
+        600
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Documented BRAB-3 depth-14 comment; not semantically equivalent to proc-tag or finite-enum data encoding. Duplicate transition names block explicit tx none/all.",
+      "audit_suitability": "blocked-tx-name-validation"
+    },
+    {
+      "path": "examples/chandra_toueg.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "2"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/doc/website/index.html",
+          "line_start": 454,
+          "line_end": 457,
+          "text": "          <td class=\"bench\"> <a href=\"examples/chandra_toueg_results.html\">Chandra-Toueg</a> </td>\n          <td class=\"colsep\">2</td> <td>&infin;</td> <td>148</td> <td>0.02s</td>\n          <td class=\"colsep\">3828<br/>(770 + 1329 + 1729)</td> <td>5</td> <td>2</td>\n          <td class=\"colsep\"><b>2m17s</b></td>"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/README.md",
+          "line_start": 66,
+          "line_end": 69,
+          "text": "To run Cubicle with the BRAB algorithm (with a preliminary forward exploration\nusing 2 processes) on a file `file.cub` simply do:\n \n    cubicle -brab 2 file.cub"
+        }
+      ],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120,
+        600
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Historical BRAB-2 instance is documented, not a fresh measurement; website reports 2m17s, so a universal 30s cutoff risks censoring it. No explicit SAFE/UNSAFE oracle located.",
+      "audit_suitability": "historical-heavy"
+    },
+    {
+      "path": "examples/german_looped.cub",
+      "group": "transaction",
+      "options": [],
+      "recipe_status": "proposed backward pilot; no model-specific recipe found",
+      "option_evidence": [],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Fork-only transaction corpus; not common origin/master parser input. Cyclic transaction continuation makes termination/budget preflight important.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "fork-only transaction stress candidate"
+    },
+    {
+      "path": "examples/germanish_tx.cub",
+      "group": "transaction",
+      "options": [],
+      "recipe_status": "proposed backward pilot; no model-specific recipe found",
+      "option_evidence": [],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Fork-only syntax; transaction annotation semantics must be preserved. No established BRAB/process/depth recipe found.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "fork-only transaction stress candidate"
+    },
+    {
+      "path": "examples/germanish3_tract.cub",
+      "group": "transaction",
+      "options": [],
+      "recipe_status": "proposed backward pilot; no model-specific recipe found",
+      "option_evidence": [],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Fork-only syntax; compare matched unannotated/control variants cautiously: changes also include early Exgntd update, not annotations alone.",
+        "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
+        "Do not transfer flags/budgets from related filenames without evidence."
+      ],
+      "audit_suitability": "fork-only transaction stress candidate"
+    },
+    {
+      "path": "examples/flash_nodata_tx.cub",
+      "group": "transaction",
+      "options": [
+        "-brab",
+        "2",
+        "-forward-depth",
+        "5"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "/Users/hsuzanne/cubicle/examples/flash_nodata_tx.cub",
+          "line_start": 4,
+          "line_end": 4,
+          "text": "(* Run cubicle with options: -brab 2 -forward-depth 5                     *)"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/options.ml",
+          "line_start": 63,
+          "line_end": 71,
+          "text": "let set_tx arg =\n  let  fwd, bwd, check, allow = match arg with\n  | \"none\" ->   false, false, true,  true\n  | \"fwd\" ->    true,  false, true,  true\n  | \"bwd\" ->    false, true,  true,  true\n  | \"all\" ->    true,  true,  true,  true\n  | \"ignore\" -> false, false, false, true\n  | s -> raise (Arg.Bad (\"tx argument '\"^s^\"' must be none, fwd, bwd, all, or ignore\")) in\n  tx_bwd := bwd; tx_fwd := fwd; tx_allow := allow; tx_check := check"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/options.ml",
+          "line_start": 192,
+          "line_end": 195,
+          "text": "    \"-tx\", Arg.Symbol ([\"none\"; \"fwd\"; \"bwd\"; \"all\"; \"ignore\"], set_tx),\n    \" transaction support: none=off, fwd=forward only, bwd=backward only, all=both, ignore=accept but ignore annotations (bare -tx means all)\";\n    \"-forward-depth\", Arg.Set_int forward_depth,\n    \"<d> Limit the depth of the forward exploration to at most d\";"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/typing.ml",
+          "line_start": 320,
+          "line_end": 324,
+          "text": "(* Check that system doesn't use transaction features. *)\nlet no_transactions s =\n  ListLabels.iter s.trans ~f:(fun t ->\n      if not t.tr_may_yield || t.tr_is_triggered || t.tr_nexts <> [] then\n        error (HasTracts t.tr_name) t.tr_loc)"
+        },
+        {
+          "path": "/Users/hsuzanne/cubicle/typing.ml",
+          "line_start": 577,
+          "line_end": 580,
+          "text": "  if Options.tx_check then\n    check_triggers s\n  else if not Options.tx_allow then\n    no_transactions s"
+        }
+      ],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120,
+        600
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": "Only transaction-annotated file in selected set; important tx none/all workload but neither same semantics as nodata nor supported SAFE verdict by inheritance. Unlinked triggered writeback/replacement rules and unannotated two-parameter GetX alternatives require boundary-semantics scrutiny.",
+      "audit_suitability": "transaction-primary-with-caveats"
+    },
+    {
+      "path": "examples/challenges/ticket_o.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "0",
+        "-abstr-num",
+        "0",
+        "2"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "examples/challenges/ticket_o.cub",
+          "line_start": 17,
+          "line_end": 17,
+          "text": "   The system enters an infinite loop regardless with most options."
+        },
+        {
+          "path": "examples/challenges/ticket_o.cub",
+          "line_start": 18,
+          "line_end": 18,
+          "text": "   use -brab 0 -abstr-num 0 2"
+        }
+      ],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Source warns most options loop; exact documented argv is -brab 0 -abstr-num 0 2. This is two fixed components, not a scalable process-array benchmark; no SAFE/UNSAFE result is stated.",
+        "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+        "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+      ],
+      "audit_suitability": {
+        "suggested_role": "documented numeric-abstraction challenge",
+        "caveats": [
+          "Source warns most options loop; exact documented argv is -brab 0 -abstr-num 0 2. This is two fixed components, not a scalable process-array benchmark; no SAFE/UNSAFE result is stated.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/hirr_pvcoherence.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "4",
+        "-search",
+        "bfsh",
+        "-candheur",
+        "2",
+        "-forward-depth",
+        "31"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "examples/challenges/hirr_pvcoherence.cub",
+          "line_start": 3,
+          "line_end": 3,
+          "text": "(* time ./cubicle.opt examples/challenges/hirr_pvcoherence.cub -brab 4 -search bfsh -candheur 2 -forward-depth 31"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        120,
+        600,
+        1200
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Source reports SAFE in 10m13s for the documented argv. Historical machine/revision unspecified; this is not a measured modern duration or a recommended exact timeout.",
+        "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+        "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+      ],
+      "audit_suitability": {
+        "suggested_role": "documented long-budget representative",
+        "caveats": [
+          "Source reports SAFE in 10m13s for the documented argv. Historical machine/revision unspecified; this is not a measured modern duration or a recommended exact timeout.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/hirr_pvcoherence_abstrdata.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "4",
+        "-search",
+        "bfsh",
+        "-candheur",
+        "2",
+        "-forward-depth",
+        "31"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "examples/challenges/hirr_pvcoherence_abstrdata.cub",
+          "line_start": 3,
+          "line_end": 3,
+          "text": "(* time ./cubicle.opt examples/challenges/hirr_pvcoherence_abstrdata.cub -brab 4 -search bfsh -candheur 2 -forward-depth 31"
+        }
+      ],
+      "expected": "SAFE",
+      "expected_basis": "audit source expectation; not independently verified",
+      "pilot_budgets": [
+        120,
+        600,
+        1200
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Source reports SAFE in 4m42s for the documented argv; no modern runtime validation or timeout recipe.",
+        "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+        "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+      ],
+      "audit_suitability": {
+        "suggested_role": "documented abstract-data contrast",
+        "caveats": [
+          "Source reports SAFE in 4m42s for the documented argv; no modern runtime validation or timeout recipe.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash.ctc_home2_sort_pred.cub",
+      "group": "ordinary",
+      "options": [
+        "-brab",
+        "3",
+        "-forward-depth",
+        "13"
+      ],
+      "recipe_status": "documented",
+      "option_evidence": [
+        {
+          "path": "examples/challenges/flash.ctc_home2_sort_pred.cub",
+          "line_start": 1,
+          "line_end": 1,
+          "text": "(*** use -brab 3 -forward-depth 13 ***)"
+        }
+      ],
+      "expected": null,
+      "expected_basis": null,
+      "pilot_budgets": [
+        30,
+        120,
+        600
+      ],
+      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "caveats": [
+        "Only this exact CTC member documents -brab 3 -forward-depth 13. Trailing UNSAFE traces refer to auxiliary cubes, not necessarily the active specification.",
+        "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+        "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+      ],
+      "audit_suitability": {
+        "suggested_role": "documented-recipe representation contrast",
+        "caveats": [
+          "Only this exact CTC member documents -brab 3 -forward-depth 13. Trailing UNSAFE traces refer to auxiliary cubes, not necessarily the active specification.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    }
+  ],
+  "excluded": [
+    {
+      "path": "examples/bakery_lamport_na_wb.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory"
+    },
+    {
+      "path": "examples/bakery_na.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory"
+    },
+    {
+      "path": "examples/bakery_uguard.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "small-control"
+    },
+    {
+      "path": "examples/berkeley.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "small-control"
+    },
+    {
+      "path": "examples/burns.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exclude-degenerate"
+    },
+    {
+      "path": "examples/challenges/MIS.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "graph/history-property coverage",
+        "caveats": [
+          "Source explicitly warns that the forall-exists maximality encoding is only approximated by the stopping-failure model; do not treat this as an exact maximality benchmark.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/crash3_mcmt.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "numeric-round variant",
+        "caveats": [
+          "No documented argv or verdict; do not inherit UNSAFE from the enum-round sibling without checking this exact input.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/crash3_mcmt_rounds.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "documented unsafe control",
+        "caveats": [
+          "UNSAFE is a source-comment expectation, not a result from this audit.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash.ctc.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "control-only member",
+        "caveats": [
+          "The commented data properties are not part of the checked specification; do not label this a data-coherence benchmark.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash.ctc_home.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "explicit-home finite-data variant",
+        "caveats": [
+          "Different data representation and more transitions than home2; not a duplicate or an established SAFE case.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash.ctc_home2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "explicit-home abstract-data representative",
+        "caveats": [
+          "Trailing commented UNSAFE traces concern auxiliary candidate cubes, not a documented verdict for the active nine properties.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash.ctc_home2_relevant.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "expanded-property stress only",
+        "caveats": [
+          "The Candidates heading does not mean candidate syntax: these are additional safety obligations. Do not aggregate as an independent protocol or inherit the base verdict.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash.ctc_home_nodata.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "explicit-home control contrast",
+        "caveats": [
+          "Not the same input as examples/flash_nodata.cub in Makefile.in; its -brab 2 -forward-depth 6 recipe is not evidence for this file.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash.ctc_home_nodata2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "smaller explicit-home control contrast",
+        "caveats": [
+          "Do not count commented unsafe declarations or treat them as assumptions; no specific argv is established.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash.ctc_home_nodata2_relevant.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "expanded-property stress only",
+        "caveats": [
+          "Properties differ radically from the base. These are not candidate hints and no shared verdict is established.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "classic-home control representative",
+        "caveats": [
+          "Same active transition suffix as flash_inv and flash_candidates_as_unsafe, but specifications differ; balance this family rather than treating every variant as independent.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "explicit-home control representative",
+        "caveats": [
+          "Data declarations do not imply active data-coherence properties. No argv or verdict is documented for this exact model.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_candidates_as_unsafe.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "candidate-as-property stress only",
+        "caveats": [
+          "Candidate-as-unsafe changes the verification obligation and can fail on a reachable auxiliary cube even if mutual exclusion holds.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_cands.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "hinted-vs-unhinted contrast",
+        "caveats": [
+          "Candidate hints are not certified invariants. No documented model-specific BRAB recipe was found; do not infer one from the file suffix.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_data.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "data-coherence representative",
+        "caveats": [
+          "Different checked property set and data stores from flash2; no specific argv or verdict documented.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_data_cands.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "hinted data-coherence contrast",
+        "caveats": [
+          "Candidate count is source-derived, not the count accepted by an engine. Keep hinted runs separate from unhinted comparison.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_data_enum.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "finite-vs-abstract-data contrast",
+        "caveats": [
+          "The enum suffix describes the model data type; it is not evidence to recommend -enumerative. Declarations/init differ despite matching transition text.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_data_relevant.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "expanded data-property stress only",
+        "caveats": [
+          "Additional obligations rather than candidate hints; not the same task or established verdict as the nine-property base.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_exclusive.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "reduced-transition variant",
+        "caveats": [
+          "The exclusive suffix does not establish a two-state model: the type still includes Shared. Do not treat transition removal as a mere performance optimization.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_exclusive_putx.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "further reduced-transition variant",
+        "caveats": [
+          "Semantics differs from the 43-transition exclusive variant; neither a verdict nor a recipe follows from the name.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_exclusive_putx_nodata.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "no-data reduced-transition variant",
+        "caveats": [
+          "Data removal and disabled-rule subset mean this is a separate abstraction, not a duplicate of the full protocol.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_inter_candidates.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "alternative-hint-set contrast",
+        "caveats": [
+          "Alternative hint set should not count as another independent protocol. No documented argv is supplied.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_inv.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "quarantine initial-obligation artifact",
+        "caveats": [
+          "Not mutual-exclusion verification. Init sets Real[p]=False and leaves Head_pointer unconstrained, suggesting an initial violation; confirm actual parsing/domain semantics before using as a timing case.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_nodata.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "no-data control representative",
+        "caveats": [
+          "Not examples/flash_nodata.cub from the Makefile suite: do not copy its recipe or known-safe label.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_nodata_candidates.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "hinted no-data contrast",
+        "caveats": [
+          "No evidence for model-specific flags; large hint workload must remain separately identified.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_relevant.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "expanded-property stress only",
+        "caveats": [
+          "The comment says 304 candidates, but the actual unsafe count is 306. Treat as strengthened specification, not invariant hints.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash2_relevant2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "smaller expanded-property stress only",
+        "caveats": [
+          "Inherited 304-candidate comment does not match the active source count. Distinct auxiliary property set, not independent protocol evidence.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash_bug.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "bug-named control candidate pending validation",
+        "caveats": [
+          "Filename alone is not proof of UNSAFE. Makefile tests examples/flash_buggy.cub, not this file; do not transfer its flags/verdict.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash_candidates_as_unsafe.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "expanded-property stress only",
+        "caveats": [
+          "Many clauses bind z1/z2/home; changed arity/property workload is not independent protocol coverage.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash_inv.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "quarantine initial-obligation artifact",
+        "caveats": [
+          "Initial bad-state overlap is suggested directly by init and first unsafe clause; likely trivial UNSAFE workload rather than a hard protocol proof, but no run was performed.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/flash_test.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "experimental restricted-model artifact",
+        "caveats": [
+          "This explicit invariant excludes Home from the ordinary process range under negated-cube convention. Inspect assumptions and disabled transitions before selecting; not equivalent to flash2.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/hierarchical_snoop_cygc.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "two-dimensional data-coherence stress",
+        "caveats": [
+          "Inserted-bug comment describes removing an active guard, not evidence the current model is buggy. No supported recipe/verdict.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/hierarchical_snoop_cygc_excl.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "exclusive-only abstraction",
+        "caveats": [
+          "Removing Shared and many rules changes the protocol abstraction. Guard under inserted-bug comment is present; no UNSAFE verdict follows.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/hierarchical_snoop_cygc_nodata.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "no-data assumption-heavy abstraction",
+        "caveats": [
+          "Not merely data erasure: sort assumptions and disabled rules differ. The entire t42 inserted-bug example is commented out.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/hierarchical_snoop_cygc_nodata_invs.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "invariant-as-property stress",
+        "caveats": [
+          "Many purported invariants are safety obligations here, not assumed invariants. No verdict can be inherited from nodata.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/hirr_pvcoherence_nodata.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "no-data control contrast",
+        "caveats": [
+          "No recipe in this file; do not promote the sibling -brab 4 recipe or SAFE expectation to established evidence for this abstraction.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/lynch_full.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "real-arithmetic stress pending validation",
+        "caveats": [
+          "Explicit TODO at line 175 reports simplification problems. Init only establishes E,F >= 1, not E < F, while main mutual-exclusion property is unconditional; no documented argv/verdict.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/msi.lock.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "finite-control lock/coherence representative",
+        "caveats": [
+          "Several coherence and critical-section properties are commented. Do not report the full coherence/locking specification as verified by this one obligation.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/peterson_n_proc.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "quarantine static type concern",
+        "caveats": [
+          "Cpt[n] = J compares int with proc at line 42 (also later guards). typing.ml unifies operand types strictly; predicts a type error without executing. Do not invent -notyping as a workaround.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/peterson_n_proc2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "quarantine static type concern",
+        "caveats": [
+          "Same int/proc Cpt[n] = J issue (line 50). Static prediction, not observed parser result; no supported workaround or argv. Different initialization from the sibling.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/ref_count.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "numeric/matrix resource-management representative",
+        "caveats": [
+          "Sort/Handles not initialized completely; retain source semantics as-is. Arithmetic counters can make forward enumeration unbounded; no evidence supports any abstraction flag/range.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/ricart-synonrien.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "quarantine vacuous initial-state workload",
+        "caveats": [
+          "All processes initialize Empty, while every transition requires its principal State to be Idle/Wait/Use/Exiting. No transition is initially enabled: likely vacuous SAFE rather than exercising the protocol.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/ricart-synonrien_mcmt.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "active MCMT-style real-arithmetic variant",
+        "caveats": [
+          "Different encoding and bad-state arity from Empty-initialized variants; no model-specific flags or result documented.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/ricart-synonrien_mcmt2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "MCMT-style classification contrast",
+        "caveats": [
+          "Not a duplicate of mcmt; classification assumptions and updates differ. No established argv/verdict.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/ricart_mod.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "exclude duplicate/vacuous workload",
+        "caveats": [
+          "Byte-for-byte identical to ricart_undip.cub. Both appear dead from initial state; keep at most one as a trivial/control test, not a hard protocol benchmark.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/ricart_undip.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "exclude duplicate/vacuous workload",
+        "caveats": [
+          "No transition initially enabled because all States start Empty and every principal guard needs another state; not independent protocol coverage.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/sendOmission_mcmt.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "multi-lemma consensus representative",
+        "caveats": [
+          "Suggested MCMT invariants are encoded as unsafe obligations rather than assumptions. No supported argv/verdict; not the crash3 model.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/sendOmission_mcmt2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "no-Sh/history contrast",
+        "caveats": [
+          "Property set and history instrumentation differ from mcmt; do not count as another unrelated protocol or inherit results.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/challenges/test_matrix.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": {
+        "suggested_role": "exclude from performance headline",
+        "caveats": [
+          "Source suggests trivial SAFE by frame preservation of G, not matrix correctness. The interesting Matrix=B property is commented out; primarily parser/update smoke coverage.",
+          "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
+          "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
+        ],
+        "selection_status": "curation suggestion from source, not performance classification"
+      }
+    },
+    {
+      "path": "examples/crash.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory"
+    },
+    {
+      "path": "examples/dekker.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "small-control"
+    },
+    {
+      "path": "examples/dekker_limbo.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "small-control"
+    },
+    {
+      "path": "examples/dekker_loc.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "small-control"
+    },
+    {
+      "path": "examples/dekker_n.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory"
+    },
+    {
+      "path": "examples/dijkstra.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory"
+    },
+    {
+      "path": "examples/distrib_channels.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exclude-inconsistent-init"
+    },
+    {
+      "path": "examples/distrib_channels_int1.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory"
+    },
+    {
+      "path": "examples/distrib_lamport.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory"
+    },
+    {
+      "path": "examples/flash.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "blocked-tx-name-validation"
+    },
+    {
+      "path": "examples/flash_buggy2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "blocked-tx-name-validation"
+    },
+    {
+      "path": "examples/flash_delayed.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "small-control"
+    },
+    {
+      "path": "examples/flash_eager.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "small-control"
+    },
+    {
+      "path": "examples/flash_enum.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "blocked-tx-name-validation"
+    },
+    {
+      "path": "examples/flash_home.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "blocked-tx-name-validation"
+    },
+    {
+      "path": "examples/german.ctc_finite.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/german.ctc_function.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/german.ctc_nodata.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/german_data.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/german_pfs.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "redundant family variant"
+    },
+    {
+      "path": "examples/german_pfs2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "redundant family variant"
+    },
+    {
+      "path": "examples/german_pfs_data.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/german_pfs_data_enum.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/german_subtype.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory/model or syntax caveat"
+    },
+    {
+      "path": "examples/german_undip.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory/model or syntax caveat"
+    },
+    {
+      "path": "examples/germanish.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/germanish2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/germanish3.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/germanish4.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/germanish5.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/germanish6.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory/model or syntax caveat"
+    },
+    {
+      "path": "examples/germanish_arith.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/germanish_data.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/illinois.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/jml.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/motivating.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/mutex.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/mux_sem.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/peterson_two_proc.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/ricart_abdulla.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/ricart_abdulla_int1.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/ricart_agrawala.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/ricart_agrawala_int1.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/synapse.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/szymanski_boleslaw_bool_at.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/szymanski_boleslaw_bool_na.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory/model or syntax caveat"
+    },
+    {
+      "path": "examples/szymanski_na2.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "redundant family variant"
+    },
+    {
+      "path": "examples/szymanski_talupur_at.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    },
+    {
+      "path": "examples/two-semaphores.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "exploratory/model or syntax caveat"
+    },
+    {
+      "path": "examples/xerox_dragon.cub",
+      "reason": "Not selected in initial curated set; no established recipe or redundant/exploratory family variant.",
+      "audit_suitability": "diversity candidate; needs preflight"
+    }
+  ],
+  "audit_coverage": {
+    "total": 132,
+    "top_level": 79,
+    "challenges": 53
+  },
+  "policy": "Same input bytes/options/budget per model; transaction inputs only on two all builds. No automatic counterpart stripping. Review disagreements before performance interpretation."
+}
