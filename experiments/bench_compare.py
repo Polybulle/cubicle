@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Curated Cubicle comparison. Uses immutable git archives, never checkout/reset.
+"""Curated Cubicle comparison. Uses isolated sources, never checkout/reset.
 
-Default is a read-only plan. Build/pilot/run require a new output directory.
+Default is a read-only plan. Build/run require a new output directory.
 Timing uses perf_counter around direct subprocesses, not a Python timeout wrapper
 inside hyperfine. Every measured run retains its verdict and complete output.
 """
 import argparse
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 import csv
 import hashlib
 import json
@@ -15,6 +16,7 @@ import platform
 import random
 import re
 import signal
+import shutil
 import statistics
 import subprocess
 import sys
@@ -29,11 +31,21 @@ CONFIGS = {
     'old-none': ('old', ['-tx', 'none']),
     'old-all': ('old', ['-tx', 'all']),
 }
-COMMON = ['-quiet', '-nocolor', '-solver', 'alt-ergo']
+COMMON = ['-nocolor', '-solver', 'alt-ergo']
 
 
 def save(path, value):
     path.write_text(json.dumps(value, indent=2) + '\n')
+
+
+def progress(phase, done, total, current=''):
+    filled = 20 * done // total if total else 20
+    bar = '#' * filled + '-' * (20 - filled)
+    text = f'{phase} [{bar}] {done}/{total} {current}'.rstrip()
+    if sys.stdout.isatty():
+        print('\r\033[2K' + text, end='\n' if done == total else '', flush=True)
+    else:
+        print(text, flush=True)
 
 
 def git(*args):
@@ -49,13 +61,13 @@ def classify(text, code, timed_out=False, type_only=False):
         return 'timeout', None
     if code is not None and code < 0:
         return 'crash', None
-    # UNSAFE may use nonzero exit status; a counterexample is not a command error.
+    # Native verdicts require SAFE/0 or UNSAFE/1; other exits are errors.
     verdicts = set(re.findall(r'The system is (SAFE|UNSAFE)\b', text))
     if re.search(r'^UNSAFE\b', text, re.MULTILINE):
         verdicts.add('UNSAFE')
     if len(verdicts) == 1:
         verdict = next(iter(verdicts))
-        if verdict == 'SAFE' and code != 0:
+        if code != (0 if verdict == 'SAFE' else 1):
             return 'error', None
         return 'completed', verdict
     if len(verdicts) > 1:
@@ -125,39 +137,69 @@ def make_command(num_directory, revision):
             'VERSION_STR=' + revision]
 
 
-def build(manifest, out):
+def snapshot_working_tree(out):
+    snapshot = out / 'source'
+    snapshot.mkdir()
+    hashes = {}
+    paths = sorted(set(git('ls-files', '-z', '--cached', '--others', '--exclude-standard').split(b'\0')) - {b''})
+    for raw in paths:
+        path = os.fsdecode(raw)
+        source = ROOT / path
+        if not source.exists():
+            continue  # Tracked deletion in the working tree.
+        destination = snapshot / path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        hashes[path] = hashlib.sha256(destination.read_bytes()).hexdigest()
+    (out / 'working-tree.patch').write_bytes(git('diff', '--binary', 'HEAD'))
+    save(out / 'working-tree.json', {
+        'base_commit': git('rev-parse', 'HEAD').decode().strip(),
+        'status': git('status', '--short').decode(), 'sha256': hashes})
+    return snapshot
+
+
+def build(manifest, out, snapshot=None):
     dirs = {}
+    done = 0
+    total = 3 * len(manifest['builds'])
     num_directory = subprocess.check_output(['ocamlfind', 'query', 'num']).decode().strip()
     for name, spec in manifest['builds'].items():
         if git('rev-parse', spec['commit'] + '^{commit}').decode().strip() != spec['commit']:
             raise ValueError('Invalid pinned commit')
         directory = out / 'builds' / name
-        directory.mkdir(parents=True)
-        archive = out / (name + '.tar')
-        with archive.open('wb') as stream:
-            subprocess.run(['git', '-C', str(ROOT), 'archive', spec['commit']], stdout=stream, check=True)
-        subprocess.run(['tar', '-xf', str(archive), '-C', str(directory)], check=True)
-        archive.unlink()
+        if name == 'tetra' and snapshot is not None:
+            shutil.copytree(snapshot, directory)
+        else:
+            directory.mkdir(parents=True)
+            archive = out / (name + '.tar')
+            with archive.open('wb') as stream:
+                subprocess.run(['git', '-C', str(ROOT), 'archive', spec['commit']], stdout=stream, check=True)
+            subprocess.run(['tar', '-xf', str(archive), '-C', str(directory)], check=True)
+            archive.unlink()
         # The archive contains no generated configuration or compiled artifacts.
         steps = [('autoconf', ['autoconf']), ('configure', ['./configure']),
                  ('make', make_command(num_directory, spec['commit']))]
         save(out / (name + '-build-commands.json'), steps)
         for step, command in steps:
+            progress('Build', done, total, name + ' ' + step)
             result = invoke(command, directory, 600, out / 'logs' / (name + '-' + step + '.log'))
             if result['returncode'] != 0 or result['status'] == 'timeout':
                 raise RuntimeError('Build failed: ' + result['log'])
+            done += 1
         binary = directory / 'cubicle.opt'
         if not binary.is_file():
             raise RuntimeError('Native binary missing: ' + str(binary))
         dirs[name] = directory
+    progress('Build', done, total)
     return dirs
 
 
-def prepare(manifest, models, out):
+def prepare(manifest, models, out, snapshot=None):
     inputs = {}
     for model in models:
         path = model['path']
-        data = git('show', manifest['corpus_commit'] + ':' + path)
+        data = ((snapshot / path).read_bytes() if snapshot is not None else
+                git('show', manifest['corpus_commit'] + ':' + path))
         destination = out / 'inputs' / path
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(data)
@@ -166,10 +208,10 @@ def prepare(manifest, models, out):
     return inputs
 
 
-def command_for(model, config, dirs, inputs, type_only=False):
+def command_for(model, config, dirs, inputs):
     name, tx = CONFIGS[config]
     return [str(dirs[name] / 'cubicle.opt'), *COMMON, *tx, *model['options'],
-            *(['-type-only'] if type_only else []), inputs[model['path']]['path']]
+            '-j', '1', inputs[model['path']]['path']]
 
 
 def append(out, row):
@@ -177,49 +219,53 @@ def append(out, row):
         stream.write(json.dumps(row) + '\n')
 
 
-def pilot(manifest, models, dirs, inputs, out, rng):
-    results = {}
-    for index, model in enumerate(models):
-        configs = configurations(model)
-        rng.shuffle(configs)
-        current = {}
-        for config in configs:
-            log = out / 'logs' / f'{index:03d}-{config}-type.log'
-            row = invoke(command_for(model, config, dirs, inputs, True), out, 30, log, True)
-            row.update(model=model['path'], config=config, phase='type', repetition=0)
-            append(out, row)
-            current[config] = row
-        for budget in model['pilot_budgets']:
-            pending = [c for c in configs if current[c]['status'] in ('typechecked', 'timeout')]
+def execute_jobs(jobs, out, workers, phase):
+    def run(job):
+        row = invoke(job['command'], out, job['timeout_seconds'], Path(job['log']),
+                     job['phase'] == 'type')
+        row.update({key: job[key] for key in ('model', 'config', 'phase', 'repetition')})
+        return row
+
+    remaining = iter(jobs)
+    done = 0
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        pending = set()
+        while True:
+            while len(pending) < workers:
+                job = next(remaining, None)
+                if job is None:
+                    break
+                progress(phase, done, len(jobs),
+                         f'{job["model"]} {job["config"]} {job["timeout_seconds"]}s')
+                pending.add(pool.submit(run, job))
             if not pending:
                 break
-            for config in pending:
-                log = out / 'logs' / f'{index:03d}-{config}-pilot-{budget}.log'
-                row = invoke(command_for(model, config, dirs, inputs), out, budget, log)
-                row.update(model=model['path'], config=config, phase='pilot', repetition=0)
-                append(out, row)
-                current[config] = row
-                print(model['path'], config, budget, row['status'], row['verdict'], flush=True)
-        # All timed repetitions share this model's largest pilot-attempt budget.
-        used = [r['timeout_seconds'] for r in current.values() if r['phase'] == 'pilot']
-        common_budget = max(used, default=model['pilot_budgets'][0])
-        results[model['path']] = {'budget': common_budget, 'results': current}
-        save(out / 'pilot.json', results)
-    return results
+            finished, pending = wait(pending, return_when=FIRST_COMPLETED)
+            for future in finished:
+                row = future.result()
+                append(out, row)  # Only the coordinator writes shared records.
+                done += 1
+                yield row
+    progress(phase, done, len(jobs))
 
 
-def measure(models, dirs, inputs, out, pilots, repetitions, rng):
+def measure(models, dirs, inputs, out, repetitions, rng, workers=1):
+    cells = [(i, m, c) for i, m in enumerate(models) for c in configurations(m)]
     for rep in range(1, repetitions + 1):
-        jobs = [(i, m, c) for i, m in enumerate(models) for c in configurations(m)
-                if pilots[m['path']]['results'][c]['status'] == 'completed']
-        rng.shuffle(jobs)
-        for index, model, config in jobs:
-            log = out / 'logs' / f'{index:03d}-{config}-run-{rep}.log'
-            row = invoke(command_for(model, config, dirs, inputs), out,
-                         pilots[model['path']]['budget'], log)
-            row.update(model=model['path'], config=config, phase='measured', repetition=rep)
-            append(out, row)
-            print(rep, model['path'], config, row['status'], row['verdict'], flush=True)
+        if not cells:
+            break
+        ordered = list(cells)
+        rng.shuffle(ordered)
+        jobs = [dict(command=command_for(m, c, dirs, inputs),
+                     timeout_seconds=m['timeout_seconds'],
+                     log=str(out / 'logs' / f'{i:03d}-{c}-run-{rep}.log'),
+                     model=m['path'], config=c, phase='measured', repetition=rep)
+                for i, m, c in ordered]
+        completed = set()
+        for row in execute_jobs(jobs, out, workers, f'Runs {rep}/{repetitions}'):
+            if row['status'] == 'completed':
+                completed.add((row['model'], row['config']))
+        cells = [(i, m, c) for i, m, c in cells if (m['path'], c) in completed]
 
 
 def summarize(out, models):
@@ -255,21 +301,35 @@ def summarize(out, models):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--manifest', type=Path, default=ROOT / 'experiments/bench_manifest.json')
-    parser.add_argument('--phase', choices=['plan', 'build', 'pilot', 'run'], default='plan')
+    parser.add_argument('--phase', choices=['plan', 'build', 'run'], default='plan')
     parser.add_argument('--output', type=Path, help='New directory, outside the repository, required for execution')
     parser.add_argument('--models', nargs='+', help='Selected basenames or complete relative paths')
     parser.add_argument('--runs', type=int, default=3)
     parser.add_argument('--seed', type=int, default=2026)
+    parser.add_argument('--jobs', type=int, choices=range(1, 5), default=1,
+                        help='Concurrent sequential Cubicle processes (1–4; no CPU pinning)')
+    parser.add_argument('--working-tree', action='store_true',
+                        help='Snapshot current tracked/nonignored files for the Tetra build and shared corpus')
     args = parser.parse_args()
     if args.runs < 1:
         parser.error('--runs must be positive')
     manifest = json.loads(args.manifest.read_text())
     models = select(manifest, args.models)
+    for model in models:
+        if model['timeout_seconds'] not in (5, 100, 450):
+            parser.error('Model timeout must be 5, 100, or 450 seconds')
+    if args.working_tree:
+        head = git('rev-parse', 'HEAD').decode().strip()
+        manifest['builds']['tetra'] = {'ref': 'working-tree', 'commit': head,
+                                       'source': 'source/', 'provenance': 'working-tree.json'}
+        manifest['corpus_ref'] = 'working-tree'
+        manifest['corpus_commit'] = head
     if args.phase == 'plan':
         for m in models:
             print(m['path'], m['group'], ' '.join(m['options']) or '(backward defaults)',
-                  'pilot ceilings=' + str(m['pilot_budgets']), 'configs=' + ','.join(configurations(m)))
+                  'timeout=' + str(m['timeout_seconds']), 'configs=' + ','.join(configurations(m)))
         print('Models:', len(models), 'configuration/model pairs:', sum(len(configurations(m)) for m in models))
+        print('Workers:', args.jobs, 'Cubicle cores per process: 1; CPU affinity: OS-managed')
         return
     if args.output is None:
         parser.error('--output is required for execution')
@@ -278,25 +338,29 @@ def main():
         parser.error('Output must be outside the source checkout')
     out.mkdir(parents=True, exist_ok=False)
     (out / 'logs').mkdir()
+    snapshot = snapshot_working_tree(out) if args.working_tree else None
     save(out / 'manifest.json', manifest)
     metadata = {'platform': platform.platform(), 'machine': platform.machine(),
                 'python': sys.version, 'ocaml': subprocess.check_output(['ocamlopt', '-version']).decode().strip(),
                 'opam_switch': subprocess.check_output(['opam', 'switch', 'show']).decode().strip(),
                 'common_options': COMMON, 'runs': args.runs, 'seed': args.seed,
+                'workers': args.jobs, 'cubicle_cores': 1, 'cpu_affinity': 'OS-managed, not pinned',
                 'selected_models': [m['path'] for m in models],
-                'timing': 'Direct sequential subprocesses; perf_counter wall time includes spawn/wait overhead; pilot excluded.',
+                'timing': f'Up to {args.jobs} concurrent single-core Cubicle subprocesses; '
+                          'perf_counter wall time includes spawn/wait but excludes queue time; '
+                          'No separate typechecks or pilots; first attempts count as measurements. '
+                          'Non-completing cells are not retried. CPU placement is OS-managed. '
+                          'Concurrent timings may include contention.',
                 'argv': sys.argv}
     save(out / 'environment.json', metadata)
-    dirs = build(manifest, out)
+    dirs = build(manifest, out, snapshot)
     save(out / 'binary_hashes.json', {name: hashlib.sha256((d / 'cubicle.opt').read_bytes()).hexdigest() for name, d in dirs.items()})
     if args.phase == 'build':
         print('Builds:', out)
         return
-    inputs = prepare(manifest, models, out)
+    inputs = prepare(manifest, models, out, snapshot)
     rng = random.Random(args.seed)
-    pilots = pilot(manifest, models, dirs, inputs, out, rng)
-    if args.phase == 'run':
-        measure(models, dirs, inputs, out, pilots, args.runs, rng)
+    measure(models, dirs, inputs, out, args.runs, rng, args.jobs)
     summarize(out, models)
 
 

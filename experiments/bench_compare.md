@@ -8,7 +8,7 @@ The default command only prints a plan.
 
 `bench_manifest.json` records the pinned commits, model-specific options and their
 source evidence, verdict expectations where documented, caveats, and provisional
-pilot ceilings. The audit covered all 132 tracked `.cub` files: 79 top-level and
+timeouts calibrated from `cubicle-bench/run-01`. The audit covered all 132 tracked `.cub` files: 79 top-level and
 53 challenge files. The initial selection contains 28 models: 24 ordinary and
 4 transactional. The other 104 are listed as excluded from this initial selection,
 not as failed verification runs. The selection is editable and not a claim that
@@ -43,11 +43,11 @@ Inspect the selected invocations without building:
 
     python3 experiments/bench_compare.py --phase plan
 
-Build all three revisions, then typecheck and calibrate the selected models:
+Build all three revisions without running models:
 
-    python3 experiments/bench_compare.py --phase pilot --output "$HOME/cubicle-bench/pilot-01"
+    python3 experiments/bench_compare.py --phase build --output "$HOME/cubicle-bench/build-01"
 
-Run pilots followed by three measured repetitions of every completing cell:
+Run up to three measured repetitions per cell, starting directly with measurement:
 
     python3 experiments/bench_compare.py --phase run --runs 3 --output "$HOME/cubicle-bench/run-01"
 
@@ -56,7 +56,16 @@ A small end-to-end batch:
     python3 experiments/bench_compare.py --phase run --runs 2 --models bakery.cub bakery_lamport_bogus.cub german_looped.cub --output "$HOME/cubicle-bench/smoke-01"
 
 The output directory must not exist and must be outside the source checkout.
-Every invocation rebuilds from clean git archives; there is no resume/cache mode.
+Every invocation rebuilds in isolation; there is no resume/cache mode.
+Pass `--working-tree` to include current uncommitted changes in the Tetra build
+and shared model inputs. The runner snapshots tracked and nonignored untracked
+files under `source/`, excluding generated/ignored artifacts. It records the
+base commit, working-tree status, binary diff, and per-file SHA-256 hashes in
+`working-tree.json` and `working-tree.patch`. Baseline and old builds still use
+their pinned Git archives. All configurations receive the same snapshot inputs.
+Without this option, builds and inputs use the pinned commits in the manifest.
+
+    python3 experiments/bench_compare.py --working-tree --phase run --runs 3 --output "$HOME/LMF/cubicle-bench/run-02"
 A durable directory such as `$HOME/cubicle-bench` is preferable for actual results.
 Scratch directories used during runner development are temporary.
 
@@ -73,23 +82,58 @@ assumes the earlier OCaml library layout. The version string is the pinned commi
 so the archived build does not need a `.git` directory. Build commands/logs and
 binary hashes are recorded. No algorithm source is patched.
 
-Every command uses `-quiet -nocolor -solver alt-ergo`. Other search limits remain
+Every command uses `-nocolor -solver alt-ergo`, retaining statistics and traces
+in its log. Timing includes this output. Other search limits remain
 at their branch defaults; the inspected revisions currently share the usual
 process/depth/node defaults. The manifest's model-specific flags are the same
-across configurations. Each cell first undergoes a 30-second type-only check.
-Unsupported syntax/features are not timed as successful model checking.
+across configurations. There are no separate typechecking or pilot phases.
+Unsupported syntax/features are classified from the measured attempt, never as
+successful model checking.
 
-Pilots escalate only on wall-clock timeout. Provisional ceilings are 30/120 seconds
-for short models, 30/120/600 for medium ones, and 120/600/1200 for the two HIRR
-models. These are exploration budgets, not measured predictions. Internal search
-limits, errors, and unsupported features do not trigger automatic flag changes.
-The largest pilot budget attempted for a model becomes the common timeout for
-its measured repetitions. Non-completing cells remain in the report but are not
-repeated as timing benchmarks.
+Every scheduled cell starts at its final model-specific timeout, with no
+escalation or timeout retry. Budgets are 5s for 20 short models; 100s for
+`bakery_lamport_na`, `sense_barrier`, and `flash_abstr`; and 450s for
+`chandra_toueg`, `flash_nodata_tx`, both HIRR models, and
+`flash.ctc_home2_sort_pred`. These use the smallest tier covering the first run's
+successful executions, with 450s for cells that still timed out at their final
+pilot ceiling. The evidence is recorded per model in the manifest. Past input
+errors are not grounds for skipping repaired inputs or the new build.
+The same timeout applies across all configurations and measured repetitions of
+a model. Internal search limits, errors, and unsupported features do not trigger
+automatic flag changes. Repetition 1 counts toward the requested measured runs,
+not as a discarded warmup. A non-completing attempt remains in the report and
+stops further repetitions for that cell, including failures in later rounds.
 
-Execution is sequential. A seeded shuffle chooses configuration order during
-pilots and model/configuration order in each measured round. Pilots are not
-included in timing summaries. There is no additional warmup, cache flushing, or
+Execution defaults to one worker. `--jobs 4` multiplexes up to four Cubicle
+processes, with a new job dispatched whenever a slot becomes free. Every command
+explicitly ends its options with `-j 1`, selecting sequential Cubicle execution
+in all three revisions. This is four independent model-checking runs, not
+Cubicle's parallel search mode. Builds finish before any benchmark is launched.
+
+For run 03, after run 02 has finished:
+
+    python3 experiments/bench_compare.py --working-tree --jobs 4 --phase run --runs 3 --output "$HOME/LMF/cubicle-bench/run-03"
+
+macOS manages CPU placement: there is no strict core pinning or reservation.
+Four sequential processes can still contend for caches, memory bandwidth, and
+CPU resources. The environment record includes worker count, Cubicle core count,
+and the lack of pinning; the HTML report displays the concurrency warning in its
+timing description. Do not treat run 03 wall times as interchangeable with the
+sequential run 02 timings. The 5/100/450s budgets remain wall-clock limits.
+
+Measured rounds do not overlap, so two repetitions of a cell cannot run
+concurrently. A seeded shuffle chooses model/configuration submission order
+in each measured round; completion order is not deterministic. Timeout
+clocks begin inside workers, excluding queue time. Each child has its own process
+group, deadline, and log. Only the coordinator writes JSONL records.
+On interruption, no further jobs are submitted; active jobs finish or reach their
+deadlines before the worker pool exits.
+
+Stdout shows progress bars for build steps and measured
+rounds, with the job being dispatched.
+Bars update in place in a terminal and use separate lines when redirected.
+Progress counts executions within each phase or measured round.
+There is no separate warmup, cache flushing, or
 CPU-affinity control. Wall time includes process launch and a small timer-management
 overhead. A blocking wait avoids Python's timed-wait polling distortion on short
 runs. Complete output and verdicts are checked for every measured repetition.
@@ -104,15 +148,16 @@ interpret small differences on millisecond-scale models as established speedups.
 - `manifest.json`, `environment.json`: scope, pinned revisions, options and seed.
 - `*-build-commands.json`, `logs/*-make.log`: build provenance and diagnostics.
 - `binary_hashes.json`, `inputs.json`: executable and exact input hashes.
-- `pilot.json`: final preflight/pilot outcomes and model-specific timing budgets.
 - `runs.jsonl`, `runs.csv`: incremental raw records, commands, verdicts and timings.
 - `summary.json`: measured counts, median times, failure classes, verdict disagreement
   and mismatch against documented expectations. Raw JSON records also retain
   available Cubicle statistics.
-- `logs/`: merged stdout/stderr for each build, preflight, pilot and measured run.
+- `logs/`: merged stdout/stderr for each build and measured run.
 
-SAFE and UNSAFE are distinct successful verification outcomes. A nonzero UNSAFE
-exit is not automatically a command failure. Crashes, input errors, unsupported
+SAFE with exit code 0 and UNSAFE with exit code 1 are distinct successful
+verification outcomes. A verdict with any other exit code is an error, not a
+successful timing. Exit code 1 alone does not establish UNSAFE.
+Crashes, input errors, unsupported
 features, limits/unknown, missing verdicts, and timeouts remain separate outcomes.
 A timeout is not replaced by its time limit in a successful-runtime average.
 
@@ -120,9 +165,10 @@ A timeout is not replaced by its time limit in a successful-runtime average.
 no observed verdict disagreement for the model, and no mismatch against its
 documented expected verdict. A missing/unsupported competitor is not a speedup.
 The runner does not compute cross-model speedup averages or claim soundness from
-matching verdicts. Pilot-only output intentionally has no measured medians.
+matching verdicts. Historical archives may contain typechecks and pilots; those
+remain excluded when summarizing old runs.
 
-## Verification performed during development
+## Historical verification before direct-measurement scheduling
 
 All three pinned revisions built successfully with OCaml 5.0.0. The end-to-end
 smoke batch checked and timed `bakery.cub`, `bakery_lamport_bogus.cub`, and

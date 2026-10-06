@@ -1,0 +1,7 @@
+type phase = Idle | Mid | Bad
+var X : phase
+init { X = Idle }
+unsafe { X = Mid }
+transition enter () requires { X = Idle } { X := Mid; }
+triggers finish () or yields
+triggered transition finish () requires { X = Mid } { X := Bad; }

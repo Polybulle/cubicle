@@ -1,0 +1,11 @@
+type bit = Zero | One
+var X : bit
+var Y : bit
+array A[proc] : bit
+init (i) { X = Zero && Y = Zero && A[i] = Zero }
+unsafe { Y = One }
+transition start (i j) requires { X = Zero } { X := One; A[i] := One; }
+triggers carry (j i)
+triggered transition carry (i j) requires { X = X } { X := X; }
+triggers finish (i)
+triggered transition finish (k) requires { A[k] = One } { Y := One; }

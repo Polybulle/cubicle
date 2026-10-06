@@ -7,6 +7,171 @@ import bench_compare as bench
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_four_workers_and_serial_record_writes(self):
+        import threading
+        from unittest.mock import patch
+        barrier = threading.Barrier(4, timeout=5)
+        lock = threading.Lock()
+        active = peak = 0
+        writer_threads = []
+        original_append = bench.append
+
+        def invoke(command, cwd, timeout, log, type_only=False):
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            barrier.wait()
+            with lock:
+                active -= 1
+            return dict(status='completed', verdict='SAFE', timeout_seconds=timeout)
+
+        def append(out, row):
+            writer_threads.append(threading.get_ident())
+            original_append(out, row)
+
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            jobs = [dict(command=['fixture'], timeout_seconds=5, log=str(out / str(i)),
+                         model=str(i), config='baseline', phase='measured', repetition=1)
+                    for i in range(8)]
+            with patch.object(bench, 'invoke', side_effect=invoke), patch.object(bench, 'append', side_effect=append):
+                rows = list(bench.execute_jobs(jobs, out, 4, 'Test'))
+            stored = [json.loads(line) for line in (out / 'runs.jsonl').read_text().splitlines()]
+            self.assertEqual(peak, 4)
+            self.assertEqual(len(rows), 8)
+            self.assertEqual({r['model'] for r in stored}, {str(i) for i in range(8)})
+            self.assertEqual(set(writer_threads), {threading.get_ident()})
+
+    def test_concurrent_real_timeout_does_not_kill_other_runs(self):
+        import sys
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            scripts = ['import time; time.sleep(10)',
+                       'import time; time.sleep(.15); print("The system is SAFE")',
+                       'print("UNSAFE"); raise SystemExit(1)',
+                       'raise SystemExit(2)']
+            jobs = [dict(command=[sys.executable, '-c', script],
+                         timeout_seconds=.05 if i == 0 else 5,
+                         log=str(out / str(i)), model=str(i), config='baseline',
+                         phase='pilot', repetition=0) for i, script in enumerate(scripts)]
+            rows = {r['model']: r for r in bench.execute_jobs(jobs, out, 4, 'Test')}
+            self.assertEqual([rows[str(i)]['status'] for i in range(4)],
+                             ['timeout', 'completed', 'completed', 'error'])
+            self.assertEqual(rows['1']['verdict'], 'SAFE')
+            self.assertEqual(rows['2']['verdict'], 'UNSAFE')
+            self.assertTrue(all(Path(r['log']).is_file() for r in rows.values()))
+
+    def test_sequential_cubicle_flag_overrides_model_options(self):
+        command = bench.command_for(dict(path='m', options=['-j', '8']), 'baseline',
+                                    {'baseline': Path('/build')}, {'m': {'path': '/input'}})
+        self.assertEqual(command[-3:], ['-j', '1', '/input'])
+
+    def test_direct_measurement_without_preflight_or_retries(self):
+        import random
+        from unittest.mock import patch
+        model = dict(path='m.cub', group='ordinary', options=[], timeout_seconds=450, expected='SAFE')
+        for workers in (1, 4):
+            with self.subTest(workers=workers), tempfile.TemporaryDirectory() as directory:
+                out = Path(directory)
+                dirs = {name: out / name for name in ('baseline', 'tetra', 'old')}
+                inputs = {'m.cub': {'path': 'm.cub'}}
+
+                def invoke(command, cwd, timeout, log, type_only=False):
+                    self.assertFalse(type_only)
+                    self.assertNotIn('-type-only', command)
+                    self.assertEqual(timeout, 450)
+                    status = ('unsupported' if 'old-all' in log.name else
+                              'timeout' if 'tetra-all' in log.name else 'completed')
+                    return dict(status=status, verdict='SAFE' if status == 'completed' else None,
+                                returncode=0, wall_seconds=.01, timeout_seconds=timeout, log=str(log))
+
+                with patch.object(bench, 'invoke', side_effect=invoke):
+                    bench.measure([model], dirs, inputs, out, 3, random.Random(0), workers)
+                rows = [json.loads(line) for line in (out / 'runs.jsonl').read_text().splitlines()]
+                self.assertEqual([r['phase'] for r in rows], ['measured'] * 11)
+                self.assertEqual([r['repetition'] for r in rows], [1] * 5 + [2] * 3 + [3] * 3)
+                self.assertEqual({r['config'] for r in rows[:5]}, set(bench.CONFIGS))
+                self.assertEqual({r['config'] for r in rows[5:]}, {'baseline', 'tetra-none', 'old-none'})
+                self.assertEqual(len({r['log'] for r in rows}), len(rows))
+                self.assertFalse((out / 'pilot.json').exists())
+                summary = bench.summarize(out, [model])
+                self.assertEqual(sum(r['timing_eligible'] for r in summary), 3)
+                self.assertEqual(list(bench.execute_jobs([], out, workers, 'Empty')), [])
+
+    def test_later_failure_stops_repetitions_and_excludes_timing(self):
+        import random
+        from unittest.mock import patch
+        model = dict(path='m.cub', group='transaction', options=[], timeout_seconds=5, expected='SAFE')
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+
+            def invoke(command, cwd, timeout, log, type_only=False):
+                status = 'completed' if log.name.endswith('run-1.log') else 'timeout'
+                return dict(status=status, verdict='SAFE' if status == 'completed' else None,
+                            returncode=0 if status == 'completed' else -9,
+                            wall_seconds=.01, timeout_seconds=timeout, log=str(log))
+
+            with patch.object(bench, 'invoke', side_effect=invoke):
+                bench.measure([model], {'tetra': out, 'old': out},
+                              {'m.cub': {'path': 'm.cub'}}, out, 3, random.Random(0), 4)
+            rows = [json.loads(line) for line in (out / 'runs.jsonl').read_text().splitlines()]
+            self.assertEqual([r['repetition'] for r in rows], [1, 1, 2, 2])
+            summary = bench.summarize(out, [model])
+            self.assertFalse(any(r['timing_eligible'] for r in summary))
+
+    def test_snapshot_includes_dirty_and_untracked_inputs(self):
+        import subprocess
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'repo'
+            root.mkdir()
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            (root / 'model.cub').write_text('original')
+            (root / '.gitignore').write_text('*.opt\n')
+            subprocess.run(['git', '-C', str(root), 'add', '.'], check=True)
+            subprocess.run(['git', '-C', str(root), '-c', 'user.name=Test',
+                            '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'fixture'], check=True)
+            (root / 'model.cub').write_text('edited')
+            (root / 'new.cub').write_text('new')
+            (root / 'cubicle.opt').write_text('ignored')
+            out = Path(directory) / 'output'
+            out.mkdir()
+            with patch.object(bench, 'ROOT', root):
+                snapshot = bench.snapshot_working_tree(out)
+            self.assertEqual((snapshot / 'model.cub').read_text(), 'edited')
+            self.assertEqual((snapshot / 'new.cub').read_text(), 'new')
+            self.assertFalse((snapshot / 'cubicle.opt').exists())
+            self.assertFalse((snapshot / '.git').exists())
+            record = json.loads((out / 'working-tree.json').read_text())
+            self.assertIn('model.cub', record['sha256'])
+            self.assertIn('new.cub', record['sha256'])
+
+    def test_progress_bar(self):
+        import io
+        from contextlib import redirect_stdout
+        output = io.StringIO()
+        with redirect_stdout(output):
+            bench.progress('Runs', 1, 2, 'bakery.cub tetra-all')
+            bench.progress('Runs', 2, 2)
+            bench.progress('Runs', 0, 0)
+        text = output.getvalue()
+        self.assertIn('[##########----------] 1/2', text)
+        self.assertIn('bakery.cub tetra-all', text)
+        self.assertIn('[####################] 2/2', text)
+        self.assertIn('0/0', text)
+
+    def test_terminal_progress_updates_in_place(self):
+        import io
+        from unittest.mock import patch
+        output = io.StringIO()
+        with patch.object(bench.sys, 'stdout', output), patch.object(output, 'isatty', return_value=True):
+            bench.progress('Runs', 0, 1, 'current job')
+            self.assertFalse(output.getvalue().endswith('\n'))
+            bench.progress('Runs', 1, 1)
+        self.assertEqual(output.getvalue().count('\r\033[2K'), 2)
+        self.assertTrue(output.getvalue().endswith('\n'))
+
     def test_timing_uses_blocking_wait_without_polling_delay(self):
         from unittest.mock import patch
         real_popen = bench.subprocess.Popen
@@ -34,6 +199,17 @@ class BenchmarkTests(unittest.TestCase):
 
     def test_unsafe_exit_one_is_a_result(self):
         self.assertEqual(bench.classify('UNSAFE\nCounterexample', 1), ('completed', 'UNSAFE'))
+
+    def test_unsafe_requires_exit_one(self):
+        for code in (0, 2, 127):
+            with self.subTest(code=code):
+                self.assertEqual(bench.classify('UNSAFE\n', code), ('error', None))
+
+    def test_exit_one_without_verdict_is_not_unsafe(self):
+        self.assertEqual(bench.classify('Internal failure: failed', 1), ('error', None))
+
+    def test_commands_preserve_statistics_output(self):
+        self.assertNotIn('-quiet', bench.COMMON)
 
     def test_timeout_is_not_safe(self):
         self.assertEqual(bench.classify('The system is SAFE', -9, True), ('timeout', None))

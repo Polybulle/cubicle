@@ -13,9 +13,11 @@ let () =
         [pos "t" [p]; pos "t" [p]; pos "u" [p]; pos "t" [q]] in
     let inv = Node.create ~pos:Node.neutral_pos ~kind:Inv root.cube in
     let expanded = ref [] in
-    let cfg = {sys.cfg with parent_calls_of = (fun n ->
-      expanded := n.tag :: !expanded;
-      [])} in
+    let cfg = {sys.cfg with
+      should_check_fixpoint = (fun _ -> true);
+      parent_calls_of = (fun n ->
+        expanded := n.tag :: !expanded;
+        [])} in
     let result = Bwd.Selected.search {sys with cfg; t_unsafe = internal; t_invs = [inv]} in
     (match result with
      | Bwd.Unsafe _ -> failwith "internal obligation was checked as initial"

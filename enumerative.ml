@@ -891,7 +891,12 @@ let forward_bfs _ _ env l =
 (* table explicit_states                                                *)
 (************************************************************************)
 let forward_transactions system procs env l =
-  let h_visited = Hashtbl.create env.table_size in
+  let module HLocated = Hashtbl.Make (struct
+      type t = state * event
+      let equal = (=)
+      let hash (st, event) = Hashtbl.hash (hash_state st, event)
+    end) in
+  let h_visited = HLocated.create env.table_size in
   let trs = Hashtbl.create (List.length env.st_trs) in
   ListLabels.iter env.st_trs ~f:(fun st_tr ->
       Hashtbl.add trs {evt_trans = st_tr.st_name; evt_args = st_tr.st_args} st_tr);
@@ -902,17 +907,20 @@ let forward_transactions system procs env l =
   while not (Queue.is_empty to_do) && (max_forward = -1 || !cpt_f < max_forward) do
     let depth, st, event = Queue.take to_do in
     let key = st, event in
-    if not (Hashtbl.mem h_visited key) || depth < Hashtbl.find h_visited key then begin
-      Hashtbl.replace h_visited key depth;
+    if not (HLocated.mem h_visited key) || depth < HLocated.find h_visited key then begin
+      HLocated.replace h_visited key depth;
       incr cpt_f;
       if not (HST.mem env.explicit_states st) then begin
         HST.add env.explicit_states st ();
         env.states <- st :: env.states
       end;
-      let successors = system.cfg.child_calls_of procs event in
       if Hstring.equal event.evt_trans neutral_name then
-        List.iter (fun e -> Queue.add (depth, st, e) to_do) successors
+        List.iter (fun e -> Queue.add (depth, st, e) to_do)
+          (system.cfg.initial_calls procs)
       else if not limit_forward_depth || depth < forward_depth then begin
+        let successors = system.cfg.child_calls_of procs event in
+        let successors =
+          if system.cfg.is_final event then successors @ [neutral] else successors in
         let sts = try (Hashtbl.find trs event).st_f st with Not_applicable -> [] in
         ListLabels.iter sts ~f:(fun s ->
             ListLabels.iter successors ~f:(fun e ->
@@ -980,7 +988,10 @@ let search procs init =
   install_sigint ();
   (* Step 4: Run BFS exploration *)
   begin try
-    if tx_fwd then forward_transactions init procs env st_inits
+    let has_tx = List.exists (fun t ->
+        t.tr_info.tr_is_triggered || not t.tr_info.tr_may_yield ||
+        t.tr_info.tr_nexts <> []) init.t_trans in
+    if tx_fwd && has_tx then forward_transactions init procs env st_inits
     else forward_bfs init procs env st_inits;
     with Exit -> ()
   end ;

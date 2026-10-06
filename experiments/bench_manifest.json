@@ -38,13 +38,15 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Small SAFE regression/control; likely startup-sensitive, not an annotated transaction benchmark.",
-      "audit_suitability": "core-control"
+      "audit_suitability": "core-control",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.015573290991596878,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/bakery_lamport.cub",
@@ -67,13 +69,15 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Established SAFE regression; supplied invariant is trusted rather than inferred. Pair with bogus for bug detection.",
-      "audit_suitability": "core-arithmetic"
+      "audit_suitability": "core-arithmetic",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.1567926669958979,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/bakery_lamport_bogus.cub",
@@ -96,13 +100,15 @@
       ],
       "expected": "UNSAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Established UNSAFE regression; close family pair, not an independent protocol.",
-      "audit_suitability": "core-unsafe"
+      "audit_suitability": "core-unsafe",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.08575166598893702,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/bakery_lamport_na.cub",
@@ -128,13 +134,15 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Established SAFE BRAB-2 regression; useful richer 2-D-array/arithmetic workload; do not transfer its options or verdict to wb variant.",
-      "audit_suitability": "core-brab"
+      "audit_suitability": "core-brab",
+      "timeout_seconds": 100,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 6.322586124995723,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/german.cub",
@@ -160,17 +168,19 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Core known-SAFE regression; duplicate of german_baukus after removing comments/whitespace. Keep only one in balanced corpus.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "redundant family variant"
+      "audit_suitability": "redundant family variant",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.3174191670259461,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/german.ctc.cub",
@@ -196,17 +206,19 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "BRAB recipe is tested; avoid conflating with control-only German; three unsafe declarations are bad-state specifications, not UNSAFE verdicts.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "core regression candidate"
+      "audit_suitability": "core regression candidate",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.06512116600060835,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/german_baukus.cub",
@@ -232,17 +244,19 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Known-SAFE regression but redundant with german.cub.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "redundant family variant"
+      "audit_suitability": "redundant family variant",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.3359517080243677,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/ricart_abdulla_int.cub",
@@ -268,17 +282,19 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Core known-SAFE BRAB-2 regression; include for arithmetic and multi-index-array diversity.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "core regression candidate"
+      "audit_suitability": "core regression candidate",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 2.020400624955073,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/szymanski_at.cub",
@@ -304,17 +320,19 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Core known-SAFE BRAB-2 regression; useful atomic/non-atomic family pair.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "core regression candidate"
+      "audit_suitability": "core regression candidate",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.1386958749499172,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/szymanski_na.cub",
@@ -340,17 +358,19 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Known-SAFE BRAB-2; t1 still atomic universal guard. Equivalent active model to na2 after X->Cpt renaming; keep one.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "core regression candidate"
+      "audit_suitability": "core regression candidate",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 1.6764284579548985,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/futurebus.cub",
@@ -373,13 +393,15 @@
       ],
       "expected": "UNSAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Established UNSAFE regression without model-specific flags; independent protocol useful for unsafe side of corpus.",
-      "audit_suitability": "core-unsafe"
+      "audit_suitability": "core-unsafe",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.03135829098755494,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/swimming_pool.cub",
@@ -402,17 +424,19 @@
       ],
       "expected": "UNSAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Known-UNSAFE plain-invocation regression. Header witness t8 -> t1 conflicts with active formulas: A becomes 1, while first property requires A=0. Trust UNSAFE recipe, not header witness.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "core regression candidate"
+      "audit_suitability": "core regression candidate",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.12951187504222617,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/mesi.cub",
@@ -435,17 +459,19 @@
       ],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Compact smoke/overhead workload; not independent repetitions of larger German.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "diversity candidate; needs preflight"
+      "audit_suitability": "diversity candidate; needs preflight",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.023276666994206607,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/moesi.cub",
@@ -468,17 +494,19 @@
       ],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Related to MESI but not duplicate; compact smoke workload.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "diversity candidate; needs preflight"
+      "audit_suitability": "diversity candidate; needs preflight",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.0203719999990426,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/sense_barrier.cub",
@@ -501,17 +529,19 @@
       ],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Good synchronization/arithmetic diversity; safety concerns entry levels, not liveness or full barrier correctness; plain bench recipe only.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "diversity candidate; needs preflight"
+      "audit_suitability": "diversity candidate; needs preflight",
+      "timeout_seconds": 100,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 16.85742879100144,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/flash_nodata.cub",
@@ -539,14 +569,15 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120,
-        600
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Established SAFE BRAB-2/depth-6 Makefile regression and website configuration, versus header depth 5. Duplicate names block explicit tx none/all at current revision.",
-      "audit_suitability": "blocked-tx-name-validation"
+      "audit_suitability": "blocked-tx-name-validation",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.06473887496395037,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/flash_buggy.cub",
@@ -574,14 +605,15 @@
       ],
       "expected": "UNSAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        30,
-        120,
-        600
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Established UNSAFE Makefile regression at BRAB 2/depth 6, conflicting with header depth 5. Duplicate transition names block explicit tx none/all in current source.",
-      "audit_suitability": "blocked-tx-name-validation"
+      "audit_suitability": "blocked-tx-name-validation",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.6306592909968458,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/flash_enum_simpl.cub",
@@ -603,14 +635,15 @@
       ],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120,
-        600
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Reduced transition system, not duplicate/full-model equivalent; inherited header recipe not verified. Duplicate names block explicit tx none/all.",
-      "audit_suitability": "blocked-tx-name-validation"
+      "audit_suitability": "blocked-tx-name-validation",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.8308891669730656,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/flash_abstr.cub",
@@ -632,14 +665,15 @@
       ],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120,
-        600
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Documented BRAB-3 depth-14 comment; not semantically equivalent to proc-tag or finite-enum data encoding. Duplicate transition names block explicit tx none/all.",
-      "audit_suitability": "blocked-tx-name-validation"
+      "audit_suitability": "blocked-tx-name-validation",
+      "timeout_seconds": 100,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 83.0938774169772,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/chandra_toueg.cub",
@@ -665,14 +699,15 @@
       ],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120,
-        600
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Historical BRAB-2 instance is documented, not a fresh measurement; website reports 2m17s, so a universal 30s cutoff risks censoring it. No explicit SAFE/UNSAFE oracle located.",
-      "audit_suitability": "historical-heavy"
+      "audit_suitability": "historical-heavy",
+      "timeout_seconds": 450,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 50.660934500047006,
+        "final_pilot_timeout": true
+      }
     },
     {
       "path": "examples/german_looped.cub",
@@ -682,17 +717,19 @@
       "option_evidence": [],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Fork-only transaction corpus; not common origin/master parser input. Cyclic transaction continuation makes termination/budget preflight important.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "fork-only transaction stress candidate"
+      "audit_suitability": "fork-only transaction stress candidate",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.01645495800767094,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/germanish_tx.cub",
@@ -702,17 +739,19 @@
       "option_evidence": [],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Fork-only syntax; transaction annotation semantics must be preserved. No established BRAB/process/depth recipe found.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "fork-only transaction stress candidate"
+      "audit_suitability": "fork-only transaction stress candidate",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.03538095799740404,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/germanish3_tract.cub",
@@ -722,17 +761,19 @@
       "option_evidence": [],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Fork-only syntax; compare matched unannotated/control variants cautiously: changes also include early Exgntd update, not annotations alone.",
         "No verifier or benchmarks executed; safety specification syntax is not evidence of a SAFE or UNSAFE verdict.",
         "Do not transfer flags/budgets from related filenames without evidence."
       ],
-      "audit_suitability": "fork-only transaction stress candidate"
+      "audit_suitability": "fork-only transaction stress candidate",
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.13782174995867535,
+        "final_pilot_timeout": false
+      }
     },
     {
       "path": "examples/flash_nodata_tx.cub",
@@ -778,14 +819,15 @@
       ],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120,
-        600
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": "Only transaction-annotated file in selected set; important tx none/all workload but neither same semantics as nodata nor supported SAFE verdict by inheritance. Unlinked triggered writeback/replacement rules and unannotated two-parameter GetX alternatives require boundary-semantics scrutiny.",
-      "audit_suitability": "transaction-primary-with-caveats"
+      "audit_suitability": "transaction-primary-with-caveats",
+      "timeout_seconds": 450,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0,
+        "final_pilot_timeout": true
+      }
     },
     {
       "path": "examples/challenges/ticket_o.cub",
@@ -814,11 +856,7 @@
       ],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Source warns most options loop; exact documented argv is -brab 0 -abstr-num 0 2. This is two fixed components, not a scalable process-array benchmark; no SAFE/UNSAFE result is stated.",
         "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
@@ -832,6 +870,12 @@
           "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
         ],
         "selection_status": "curation suggestion from source, not performance classification"
+      },
+      "timeout_seconds": 5,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0.026139500027056783,
+        "final_pilot_timeout": false
       }
     },
     {
@@ -858,12 +902,7 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        120,
-        600,
-        1200
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Source reports SAFE in 10m13s for the documented argv. Historical machine/revision unspecified; this is not a measured modern duration or a recommended exact timeout.",
         "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
@@ -877,6 +916,12 @@
           "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
         ],
         "selection_status": "curation suggestion from source, not performance classification"
+      },
+      "timeout_seconds": 450,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 325.27405941701727,
+        "final_pilot_timeout": false
       }
     },
     {
@@ -903,12 +948,7 @@
       ],
       "expected": "SAFE",
       "expected_basis": "audit source expectation; not independently verified",
-      "pilot_budgets": [
-        120,
-        600,
-        1200
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Source reports SAFE in 4m42s for the documented argv; no modern runtime validation or timeout recipe.",
         "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
@@ -922,6 +962,12 @@
           "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
         ],
         "selection_status": "curation suggestion from source, not performance classification"
+      },
+      "timeout_seconds": 450,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 241.78883849998238,
+        "final_pilot_timeout": false
       }
     },
     {
@@ -944,12 +990,7 @@
       ],
       "expected": null,
       "expected_basis": null,
-      "pilot_budgets": [
-        30,
-        120,
-        600
-      ],
-      "budget_status": "provisional pilot ceilings, not measured runtimes",
+      "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
       "caveats": [
         "Only this exact CTC member documents -brab 3 -forward-depth 13. Trailing UNSAFE traces refer to auxiliary cubes, not necessarily the active specification.",
         "Read-only source audit: no parser/typecheck/checker run or benchmark. Completion, runtime, memory and semantic agreement across revisions remain unverified.",
@@ -963,6 +1004,12 @@
           "No transaction annotations: suitable at most as transaction-engine regression/overhead controls, not as evidence about annotated transactional protocol performance."
         ],
         "selection_status": "curation suggestion from source, not performance classification"
+      },
+      "timeout_seconds": 450,
+      "budget_evidence": {
+        "run": "run-01",
+        "maximum_completed_seconds": 0,
+        "final_pilot_timeout": true
       }
     }
   ],

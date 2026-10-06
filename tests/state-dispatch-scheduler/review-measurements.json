@@ -1,0 +1,3311 @@
+{
+  "metadata": {
+    "platform": "macOS-15.7.9-arm64-arm-64bit",
+    "machine": "arm64",
+    "revisions": {
+      "baseline": "1663f808d30a39580fbab671a37da143960a779e",
+      "candidate": "fa414c97896cea8a7625986fad0070276fa7d937"
+    },
+    "binaries": {
+      "baseline": {
+        "path": "/Users/hector/cubicle-state-dispatch-scheduler-tests/tests/state-dispatch-scheduler/.local/baseline.opt",
+        "sha256": "696377ac02ce00b2694351006baef9bb4658c3a4081e50cffac20f38aa911777"
+      },
+      "candidate": {
+        "path": "/Users/hector/cubicle-state-dispatch-scheduler/cubicle.opt",
+        "sha256": "5208baabf2a5546836183cf4cc511f5f1a0c4831d6f744f759e697817552872d"
+      }
+    },
+    "repetitions": 7,
+    "wall_limit": 120.0,
+    "depth": 100,
+    "nodes": 100000,
+    "seed": 1663,
+    "runner_smoke": false,
+    "environment": {
+      "cpu": "Apple M1\n",
+      "memory": "17179869184\n",
+      "load": "13:53  up 3 days, 34 mins, 2 users, load averages: 2,12 2,32 2,26\n"
+    },
+    "models": {
+      "examples/bakery.cub": "4decc7e74a426592fb3242b85f8f9beb5f18864b7586d47007ddef58574945a7",
+      "examples/german.cub": "38f52b31de915e17bfcdbdae1a96bfad1731dd5c4e73d40db4d58b2a7a176b6b",
+      "examples/bakery_lamport_bogus.cub": "09421e0970255f87686ca9dc0c760152ef354e20f93dd54ea2e32ff42d8ce012",
+      "examples/swimming_pool.cub": "a976dbb1d70bdcaa2b44b3b0e053cc274bfc8ba91d0c9d9ad5b014e2bded8635"
+    }
+  },
+  "groups": [
+    {
+      "model": "examples/bakery.cub",
+      "mode": "ordinary",
+      "baseline": {
+        "median_wall": 0.012992957999999999,
+        "wall_range": [
+          0.01262125,
+          0.013172709000000005
+        ],
+        "median_rss_bytes": 13320192,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2",
+          "Fixpoints": "7",
+          "Number of solver calls": "2",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "0",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 0.012954832999999999,
+        "wall_range": [
+          0.012889082999999968,
+          0.013136124999999998
+        ],
+        "median_rss_bytes": 13336576,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2",
+          "Fixpoints": "7",
+          "Number of solver calls": "2",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "0",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        0.00024245800000000095,
+        5.325000000000468e-05,
+        -3.658400000000617e-05,
+        0.0002680419999999961,
+        5.7416000000004574e-05,
+        -0.00014154200000002226,
+        -0.0001307919999999907
+      ],
+      "candidate_overhead_vs_ordinary_percent": 0.0,
+      "same_mode_delta_percent": -0.2934281785564097,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/bakery.cub",
+      "mode": "none",
+      "baseline": {
+        "median_wall": 0.013717624999999956,
+        "wall_range": [
+          0.01313537499999995,
+          0.023079709000000004
+        ],
+        "median_rss_bytes": 13385728,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2",
+          "Fixpoints": "7",
+          "Number of solver calls": "2",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "0",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.02,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 0.014055792000000011,
+        "wall_range": [
+          0.013380749999999941,
+          0.02318037500000003
+        ],
+        "median_rss_bytes": 13402112,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2",
+          "Fixpoints": "7",
+          "Number of solver calls": "2",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "0",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.02,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        0.00010066600000002701,
+        0.0021549160000000622,
+        0.0005711670000000391,
+        -6.666699999996473e-05,
+        0.00012058399999997915,
+        0.00024537499999999213,
+        -0.00019066700000003323
+      ],
+      "candidate_overhead_vs_ordinary_percent": 8.498442241594418,
+      "same_mode_delta_percent": 2.46520079095367,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/bakery.cub",
+      "mode": "fwd",
+      "baseline": {
+        "median_wall": 0.01335112500000002,
+        "wall_range": [
+          0.01287366599999995,
+          0.01371
+        ],
+        "median_rss_bytes": 13320192,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2",
+          "Fixpoints": "7",
+          "Number of solver calls": "2",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "0",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 0.012937417000000062,
+        "wall_range": [
+          0.012760957999999989,
+          0.013547375000000028
+        ],
+        "median_rss_bytes": 13336576,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2",
+          "Fixpoints": "7",
+          "Number of solver calls": "2",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "0",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        -7.545899999994443e-05,
+        -0.00016262499999997182,
+        -0.0005901670000000303,
+        -0.0005349159999998854,
+        0.00015304199999999213,
+        -6.94159999998778e-05,
+        -9.920799999985075e-05
+      ],
+      "candidate_overhead_vs_ordinary_percent": -0.13443631423065705,
+      "same_mode_delta_percent": -3.0986752052726385,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/bakery.cub",
+      "mode": "ignore",
+      "baseline": {
+        "median_wall": 0.013037332999999984,
+        "wall_range": [
+          0.012841207999999993,
+          0.015268250000000094
+        ],
+        "median_rss_bytes": 13320192,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2",
+          "Fixpoints": "7",
+          "Number of solver calls": "2",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "0",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 0.01308699999999996,
+        "wall_range": [
+          0.012771500000000047,
+          0.013761333000000042
+        ],
+        "median_rss_bytes": 13336576,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2",
+          "Fixpoints": "7",
+          "Number of solver calls": "2",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "0",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        0.000124000000000013,
+        6.670000000097431e-07,
+        -0.002443459000000092,
+        0.00022187399999995527,
+        0.0003977919999998969,
+        -0.0008469159999998643,
+        0.0003730419999999901
+      ],
+      "candidate_overhead_vs_ordinary_percent": 1.0202138460600807,
+      "same_mode_delta_percent": 0.38095981747168217,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/bakery.cub",
+      "mode": "bwd",
+      "baseline": {
+        "median_wall": 0.012885374999999977,
+        "wall_range": [
+          0.012692999999999843,
+          0.012921541999999953
+        ],
+        "median_rss_bytes": 13172736,
+        "outcomes": [
+          [
+            "ERROR",
+            1
+          ]
+        ],
+        "counts": {},
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 0.01298308299999995,
+        "wall_range": [
+          0.012911875000000128,
+          0.013340999999999825
+        ],
+        "median_rss_bytes": 13516800,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "10",
+          "Fixpoints": "7",
+          "Number of solver calls": "2",
+          "Max Number of processes": "3",
+          "Number of deleted nodes": "0",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": false,
+      "paired_wall_deltas": [
+        0.00010941600000013985,
+        0.0003323750000001624,
+        7.304099999982938e-05,
+        0.000140333000000048,
+        9.662500000007235e-05,
+        7.374999999987253e-05,
+        0.00041945799999987265
+      ],
+      "candidate_overhead_vs_ordinary_percent": 0.21806533515291715,
+      "same_mode_delta_percent": 0.7582860413451353,
+      "same_mode_performance_comparable": false
+    },
+    {
+      "model": "examples/bakery.cub",
+      "mode": "bare",
+      "baseline": {
+        "median_wall": 0.013401875000000008,
+        "wall_range": [
+          0.013190542000000027,
+          0.014349375000000109
+        ],
+        "median_rss_bytes": 13172736,
+        "outcomes": [
+          [
+            "ERROR",
+            1
+          ]
+        ],
+        "counts": {},
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 0.013463416999999867,
+        "wall_range": [
+          0.01323691699999996,
+          0.013759374999999796
+        ],
+        "median_rss_bytes": 13516800,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "10",
+          "Fixpoints": "7",
+          "Number of solver calls": "2",
+          "Max Number of processes": "3",
+          "Number of deleted nodes": "0",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": false,
+      "paired_wall_deltas": [
+        -9.725099999990938e-05,
+        -0.00016895900000002406,
+        -0.0006774160000000418,
+        4.637499999993189e-05,
+        -0.0009758340000001198,
+        0.0004487079999997423,
+        0.0001984160000001456
+      ],
+      "candidate_overhead_vs_ordinary_percent": 3.9258244394186237,
+      "same_mode_delta_percent": 0.4592044023680186,
+      "same_mode_performance_comparable": false
+    },
+    {
+      "model": "examples/german.cub",
+      "mode": "ordinary",
+      "baseline": {
+        "median_wall": 3.2445729999999955,
+        "wall_range": [
+          3.2222505000000012,
+          3.42793
+        ],
+        "median_rss_bytes": 123060224,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2384",
+          "Fixpoints": "32068",
+          "Number of solver calls": "50631",
+          "Max Number of processes": "3",
+          "Number of deleted nodes": "278",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            3.3,
+            3.25,
+            0.04
+          ],
+          [
+            3.21,
+            3.17,
+            0.03
+          ],
+          [
+            3.42,
+            3.34,
+            0.05
+          ],
+          [
+            3.33,
+            3.27,
+            0.04
+          ],
+          [
+            3.23,
+            3.19,
+            0.04
+          ],
+          [
+            3.21,
+            3.18,
+            0.03
+          ],
+          [
+            3.21,
+            3.17,
+            0.03
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 3.3086596670000006,
+        "wall_range": [
+          3.2449822080000033,
+          3.720686624999999
+        ],
+        "median_rss_bytes": 125386752,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2384",
+          "Fixpoints": "32068",
+          "Number of solver calls": "50631",
+          "Max Number of processes": "3",
+          "Number of deleted nodes": "278",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            3.28,
+            3.23,
+            0.04
+          ],
+          [
+            3.3,
+            3.24,
+            0.04
+          ],
+          [
+            3.45,
+            3.39,
+            0.04
+          ],
+          [
+            3.71,
+            3.61,
+            0.05
+          ],
+          [
+            3.39,
+            3.27,
+            0.04
+          ],
+          [
+            3.27,
+            3.21,
+            0.04
+          ],
+          [
+            3.24,
+            3.19,
+            0.02
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        -0.02663995800000052,
+        0.08604204200000254,
+        0.032699625000002897,
+        0.38057158299999827,
+        0.1552289170000094,
+        0.05431762499999593,
+        0.02221287400000449
+      ],
+      "candidate_overhead_vs_ordinary_percent": 0.0,
+      "same_mode_delta_percent": 1.975195719128675,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/german.cub",
+      "mode": "none",
+      "baseline": {
+        "median_wall": 3.3176467080000123,
+        "wall_range": [
+          3.304925584000003,
+          3.3210787500000123
+        ],
+        "median_rss_bytes": 123191296,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2384",
+          "Fixpoints": "32068",
+          "Number of solver calls": "50631",
+          "Max Number of processes": "3",
+          "Number of deleted nodes": "278",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            3.3,
+            3.25,
+            0.03
+          ],
+          [
+            3.31,
+            3.26,
+            0.03
+          ],
+          [
+            3.31,
+            3.25,
+            0.03
+          ],
+          [
+            3.29,
+            3.25,
+            0.03
+          ],
+          [
+            3.31,
+            3.26,
+            0.03
+          ],
+          [
+            3.3,
+            3.25,
+            0.03
+          ],
+          [
+            3.31,
+            3.26,
+            0.03
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 3.3009417499999927,
+        "wall_range": [
+          3.257481167000009,
+          3.34437166699999
+        ],
+        "median_rss_bytes": 123600896,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2384",
+          "Fixpoints": "32068",
+          "Number of solver calls": "50631",
+          "Max Number of processes": "3",
+          "Number of deleted nodes": "278",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            3.33,
+            3.28,
+            0.03
+          ],
+          [
+            3.31,
+            3.26,
+            0.03
+          ],
+          [
+            3.31,
+            3.25,
+            0.03
+          ],
+          [
+            3.29,
+            3.25,
+            0.02
+          ],
+          [
+            3.26,
+            3.21,
+            0.03
+          ],
+          [
+            3.27,
+            3.23,
+            0.02
+          ],
+          [
+            3.25,
+            3.2,
+            0.03
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        0.03109241699998222,
+        -0.0007263339999923346,
+        0.0019651249999981246,
+        -0.0039838340000102335,
+        -0.048542417000007276,
+        -0.02639700000000289,
+        -0.06285054099998888
+      ],
+      "candidate_overhead_vs_ordinary_percent": -0.23326415457549654,
+      "same_mode_delta_percent": -0.5035182908336266,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/german.cub",
+      "mode": "fwd",
+      "baseline": {
+        "median_wall": 3.280887000000007,
+        "wall_range": [
+          3.2313373750000096,
+          3.8015549160000006
+        ],
+        "median_rss_bytes": 122650624,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2384",
+          "Fixpoints": "32068",
+          "Number of solver calls": "50631",
+          "Max Number of processes": "3",
+          "Number of deleted nodes": "278",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            3.34,
+            3.29,
+            0.03
+          ],
+          [
+            3.79,
+            3.68,
+            0.05
+          ],
+          [
+            3.36,
+            3.3,
+            0.04
+          ],
+          [
+            3.22,
+            3.19,
+            0.03
+          ],
+          [
+            3.23,
+            3.19,
+            0.03
+          ],
+          [
+            3.22,
+            3.18,
+            0.03
+          ],
+          [
+            3.27,
+            3.23,
+            0.03
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 3.2552992090000004,
+        "wall_range": [
+          3.2373879579999993,
+          3.7553622910000115
+        ],
+        "median_rss_bytes": 123895808,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2384",
+          "Fixpoints": "32068",
+          "Number of solver calls": "50631",
+          "Max Number of processes": "3",
+          "Number of deleted nodes": "278",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            3.63,
+            3.51,
+            0.04
+          ],
+          [
+            3.24,
+            3.2,
+            0.04
+          ],
+          [
+            3.74,
+            3.62,
+            0.05
+          ],
+          [
+            3.23,
+            3.19,
+            0.03
+          ],
+          [
+            3.25,
+            3.21,
+            0.03
+          ],
+          [
+            3.24,
+            3.21,
+            0.03
+          ],
+          [
+            3.23,
+            3.19,
+            0.03
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        0.2847694999999959,
+        -0.5462557070000003,
+        0.38605962400001204,
+        0.006050582999989729,
+        0.014035125000020798,
+        0.022924165999995694,
+        -0.04054179199999908
+      ],
+      "candidate_overhead_vs_ordinary_percent": -1.6127514876252858,
+      "same_mode_delta_percent": -0.7799046721208791,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/german.cub",
+      "mode": "ignore",
+      "baseline": {
+        "median_wall": 3.3026246659999856,
+        "wall_range": [
+          3.229373624999994,
+          3.346803125000008
+        ],
+        "median_rss_bytes": 124928000,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2384",
+          "Fixpoints": "32068",
+          "Number of solver calls": "50631",
+          "Max Number of processes": "3",
+          "Number of deleted nodes": "278",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            3.27,
+            3.22,
+            0.04
+          ],
+          [
+            3.22,
+            3.18,
+            0.03
+          ],
+          [
+            3.33,
+            3.22,
+            0.03
+          ],
+          [
+            3.27,
+            3.22,
+            0.03
+          ],
+          [
+            3.34,
+            3.29,
+            0.03
+          ],
+          [
+            3.33,
+            3.28,
+            0.03
+          ],
+          [
+            3.29,
+            3.24,
+            0.03
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 3.32532170799999,
+        "wall_range": [
+          3.260093249999983,
+          3.379619125000005
+        ],
+        "median_rss_bytes": 124420096,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "2384",
+          "Fixpoints": "32068",
+          "Number of solver calls": "50631",
+          "Max Number of processes": "3",
+          "Number of deleted nodes": "278",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            3.25,
+            3.21,
+            0.03
+          ],
+          [
+            3.25,
+            3.21,
+            0.03
+          ],
+          [
+            3.34,
+            3.29,
+            0.03
+          ],
+          [
+            3.31,
+            3.26,
+            0.03
+          ],
+          [
+            3.28,
+            3.23,
+            0.03
+          ],
+          [
+            3.37,
+            3.31,
+            0.03
+          ],
+          [
+            3.34,
+            3.28,
+            0.03
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        -0.021101166999983434,
+        0.030719624999989037,
+        0.012315000999990389,
+        0.043077041000003646,
+        -0.058973000000008824,
+        0.04172424999998725,
+        0.04406695900001978
+      ],
+      "candidate_overhead_vs_ordinary_percent": 0.5035888449384407,
+      "same_mode_delta_percent": 0.6872425508616553,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/german.cub",
+      "mode": "bwd",
+      "baseline": {
+        "median_wall": 0.016236084000013307,
+        "wall_range": [
+          0.015100208999996312,
+          0.016882333999973298
+        ],
+        "median_rss_bytes": 13811712,
+        "outcomes": [
+          [
+            "ERROR",
+            1
+          ]
+        ],
+        "counts": {},
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 4.118822250000022,
+        "wall_range": [
+          4.106952750000005,
+          4.2893834170000105
+        ],
+        "median_rss_bytes": 121618432,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "36588",
+          "Fixpoints": "31869",
+          "Number of solver calls": "48381",
+          "Max Number of processes": "4",
+          "Number of deleted nodes": "268",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            4.25,
+            4.12,
+            0.06
+          ],
+          [
+            4.07,
+            4.02,
+            0.05
+          ],
+          [
+            4.07,
+            4.01,
+            0.05
+          ],
+          [
+            4.1,
+            4.03,
+            0.05
+          ],
+          [
+            4.08,
+            4.02,
+            0.05
+          ],
+          [
+            4.08,
+            4.03,
+            0.05
+          ],
+          [
+            4.11,
+            4.03,
+            0.07
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": false,
+      "paired_wall_deltas": [
+        4.274283208000014,
+        4.091771541000043,
+        4.090123250000005,
+        4.114104957999984,
+        4.101098207999996,
+        4.102537042000023,
+        4.129331167000032
+      ],
+      "candidate_overhead_vs_ordinary_percent": 24.48612624261248,
+      "same_mode_delta_percent": 25268.323112867896,
+      "same_mode_performance_comparable": false
+    },
+    {
+      "model": "examples/german.cub",
+      "mode": "bare",
+      "baseline": {
+        "median_wall": 0.016677999999956228,
+        "wall_range": [
+          0.015286624999987453,
+          0.02024345799998173
+        ],
+        "median_rss_bytes": 13811712,
+        "outcomes": [
+          [
+            "ERROR",
+            1
+          ]
+        ],
+        "counts": {},
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 4.197427584000025,
+        "wall_range": [
+          4.149931041000002,
+          4.240090165999959
+        ],
+        "median_rss_bytes": 123633664,
+        "outcomes": [
+          [
+            "SAFE",
+            0
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "36588",
+          "Fixpoints": "31869",
+          "Number of solver calls": "48381",
+          "Max Number of processes": "4",
+          "Number of deleted nodes": "268",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            4.21,
+            4.07,
+            0.07
+          ],
+          [
+            4.14,
+            4.05,
+            0.07
+          ],
+          [
+            4.12,
+            4.03,
+            0.06
+          ],
+          [
+            4.13,
+            4.06,
+            0.06
+          ],
+          [
+            4.16,
+            4.08,
+            0.07
+          ],
+          [
+            4.2,
+            4.11,
+            0.06
+          ],
+          [
+            4.19,
+            4.1,
+            0.06
+          ]
+        ],
+        "error_trace": []
+      },
+      "full_verifier_output_equal": false,
+      "paired_wall_deltas": [
+        4.2232713319999675,
+        4.161626750000039,
+        4.133253041000046,
+        4.151289582999993,
+        4.180762334000008,
+        4.2169302500000185,
+        4.211532540999997
+      ],
+      "candidate_overhead_vs_ordinary_percent": 26.86187176833088,
+      "same_mode_delta_percent": 25067.45163695312,
+      "same_mode_performance_comparable": false
+    },
+    {
+      "model": "examples/bakery_lamport_bogus.cub",
+      "mode": "ordinary",
+      "baseline": {
+        "median_wall": 0.04699275000001535,
+        "wall_range": [
+          0.046707332999972095,
+          0.04854366699998991
+        ],
+        "median_rss_bytes": 19562496,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "74",
+          "Fixpoints": "87",
+          "Number of solver calls": "819",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "8",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> take_ticket(#1) -> take_ticket(#2) -> wait(#1) -> \n             turn(#1) -> wait(#2) -> turn(#2) -> unsafe[2]"
+        ]
+      },
+      "candidate": {
+        "median_wall": 0.046760957999993025,
+        "wall_range": [
+          0.04650983300001599,
+          0.047855416000004425
+        ],
+        "median_rss_bytes": 19529728,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "74",
+          "Fixpoints": "87",
+          "Number of solver calls": "819",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "8",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> take_ticket(#1) -> take_ticket(#2) -> wait(#1) -> \n             turn(#1) -> wait(#2) -> turn(#2) -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        0.00019058400005178555,
+        -0.0002988750000554319,
+        -0.00042441699997652904,
+        -0.00046233299997311406,
+        -0.0006882509999854847,
+        0.00013737600005470085,
+        -0.0004279589999782729
+      ],
+      "candidate_overhead_vs_ordinary_percent": 0.0,
+      "same_mode_delta_percent": -0.49325055465416767,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/bakery_lamport_bogus.cub",
+      "mode": "none",
+      "baseline": {
+        "median_wall": 0.048545499999988806,
+        "wall_range": [
+          0.047122833000003084,
+          0.06363883300002726
+        ],
+        "median_rss_bytes": 19628032,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "74",
+          "Fixpoints": "87",
+          "Number of solver calls": "819",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "8",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.05,
+            0.04,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> take_ticket(#1) -> take_ticket(#2) -> wait(#1) -> \n             turn(#1) -> wait(#2) -> turn(#2) -> unsafe[2]"
+        ]
+      },
+      "candidate": {
+        "median_wall": 0.047630000000026484,
+        "wall_range": [
+          0.04666833300001372,
+          0.048669458000006216
+        ],
+        "median_rss_bytes": 19611648,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "74",
+          "Fixpoints": "87",
+          "Number of solver calls": "819",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "8",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> take_ticket(#1) -> take_ticket(#2) -> wait(#1) -> \n             turn(#1) -> wait(#2) -> turn(#2) -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        -0.0004544999999893662,
+        0.0010790420000148515,
+        5.6416000006720424e-05,
+        -0.016026333000013437,
+        -0.0017838329999335656,
+        6.608300003563272e-05,
+        -0.0017927079999822126
+      ],
+      "candidate_overhead_vs_ordinary_percent": 1.8584777498219518,
+      "same_mode_delta_percent": -1.8858596573576025,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/bakery_lamport_bogus.cub",
+      "mode": "fwd",
+      "baseline": {
+        "median_wall": 0.04715800000002446,
+        "wall_range": [
+          0.04694504100001495,
+          0.04922470799999701
+        ],
+        "median_rss_bytes": 19529728,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "74",
+          "Fixpoints": "87",
+          "Number of solver calls": "819",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "8",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> take_ticket(#1) -> take_ticket(#2) -> wait(#1) -> \n             turn(#1) -> wait(#2) -> turn(#2) -> unsafe[2]"
+        ]
+      },
+      "candidate": {
+        "median_wall": 0.04700058399998852,
+        "wall_range": [
+          0.046793583999999555,
+          0.04870175000002064
+        ],
+        "median_rss_bytes": 19529728,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "74",
+          "Fixpoints": "87",
+          "Number of solver calls": "819",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "8",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> take_ticket(#1) -> take_ticket(#2) -> wait(#1) -> \n             turn(#1) -> wait(#2) -> turn(#2) -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        0.0008095839999668897,
+        2.5540999956774613e-05,
+        -0.00026116600002978885,
+        -2.9957000037938997e-05,
+        -0.00045283299994025583,
+        -0.002224124000008487,
+        -0.00035683199996583426
+      ],
+      "candidate_overhead_vs_ordinary_percent": 0.5124488681252704,
+      "same_mode_delta_percent": -0.3338055049744604,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/bakery_lamport_bogus.cub",
+      "mode": "ignore",
+      "baseline": {
+        "median_wall": 0.047028291999993144,
+        "wall_range": [
+          0.046883917000002384,
+          0.04727850000000444
+        ],
+        "median_rss_bytes": 19529728,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "74",
+          "Fixpoints": "87",
+          "Number of solver calls": "819",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "8",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> take_ticket(#1) -> take_ticket(#2) -> wait(#1) -> \n             turn(#1) -> wait(#2) -> turn(#2) -> unsafe[2]"
+        ]
+      },
+      "candidate": {
+        "median_wall": 0.04695008300001291,
+        "wall_range": [
+          0.046705416999998306,
+          0.04908975000000737
+        ],
+        "median_rss_bytes": 19529728,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "74",
+          "Fixpoints": "87",
+          "Number of solver calls": "819",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "8",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> take_ticket(#1) -> take_ticket(#2) -> wait(#1) -> \n             turn(#1) -> wait(#2) -> turn(#2) -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        -0.0002540839999483069,
+        -0.00011579200003097867,
+        8.879099999603568e-05,
+        0.0018161670000154118,
+        -6.179199999678531e-05,
+        -0.00040225000003601963,
+        -0.00017850000000407817
+      ],
+      "candidate_overhead_vs_ordinary_percent": 0.404450653085231,
+      "same_mode_delta_percent": -0.1663020208776511,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/bakery_lamport_bogus.cub",
+      "mode": "bwd",
+      "baseline": {
+        "median_wall": 0.015564291999965008,
+        "wall_range": [
+          0.015160166999976354,
+          0.01669237499999099
+        ],
+        "median_rss_bytes": 13369344,
+        "outcomes": [
+          [
+            "ERROR",
+            1
+          ]
+        ],
+        "counts": {},
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 0.05115854199999603,
+        "wall_range": [
+          0.050278499999990345,
+          0.05410820800000238
+        ],
+        "median_rss_bytes": 19857408,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "242",
+          "Fixpoints": "87",
+          "Number of solver calls": "824",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "8",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.04,
+            0.04,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.04,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.04,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> take_ticket(#2) -> take_ticket(#1) -> wait(#2) -> \n             turn(#2) -> wait(#1) -> turn(#1) -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": false,
+      "paired_wall_deltas": [
+        0.03580541600001652,
+        0.03599837500001968,
+        0.03566479200003414,
+        0.036317208999946615,
+        0.03472316699998146,
+        0.038383707999969374,
+        0.03386845800002902
+      ],
+      "candidate_overhead_vs_ordinary_percent": 9.404392442095943,
+      "same_mode_delta_percent": 228.6917387576065,
+      "same_mode_performance_comparable": false
+    },
+    {
+      "model": "examples/bakery_lamport_bogus.cub",
+      "mode": "bare",
+      "baseline": {
+        "median_wall": 0.015692999999998847,
+        "wall_range": [
+          0.015583832999993774,
+          0.016706957999986116
+        ],
+        "median_rss_bytes": 13369344,
+        "outcomes": [
+          [
+            "ERROR",
+            1
+          ]
+        ],
+        "counts": {},
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 0.05038112500000125,
+        "wall_range": [
+          0.05003425000001016,
+          0.07080429199999116
+        ],
+        "median_rss_bytes": 19841024,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "242",
+          "Fixpoints": "87",
+          "Number of solver calls": "824",
+          "Max Number of processes": "2",
+          "Number of deleted nodes": "8",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.04,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.06,
+            0.04,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ],
+          [
+            0.04,
+            0.03,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> take_ticket(#2) -> take_ticket(#1) -> wait(#2) -> \n             turn(#2) -> wait(#1) -> turn(#1) -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": false,
+      "paired_wall_deltas": [
+        0.03453920900000185,
+        0.0363077500000486,
+        0.034797292000007474,
+        0.03410524999998188,
+        0.05503366700003198,
+        0.03458799899999576,
+        0.034341250000011314
+      ],
+      "candidate_overhead_vs_ordinary_percent": 7.7418580688803695,
+      "same_mode_delta_percent": 221.04202510676703,
+      "same_mode_performance_comparable": false
+    },
+    {
+      "model": "examples/swimming_pool.cub",
+      "mode": "ordinary",
+      "baseline": {
+        "median_wall": 0.09086870800001634,
+        "wall_range": [
+          0.09049408300001005,
+          0.0923465000000192
+        ],
+        "median_rss_bytes": 25821184,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "79",
+          "Fixpoints": "74",
+          "Number of solver calls": "3155",
+          "Max Number of processes": "1",
+          "Number of deleted nodes": "1",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.08,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> t8() -> t1() -> unsafe[2]"
+        ]
+      },
+      "candidate": {
+        "median_wall": 0.09085091599996531,
+        "wall_range": [
+          0.08954987499998879,
+          0.09277633400000695
+        ],
+        "median_rss_bytes": 25968640,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "79",
+          "Fixpoints": "74",
+          "Number of solver calls": "3155",
+          "Max Number of processes": "1",
+          "Number of deleted nodes": "1",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.08,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> t8() -> t1() -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        -0.0007296670000300765,
+        0.000976707999939208,
+        0.00042983399998774985,
+        -0.0009992919999604055,
+        -0.0010967910000090342,
+        -0.0013188330000275528,
+        -0.0005874590000871649
+      ],
+      "candidate_overhead_vs_ordinary_percent": 0.0,
+      "same_mode_delta_percent": -0.019579897681643033,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/swimming_pool.cub",
+      "mode": "none",
+      "baseline": {
+        "median_wall": 0.09083724999999276,
+        "wall_range": [
+          0.09042016699999067,
+          0.1147347909999894
+        ],
+        "median_rss_bytes": 25870336,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "79",
+          "Fixpoints": "74",
+          "Number of solver calls": "3155",
+          "Max Number of processes": "1",
+          "Number of deleted nodes": "1",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.08,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.1,
+            0.08,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> t8() -> t1() -> unsafe[2]"
+        ]
+      },
+      "candidate": {
+        "median_wall": 0.09011324999994486,
+        "wall_range": [
+          0.08990770799999837,
+          0.09185716700000057
+        ],
+        "median_rss_bytes": 25821184,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "79",
+          "Fixpoints": "74",
+          "Number of solver calls": "3155",
+          "Max Number of processes": "1",
+          "Number of deleted nodes": "1",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> t8() -> t1() -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        -0.0006769169999643054,
+        -0.0018005000000584914,
+        -0.0006242080000333772,
+        -0.0007240000000479085,
+        -0.0004978750000077525,
+        -0.02323295799999414,
+        0.0005300840000472817
+      ],
+      "candidate_overhead_vs_ordinary_percent": -0.8119521877145819,
+      "same_mode_delta_percent": -0.7970298528940156,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/swimming_pool.cub",
+      "mode": "fwd",
+      "baseline": {
+        "median_wall": 0.09089345799998227,
+        "wall_range": [
+          0.09068308299998762,
+          0.09256733400002304
+        ],
+        "median_rss_bytes": 25821184,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "79",
+          "Fixpoints": "74",
+          "Number of solver calls": "3155",
+          "Max Number of processes": "1",
+          "Number of deleted nodes": "1",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.08,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> t8() -> t1() -> unsafe[2]"
+        ]
+      },
+      "candidate": {
+        "median_wall": 0.09049095799997531,
+        "wall_range": [
+          0.09005704099996592,
+          0.09219862500003728
+        ],
+        "median_rss_bytes": 25903104,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "79",
+          "Fixpoints": "74",
+          "Number of solver calls": "3155",
+          "Max Number of processes": "1",
+          "Number of deleted nodes": "1",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> t8() -> t1() -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        -0.0006006240000147045,
+        -0.0004882919999431579,
+        0.000978957999961949,
+        0.0011836660000312804,
+        -0.000925875999996606,
+        -0.0001821669999912956,
+        -0.0020763760000477305
+      ],
+      "candidate_overhead_vs_ordinary_percent": -0.3962073425766488,
+      "same_mode_delta_percent": -0.44282614927803055,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/swimming_pool.cub",
+      "mode": "ignore",
+      "baseline": {
+        "median_wall": 0.09133720900001663,
+        "wall_range": [
+          0.09024020900000096,
+          0.1013135409999677
+        ],
+        "median_rss_bytes": 25821184,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "79",
+          "Fixpoints": "74",
+          "Number of solver calls": "3155",
+          "Max Number of processes": "1",
+          "Number of deleted nodes": "1",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.08,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.09,
+            0.08,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> t8() -> t1() -> unsafe[2]"
+        ]
+      },
+      "candidate": {
+        "median_wall": 0.09011183300003722,
+        "wall_range": [
+          0.08957291699999814,
+          0.09183466600001111
+        ],
+        "median_rss_bytes": 25837568,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "79",
+          "Fixpoints": "74",
+          "Number of solver calls": "3155",
+          "Max Number of processes": "1",
+          "Number of deleted nodes": "1",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> t8() -> t1() -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": true,
+      "paired_wall_deltas": [
+        -0.0003260000000295804,
+        -0.002701748999982101,
+        -0.0011438739999789505,
+        0.00116737500002273,
+        -0.010907790999965528,
+        -0.0012253759999794056,
+        0.00028574999998909334
+      ],
+      "candidate_overhead_vs_ordinary_percent": -0.8135118857011459,
+      "same_mode_delta_percent": -1.3415956250416916,
+      "same_mode_performance_comparable": true
+    },
+    {
+      "model": "examples/swimming_pool.cub",
+      "mode": "bwd",
+      "baseline": {
+        "median_wall": 0.016226875000029395,
+        "wall_range": [
+          0.01595950000000812,
+          0.017000957999982802
+        ],
+        "median_rss_bytes": 14647296,
+        "outcomes": [
+          [
+            "ERROR",
+            1
+          ]
+        ],
+        "counts": {},
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 0.09113408299998582,
+        "wall_range": [
+          0.09037845799997513,
+          0.09282920900000136
+        ],
+        "median_rss_bytes": 26296320,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "319",
+          "Fixpoints": "74",
+          "Number of solver calls": "3155",
+          "Max Number of processes": "1",
+          "Number of deleted nodes": "1",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.08,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> t8() -> t1() -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": false,
+      "paired_wall_deltas": [
+        0.07483887500001174,
+        0.0751745829999777,
+        0.07497016699994674,
+        0.07508895900002699,
+        0.076010875999998,
+        0.07480929199999764,
+        0.0742277079999667
+      ],
+      "candidate_overhead_vs_ordinary_percent": 0.3116831535530329,
+      "same_mode_delta_percent": 461.6243608200638,
+      "same_mode_performance_comparable": false
+    },
+    {
+      "model": "examples/swimming_pool.cub",
+      "mode": "bare",
+      "baseline": {
+        "median_wall": 0.016046707999976206,
+        "wall_range": [
+          0.015854125000032582,
+          0.01636550000000625
+        ],
+        "median_rss_bytes": 14647296,
+        "outcomes": [
+          [
+            "ERROR",
+            1
+          ]
+        ],
+        "counts": {},
+        "process_times": [
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ],
+          [
+            0.01,
+            0.0,
+            0.0
+          ]
+        ],
+        "error_trace": []
+      },
+      "candidate": {
+        "median_wall": 0.0908659169999737,
+        "wall_range": [
+          0.09044979100002593,
+          0.09105179199997337
+        ],
+        "median_rss_bytes": 25837568,
+        "outcomes": [
+          [
+            "UNSAFE",
+            1
+          ]
+        ],
+        "counts": {
+          "Number of visited nodes": "319",
+          "Fixpoints": "74",
+          "Number of solver calls": "3155",
+          "Max Number of processes": "1",
+          "Number of deleted nodes": "1",
+          "Restarts": "0"
+        },
+        "process_times": [
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ],
+          [
+            0.08,
+            0.07,
+            0.0
+          ]
+        ],
+        "error_trace": [
+          "Error trace: Init -> t8() -> t1() -> unsafe[2]"
+        ]
+      },
+      "full_verifier_output_equal": false,
+      "paired_wall_deltas": [
+        0.0747647919999963,
+        0.07501179199994112,
+        0.07443887499999846,
+        0.0748577499999783,
+        0.07465783399999282,
+        0.07458979200004023,
+        0.07458050000002459
+      ],
+      "candidate_overhead_vs_ordinary_percent": 0.01651166622074207,
+      "same_mode_delta_percent": 466.2589298696558,
+      "same_mode_performance_comparable": false
+    }
+  ]
+}

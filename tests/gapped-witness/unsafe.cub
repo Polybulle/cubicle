@@ -1,0 +1,42 @@
+(* Incorrect SAFE verdict without forall_other or restrictive initialization.
+   Expected verdict: UNSAFE for every population of at least two processes.
+   All population sizes admit the all-false initial state.
+
+   Concrete unsafe trace over distinct processes p and q:
+     Initial:    Phase = Init;   A[p]=False, A[q]=False;
+                                B[p]=False, B[q]=False.
+     start(p):   Phase = Middle; A[p]=True,  A[q]=False;
+                                B[p]=False, B[q]=False.
+     finish(q):  Phase = Done;   A[p]=True,  A[q]=False;
+                                B[p]=False, B[q]=True.
+   The final state satisfies the second unsafe clause with x=q and y=p.
+   Added processes keep both array entries False along this same execution.
+   The first unsafe clause is unreachable: start sets exactly one A entry True.
+
+   Baseline cause: the predecessor of unsafe[2] retains only variable #2.
+   Instantiation extends that support to [#2; #2], then maps both distinct
+   variables of unsafe[1] to #2. The resulting SMT cover wrongly prunes it.
+
+   Reproduce with an external timeout:
+     ./cubicle.opt -nocolor -nodes 100 tests/gapped-witness/unsafe.cub
+   Add -debug -dsmt to see the collapsed cover instance.
+*)
+type phase = Init | Middle | Done
+var Phase : phase
+array A[proc] : bool
+array B[proc] : bool
+
+init (z) { Phase = Init && A[z] = False && B[z] = False }
+
+unsafe (x y) { Phase = Middle && A[x] = True && A[y] = True }
+unsafe (x y) { Phase = Done && B[x] = True && A[y] = True }
+
+transition start (i)
+requires { Phase = Init }
+{ Phase := Middle;
+  A[j] := case | j = i : True | _ : False }
+
+transition finish (i)
+requires { Phase = Middle }
+{ Phase := Done;
+  B[j] := case | j = i : True | _ : False }

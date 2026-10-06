@@ -1,0 +1,33 @@
+type bit = Zero | One
+var X : bit
+var Owner : proc
+var Count : int
+array A[proc] : bit
+array Link[proc] : proc
+array M[proc,proc] : bit
+init (i j) { X = Zero && Count = 0 && A[i] = Zero && Link[i] = i && M[i,j] = Zero }
+unsafe { X = One }
+
+transition unary (i)
+requires { A[i] = Zero && forall_other k. A[k] = Zero }
+{
+  A[k] := case | k = i : One | _ : A[k];
+  Link[k] := case | k = i : i | _ : Link[k];
+  Owner := i;
+  X := case | A[i] = Zero : One | _ : X;
+}
+
+transition pair (i j)
+requires { A[i] = One && A[j] = Zero && forall_other k. A[k] = Zero || A[k] = One }
+{
+  A[k] := case | k = i : A[j] | k = j : A[i] | _ : A[k];
+  M[k,l] := case | k = i && l = j : One | k = j && l = i : Zero | _ : M[k,l];
+  Owner := j;
+  Count := Count + 1;
+  X := .;
+}
+
+transition idle () requires { X = X } { Count := Count - 1; }
+
+transition ordered (i j) requires { i <> j }
+{ X := case | i < j : One | _ : Zero; }

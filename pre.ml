@@ -341,26 +341,32 @@ let pre ?(normalize=true) ({tr_info = tri; tr_tau = tau; tr_reset = reset} as t)
 
 
 let pre_image_by_tcall ?origin sys c acc (call : event) =
-  if Hstring.equal call.evt_trans Types.neutral_name then
-    (* Crossing the boundary is not an executable step. Keep cube witnesses and
-       the complete trace, but release the active control bindings. *)
-    let n = Node.create ~pos:Node.neutral_pos ~kind:c.kind c.cube in
-    let n = {n with from = c.from; depth = c.depth} in
-    let ls, post = acc in
-    n :: ls, post
-  else
-    let t = sys.cfg.transition_for_event call in
-    let pre_u, _ = pre ~normalize:false t (Node.litterals c) in
-    let sigma = Variable.build_subst t.tr_info.tr_args call.evt_args in
-    cube ?origin c t.tr_info pre_u acc sigma
+  let t = sys.cfg.transition_for_event call in
+  let pre_u, _ = pre ~normalize:false t (Node.litterals c) in
+  let sigma = Variable.build_subst t.tr_info.tr_args call.evt_args in
+  cube ?origin c t.tr_info pre_u acc sigma
 
 let pre_image_tx sys c =
   TimePre.start ();
   Debug.unsafe c;
-  let calls = sys.cfg.parent_calls_of c in
+  let Before evt = c.state in
+  let calls =
+    if Hstring.equal evt.evt_trans Types.neutral_name then sys.cfg.final_calls c
+    else sys.cfg.parent_calls_of c in
   let ls, post = List.fold_left (pre_image_by_tcall sys c) ([],[]) calls in
+  let release acc n =
+    let Before evt = n.state in
+    if not (sys.cfg.is_initial evt) then n :: acc
+  (* If a node is 'before' the neutral position, it gets bumped directly to neutral. *)
+    else begin
+      let released = Node.create ~pos:Node.neutral_pos ~kind:n.kind n.cube in
+      let released = {released with from = n.from; depth = n.depth} in
+      (* If it also has parents, keep a copy of it *)
+      if sys.cfg.has_parents evt then released :: n :: acc
+      else released :: acc
+    end in
   TimePre.pause ();
-  List.rev ls, List.rev post
+  List.fold_left release [] ls, List.fold_left release [] post
 
 let pre_image_normal sys s =
   TimePre.start ();

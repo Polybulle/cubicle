@@ -140,9 +140,20 @@ type init_instance = {
 (** Type of instantiated initial formulas *)
 
 type cfg = {
+      is_initial : event -> bool;
+      is_final : event -> bool;
+      (** An executable event may start or finish a transaction, independently
+          of the selected exploration mode. *)
+      has_parents : event -> bool;
+      (** Has a non-neutral predecessor. *)
+      final_calls : node_cube -> event list;
+      (** Final events instantiated against a neutral target node. *)
       parent_calls_of : node_cube -> event list;
+      (** Internal predecessors only; never returns neutral. *)
+      initial_calls : Variable.t list -> event list;
+      (** Initial events instantiated over a finite process domain. *)
       child_calls_of : Variable.t list -> event -> event list;
-      (** Resolve successor calls over a fixed finite process domain. *)
+      (** Internal successors over a finite process domain; never returns neutral. *)
       should_check_safety : node_cube -> bool;
       should_check_fixpoint : node_cube -> bool;
       transition_for_event : event -> transition;

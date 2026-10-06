@@ -1,0 +1,5 @@
+type phase = Idle | Bad
+var X : phase
+init { X = Idle }
+unsafe { X = Bad }
+transition stay () requires { X = Idle } { X := Idle; }

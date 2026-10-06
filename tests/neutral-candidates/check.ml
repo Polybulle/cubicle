@@ -27,7 +27,8 @@ let check sys =
     "internal approximation reached oracle in transaction mode";
   let c = candidate internal root.cube in
   (* No transitions: an admitted candidate survives in the returned list. *)
-  let sys = {sys with cfg = {sys.cfg with parent_calls_of = (fun _ -> [])}} in
+  let sys = {sys with cfg = {sys.cfg with
+    parent_calls_of = (fun _ -> []); final_calls = (fun _ -> [])}} in
   let retained = match Bwd.Selected.search ~candidates:[c] sys with
     | Bwd.Safe (_, candidates) -> candidates
     | Bwd.Unsafe _ -> failwith "unexpected unsafe admission check" in

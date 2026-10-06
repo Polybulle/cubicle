@@ -1,0 +1,12 @@
+(* SAFE: no transition can make an A entry true. Backward finish drops
+   variable #1 and leaves A[#2]=True, which must conflict with initialization. *)
+type phase = Middle | Done
+var Phase : phase
+array A[proc] : bool
+array B[proc] : bool
+init (z) { Phase = Middle && A[z] = False && B[z] = False }
+unsafe (x y) { Phase = Done && B[x] = True && A[y] = True }
+transition finish (i)
+requires { Phase = Middle }
+{ Phase := Done;
+  B[j] := case | j = i : True | _ : False }
