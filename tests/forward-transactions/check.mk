@@ -5,3 +5,6 @@ forward-transactions-check: $(CMX)
 	mkdir -p $(TEST_LOCAL)
 	$(OCAMLOPT) $(OFLAGS) -I . -c -o $(TEST_LOCAL)/check.cmx $(TEST_DIR)/check.ml
 	$(OCAMLOPT) $(OFLAGS) -I . -o $(TEST_LOCAL)/check.opt $(BIBOPT) $(filter-out main.cmx,$(CMX)) $(TEST_LOCAL)/check.cmx
+	$(OCAMLOPT) $(OFLAGS) -I . -c -o $(TEST_LOCAL)/compilation.cmx $(TEST_DIR)/compilation.ml
+	$(OCAMLOPT) $(OFLAGS) -I . -o $(TEST_LOCAL)/compilation.opt $(BIBOPT) $(filter-out main.cmx,$(CMX)) $(TEST_LOCAL)/compilation.cmx
+	$(TEST_LOCAL)/compilation.opt -tx all $(TEST_DIR)/compilation.cub

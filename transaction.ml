@@ -46,21 +46,20 @@ module CFG_of (S : System) : Cfg = struct
                  tc_args = List.map (fun _ -> None) tr.tr_args;
                  tc_loc = tr.tr_loc})
 
-  let nexts =
-    let nexts = trans_hashtbl (fun {tr_info = tr} ->
-        if tr.tr_may_yield then
-          tr.tr_nexts @ [{tc_name = neutral; tc_args = []; tc_loc = tr.tr_loc}]
-        else tr.tr_nexts) in
-    Hstring.H.add nexts neutral entrypoints;
-    nexts
+  let exitpoints = LL.filter_map sys ~f:(fun {tr_info = tr; _} ->
+      if not tr.tr_may_yield then None
+      else Some {tc_name = tr.tr_name;
+                 tc_args = List.map (fun _ -> None) tr.tr_args;
+                 tc_loc = tr.tr_loc})
+
+  let nexts = trans_hashtbl (fun t -> t.tr_info.tr_nexts)
 
   let formal_after name : Ast.transition_call list =
     Hstring.H.find nexts name
 
   let prevs =
     let prevs = trans_hashtbl (fun t -> ref []) in
-    Hstring.H.add prevs neutral (ref []);
-    let names = List.map (fun t -> t.tr_info.tr_name) sys @ [neutral] in
+    let names = List.map (fun t -> t.tr_info.tr_name) sys in
     LL.iter names ~f:(fun caller ->
         let caller_args = args_named caller in
         let callees = formal_after caller in
@@ -104,19 +103,33 @@ module CFG_of (S : System) : Cfg = struct
     let finalize procs : event = {evt_trans = next.tc_name; evt_args = procs} in
     resolve finalize available fresh_vars [] tc_args
 
-  let parent_calls_of (n : Node.t) =
+  let is_initial evt =
+    not (transition_named evt.evt_trans).tr_info.tr_is_triggered
+
+  let is_final evt =
+    (transition_named evt.evt_trans).tr_info.tr_may_yield
+
+  let has_parents evt =
+    formal_before evt.evt_trans <> []
+
+  let resolve_parents (n : Node.t) parents =
     let Before evt = n.state in
-    let parents = formal_before evt.evt_trans in
     let subst = Variable.build_subst (args_named evt.evt_trans) evt.evt_args in
     let in_scope =
       List.sort_uniq compare (n.cube.Cube.vars @ evt.evt_args) in
     List.concat_map (fill_call in_scope subst n) parents
 
+  let parent_calls_of (n : Node.t) =
+    let Before evt = n.state in
+    resolve_parents n (formal_before evt.evt_trans)
+
+  let final_calls n = resolve_parents n exitpoints
+
   let should_check_safety (c : node_cube) =
     let Before evt = c.state in
     Hstring.equal evt.evt_trans neutral
 
-  let child_calls_of procs evt =
+  let resolve_children procs evt calls =
     let sigma = Variable.build_subst (args_named evt.evt_trans) evt.evt_args in
     let rec fill available args = function
       | [] -> [List.rev args]
@@ -129,13 +142,28 @@ module CFG_of (S : System) : Cfg = struct
       let named = List.filter_map (fun p -> p) args in
       let available = List.filter (fun p -> not (Hstring.list_mem p named)) procs in
       List.map (fun args -> {evt_trans = call.tc_name; evt_args = args})
-        (fill available [] args)) (formal_after evt.evt_trans)
+        (fill available [] args)) calls
 
-  let should_check_fixpoint (c : node_cube) = not (c.state = Node.dummy_pos)
+  let child_calls_of procs evt =
+    resolve_children procs evt (formal_after evt.evt_trans)
+
+  let initial_calls procs =
+    resolve_children procs {evt_trans = neutral; evt_args = []} entrypoints
+
+  let _should_check_fixpoint (c : node_cube) =
+    let Before evt = c.state in
+    Hstring.equal evt.evt_trans neutral || not (is_initial evt) || has_parents evt
+
+  let should_check_fixpoint = if Options.tx_bwd then _should_check_fixpoint else (fun _ -> true)
 
   let transition_for_event e = transition_named e.evt_trans
 
   let it = {
+    is_initial;
+    is_final;
+    has_parents;
+    initial_calls;
+    final_calls;
     parent_calls_of;
     child_calls_of;
     should_check_safety;

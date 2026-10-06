@@ -48,6 +48,10 @@ end
 let at_boundary system n =
   not tx_bwd || system.cfg.should_check_safety n
 
+let check_fixpoint check system n visited =
+  if not (system.cfg.should_check_fixpoint n) then None
+  else check n visited
+
 module Make ( Q : PriorityNodeQueue ) : Strategy = struct
 
   module Fixpoint = Fixpoint.FixpointTrie
@@ -78,7 +82,7 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
         let norm = Node.normalize n in
         begin
           if at_boundary system n then Safety.check ~normalized:norm system n;
-          match Fixpoint.check norm !visited with
+          match check_fixpoint Fixpoint.check system norm !visited with
           | Some db ->
              Stats.fixpoint n db
           | None ->
@@ -101,11 +105,13 @@ module Make ( Q : PriorityNodeQueue ) : Strategy = struct
                end
              in
              let ls, post = Pre.pre_image system n in
-             if delete then
-               visited :=
-                 Cubetrie.delete_subsumed ~cpt:Stats.cpt_delete ~normalized:norm n !visited;
+             if system.cfg.should_check_fixpoint n then begin
+               if delete then
+                 visited :=
+                   Cubetrie.delete_subsumed ~cpt:Stats.cpt_delete ~normalized:norm n !visited;
+               visited := Cubetrie.add_node ~normalized:norm n !visited
+             end;
 	     postponed := List.rev_append post !postponed;
-             visited := Cubetrie.add_node ~normalized:norm n !visited;
              enqueue q postponed ls
         end;
         
@@ -166,7 +172,7 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
          begin
            let norm = Node.normalize n in
            if at_boundary system n then Safety.check ~normalized:norm system n;
-           if Fixpoint.peasy_fixpoint norm visited <> None then tasks, visited
+           if check_fixpoint Fixpoint.peasy_fixpoint system norm visited <> None then tasks, visited
            else
            (Task_node (n, norm, visited), ()) :: tasks,
            Cubetrie.add_node ~normalized:norm n visited
@@ -180,7 +186,7 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
        try
          begin
            if at_boundary system n then Safety.check ~normalized:norm system n;
-           match Fixpoint.check norm visited with
+           match check_fixpoint Fixpoint.check system norm visited with
            | Some db -> WR_Fixpoint db
            | None ->
               Stats.check_limit n;
@@ -216,7 +222,7 @@ module MakeParall ( Q : PriorityNodeQueue ) : Strategy = struct
   let worker_fix system = function
     | Task_node (_, norm, visited) ->
        try
-         match Fixpoint.hard_fixpoint norm visited with
+         match check_fixpoint Fixpoint.hard_fixpoint system norm visited with
          | Some db -> WR_Fixpoint db
          | None -> WR_NoFixpoint
        with

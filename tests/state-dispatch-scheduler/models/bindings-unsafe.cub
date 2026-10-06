@@ -1,0 +1,9 @@
+type phase = Idle | Mid | Bad
+array X[proc] : phase
+init (i) { X[i] = Idle }
+unsafe (i) { X[i] = Bad }
+transition enter (p) requires { X[p] = Idle } { X[p] := Mid; }
+triggers relay (p)
+triggered transition relay (q) requires { X[q] = Mid } { }
+triggers finish (q)
+triggered transition finish (r) requires { X[r] = Mid } { X[r] := Bad; }

@@ -1,0 +1,6 @@
+type bit = Zero | One
+array A[proc] : bit
+array B[proc] : bit
+init (i) { A[i] = Zero && B[i] = Zero }
+unsafe (i) { A[i] = One }
+transition touch (i) requires { A[i] = Zero } { B[i] := One; }

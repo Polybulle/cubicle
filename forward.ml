@@ -896,10 +896,13 @@ let iter_forward_transactions system procs register inits =
       HLocated.replace visited key depth;
       incr count;
       register sa;
-      let successors = system.cfg.child_calls_of procs event in
       if Hstring.equal event.evt_trans neutral_name then
-        List.iter (fun e -> Queue.add (depth, sa, e) queue) successors
+        List.iter (fun e -> Queue.add (depth, sa, e) queue)
+          (system.cfg.initial_calls procs)
       else if not limit_forward_depth || depth < forward_depth then begin
+        let successors = system.cfg.child_calls_of procs event in
+        let successors =
+          if system.cfg.is_final event then successors @ [neutral] else successors in
         let next = try
             let tr = instantiate_compiled_transition procs compiled event in
             post_inst ~normalize:false sa procs procs tr
