@@ -102,10 +102,16 @@ requires { Curcmd = Empty && Chan1Cmd[i] = Reqe }
   Invset[j] := case | _ : Shrset[j];
 }
 
-transition sendInv (i)
-requires {  Chan2Cmd[i] = Empty && Invset[i] = True && Curcmd = Reqe
-         || Chan2Cmd[i] = Empty && Invset[i] = True && Curcmd = Reqs &&
-            Exgntd = True }
+transition sendInv1 (i)
+requires { Chan2Cmd[i] = Empty && Invset[i] = True && Curcmd = Reqe }
+{
+  Chan2Cmd[i] := Inv;
+  Invset[i] := False;
+}
+
+transition sendInv2 (i)
+requires { Chan2Cmd[i] = Empty && Invset[i] = True && Curcmd = Reqs &&
+           Exgntd = True }
 {
   Chan2Cmd[i] := Inv;
   Invset[i] := False;
