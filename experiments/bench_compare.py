@@ -357,8 +357,8 @@ def main():
     parser.add_argument('--models', nargs='+', help='Selected basenames or complete relative paths')
     parser.add_argument('--runs', type=int, default=3)
     parser.add_argument('--seed', type=int, default=2026)
-    parser.add_argument('--jobs', type=int, choices=range(1, 5), default=1,
-                        help='Concurrent sequential Cubicle processes (1–4; no CPU pinning)')
+    parser.add_argument('--jobs', type=int, choices=range(1, 7), default=1,
+                        help='Concurrent sequential Cubicle processes (1–6; no CPU pinning)')
     parser.add_argument('--reuse-from', type=Path,
                         help='Reuse compatible baseline/old measurements from an earlier run')
     parser.add_argument('--working-tree', action='store_true',

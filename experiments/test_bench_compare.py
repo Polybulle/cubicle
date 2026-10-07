@@ -7,6 +7,15 @@ import bench_compare as bench
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_cli_accepts_six_workers(self):
+        import subprocess
+        import sys
+        result = subprocess.run([sys.executable, str(Path(bench.__file__)),
+                                 '--phase', 'plan', '--jobs', '6'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Workers: 6', result.stdout)
+
     def test_reuse_requires_matching_inputs_options_budget_and_revision(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -45,10 +54,10 @@ class BenchmarkTests(unittest.TestCase):
                     self.assertEqual(stored['reused_from'], str(source))
                     self.assertTrue(Path(stored['log']).is_file())
 
-    def test_four_workers_and_serial_record_writes(self):
+    def test_six_workers_and_serial_record_writes(self):
         import threading
         from unittest.mock import patch
-        barrier = threading.Barrier(4, timeout=5)
+        barrier = threading.Barrier(6, timeout=5)
         lock = threading.Lock()
         active = peak = 0
         writer_threads = []
@@ -72,13 +81,13 @@ class BenchmarkTests(unittest.TestCase):
             out = Path(directory)
             jobs = [dict(command=['fixture'], timeout_seconds=5, log=str(out / str(i)),
                          model=str(i), config='baseline', phase='measured', repetition=1)
-                    for i in range(8)]
+                    for i in range(12)]
             with patch.object(bench, 'invoke', side_effect=invoke), patch.object(bench, 'append', side_effect=append):
-                rows = list(bench.execute_jobs(jobs, out, 4, 'Test'))
+                rows = list(bench.execute_jobs(jobs, out, 6, 'Test'))
             stored = [json.loads(line) for line in (out / 'runs.jsonl').read_text().splitlines()]
-            self.assertEqual(peak, 4)
-            self.assertEqual(len(rows), 8)
-            self.assertEqual({r['model'] for r in stored}, {str(i) for i in range(8)})
+            self.assertEqual(peak, 6)
+            self.assertEqual(len(rows), 12)
+            self.assertEqual({r['model'] for r in stored}, {str(i) for i in range(12)})
             self.assertEqual(set(writer_threads), {threading.get_ident()})
 
     def test_concurrent_real_timeout_does_not_kill_other_runs(self):
@@ -109,7 +118,7 @@ class BenchmarkTests(unittest.TestCase):
         import random
         from unittest.mock import patch
         model = dict(path='m.cub', group='ordinary', options=[], timeout_seconds=450, expected='SAFE')
-        for workers in (1, 4):
+        for workers in (1, 4, 6):
             with self.subTest(workers=workers), tempfile.TemporaryDirectory() as directory:
                 out = Path(directory)
                 dirs = {name: out / name for name in ('baseline', 'tetra', 'old')}

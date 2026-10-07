@@ -117,10 +117,10 @@ automatic flag changes. Repetition 1 counts toward the requested measured runs,
 not as a discarded warmup. A non-completing attempt remains in the report and
 stops further repetitions for that cell, including failures in later rounds.
 
-Execution defaults to one worker. `--jobs 4` multiplexes up to four Cubicle
+Execution defaults to one worker and supports up to six. `--jobs 6` multiplexes up to six Cubicle
 processes, with a new job dispatched whenever a slot becomes free. Every command
 explicitly ends its options with `-j 1`, selecting sequential Cubicle execution
-in all three revisions. This is four independent model-checking runs, not
+in all three revisions. This is six independent model-checking runs, not
 Cubicle's parallel search mode. Builds finish before any benchmark is launched.
 
 For run 03, after run 02 has finished:
