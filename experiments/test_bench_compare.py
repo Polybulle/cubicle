@@ -7,6 +7,44 @@ import bench_compare as bench
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_reuse_requires_matching_inputs_options_budget_and_revision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'old'
+            source.mkdir()
+            (source / 'logs').mkdir()
+            (source / 'logs' / 'run.log').write_text('The system is SAFE')
+            model = dict(path='m', group='ordinary', options=[], timeout_seconds=5)
+            manifest = {'builds': {n: {'commit': n} for n in ('baseline', 'old', 'tetra')}}
+            inputs = {'m': {'sha256': 'same'}}
+            bench.save(source / 'manifest.json', manifest)
+            bench.save(source / 'inputs.json', inputs)
+            row = dict(model='m', config='baseline', phase='measured', repetition=1,
+                       command=['binary', *bench.COMMON, 'input'], timeout_seconds=5,
+                       status='completed', log='/original/run.log', wall_seconds=1)
+            bench.append(source, row)
+            for mismatch in ('none', 'input', 'options', 'budget', 'revision'):
+                out = root / mismatch
+                out.mkdir()
+                current = json.loads(json.dumps(manifest))
+                candidate = dict(model)
+                hashes = inputs
+                if mismatch == 'input':
+                    hashes = {'m': {'sha256': 'different'}}
+                if mismatch == 'options':
+                    candidate['options'] = ['-brab']
+                if mismatch == 'budget':
+                    candidate['timeout_seconds'] = 100
+                if mismatch == 'revision':
+                    current['builds']['baseline']['commit'] = 'new'
+                reused = bench.reuse_results(source, current, [candidate], hashes, out, 1)
+                self.assertEqual(reused, {('m', 'baseline')} if mismatch == 'none' else set())
+                if reused:
+                    stored = json.loads((out / 'runs.jsonl').read_text())
+                    self.assertEqual(stored['command'], row['command'])
+                    self.assertEqual(stored['reused_from'], str(source))
+                    self.assertTrue(Path(stored['log']).is_file())
+
     def test_four_workers_and_serial_record_writes(self):
         import threading
         from unittest.mock import patch

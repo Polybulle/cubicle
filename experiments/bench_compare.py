@@ -249,8 +249,59 @@ def execute_jobs(jobs, out, workers, phase):
     progress(phase, done, len(jobs))
 
 
-def measure(models, dirs, inputs, out, repetitions, rng, workers=1):
-    cells = [(i, m, c) for i, m in enumerate(models) for c in configurations(m)]
+def reuse_results(source, manifest, models, inputs, out, repetitions):
+    """Reuse pinned comparison cells, retaining their original phases and argv."""
+    previous = json.loads((source / 'manifest.json').read_text())
+    old_inputs = json.loads((source / 'inputs.json').read_text())
+    rows = [json.loads(line) for line in (source / 'runs.jsonl').read_text().splitlines()]
+    reused = set()
+    for model in models:
+        path = model['path']
+        for config in configurations(model):
+            build_name, tx = CONFIGS[config]
+            if build_name == 'tetra':
+                continue
+            if previous['builds'][build_name]['commit'] != manifest['builds'][build_name]['commit']:
+                continue
+            if old_inputs.get(path, {}).get('sha256') != inputs[path]['sha256']:
+                continue
+            cell = [r for r in rows if r['model'] == path and r['config'] == config]
+            selected = sorted((r for r in cell if r['phase'] == 'measured'),
+                              key=lambda r: r['repetition'])[:repetitions]
+            if selected:
+                if [r['repetition'] for r in selected] != list(range(1, len(selected) + 1)):
+                    continue
+                if len(selected) < repetitions and all(r['status'] == 'completed' for r in selected):
+                    continue
+            else:
+                # Keep historical failures in their original phase, never as timings.
+                selected = [r for r in cell if r['phase'] == 'pilot' and r['status'] != 'completed']
+                if not selected:
+                    selected = [r for r in cell if r['phase'] == 'type' and r['status'] == 'unsupported']
+                if not selected:
+                    continue
+                selected = selected[-1:]
+            expected = COMMON + tx + model['options']
+            if any(r['timeout_seconds'] != model['timeout_seconds'] for r in selected if r['phase'] != 'type'):
+                continue
+            if any([arg for arg in r['command'][1:-1] if arg != '-type-only']
+                   not in (expected, expected + ['-j', '1']) for r in selected):
+                continue
+            for row in selected:
+                log = source / 'logs' / Path(row['log']).name
+                if not log.is_file():
+                    raise ValueError('Missing reused log: ' + str(log))
+                row = dict(row, log=str(log), reused_from=str(source))
+                append(out, row)
+            reused.add((path, config))
+    save(out / 'reuse.json', {'source': str(source), 'cells': sorted(reused),
+                             'note': 'Historical measurements; not contemporaneous with this run.'})
+    return reused
+
+
+def measure(models, dirs, inputs, out, repetitions, rng, workers=1, reused=()):
+    cells = [(i, m, c) for i, m in enumerate(models) for c in configurations(m)
+             if (m['path'], c) not in reused]
     for rep in range(1, repetitions + 1):
         if not cells:
             break
@@ -308,6 +359,8 @@ def main():
     parser.add_argument('--seed', type=int, default=2026)
     parser.add_argument('--jobs', type=int, choices=range(1, 5), default=1,
                         help='Concurrent sequential Cubicle processes (1–4; no CPU pinning)')
+    parser.add_argument('--reuse-from', type=Path,
+                        help='Reuse compatible baseline/old measurements from an earlier run')
     parser.add_argument('--working-tree', action='store_true',
                         help='Snapshot current tracked/nonignored files for the Tetra build and shared corpus')
     args = parser.parse_args()
@@ -352,15 +405,24 @@ def main():
                           'Non-completing cells are not retried. CPU placement is OS-managed. '
                           'Concurrent timings may include contention.',
                 'argv': sys.argv}
+    if args.reuse_from:
+        metadata['timing'] += (' Compatible baseline/old results are historical, reused from '
+                               + str(args.reuse_from) + '; their original concurrency and phases apply.')
     save(out / 'environment.json', metadata)
-    dirs = build(manifest, out, snapshot)
+    inputs = prepare(manifest, models, out, snapshot)
+    reused = (reuse_results(args.reuse_from.expanduser().resolve(), manifest, models,
+                            inputs, out, args.runs) if args.reuse_from else set())
+    needed = {CONFIGS[c][0] for m in models for c in configurations(m)
+              if (m['path'], c) not in reused}
+    build_manifest = dict(manifest, builds={k: v for k, v in manifest['builds'].items() if k in needed})
+    print('Reused cells:', len(reused), '; builds needed:', ', '.join(sorted(needed)), flush=True)
+    dirs = build(build_manifest, out, snapshot)
     save(out / 'binary_hashes.json', {name: hashlib.sha256((d / 'cubicle.opt').read_bytes()).hexdigest() for name, d in dirs.items()})
     if args.phase == 'build':
         print('Builds:', out)
         return
-    inputs = prepare(manifest, models, out, snapshot)
     rng = random.Random(args.seed)
-    measure(models, dirs, inputs, out, args.runs, rng, args.jobs)
+    measure(models, dirs, inputs, out, args.runs, rng, args.jobs, reused)
     summarize(out, models)
 
 

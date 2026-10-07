@@ -33,6 +33,19 @@ Some ordinary Flash models have duplicate transition names that the transaction
 implementations may reject. They remain useful compatibility checks; the runner
 does not rename transitions to manufacture successful runs.
 
+## Reusing unchanged comparison results
+
+Add `--reuse-from /path/to/run-02` to reuse baseline and old-branch results.
+The runner matches pinned commits, input hashes, command options and time budgets;
+Tetra always runs afresh. Missing or incompatible cells run normally. Builds with
+no remaining cells are skipped. Reused records keep their original commands,
+phases and log links, with `reused_from` and a `reuse.json` inventory. Historical
+pilot failures and unsupported typechecks remain failures in their original phases,
+not invented measured timings. Keep the source archive available.
+
+These are historical comparisons, not contemporaneous measurements: in particular,
+sequential archived timings and new four-worker timings may differ due to contention.
+
 ## Commands
 
 Requirements: Python 3, git, tar, autoconf, make, and an active OCaml/opam
