@@ -54,6 +54,12 @@ before execution. Hyperfine is not required.
 
 Inspect the selected invocations without building:
 
+For a focused rerun, a manifest model may specify a nonempty `configs` list,
+for example `["tetra-all"]` or `["tetra-none"]`. Only those configurations are
+scheduled for that model. Duplicate, unknown, or unsupported configurations are
+rejected; omitting the field preserves the original five-configuration matrix.
+Supply the focused manifest with `--manifest /path/to/manifest.json`.
+
     python3 experiments/bench_compare.py --phase plan
 
 Build all three revisions without running models:

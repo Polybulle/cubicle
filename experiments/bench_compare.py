@@ -53,7 +53,11 @@ def git(*args):
 
 
 def configurations(model):
-    return ['tetra-all', 'old-all'] if model['group'] == 'transaction' else list(CONFIGS)
+    available = ['tetra-all', 'old-all'] if model['group'] == 'transaction' else list(CONFIGS)
+    selected = model.get('configs', available)
+    if not selected or len(selected) != len(set(selected)) or any(c not in available for c in selected):
+        raise ValueError('Invalid configuration subset: ' + repr(selected))
+    return selected
 
 
 def classify(text, code, timed_out=False, type_only=False):
@@ -371,6 +375,10 @@ def main():
     for model in models:
         if model['timeout_seconds'] not in (5, 100, 450):
             parser.error('Model timeout must be 5, 100, or 450 seconds')
+        try:
+            configurations(model)
+        except ValueError as error:
+            parser.error(str(error))
     if args.working_tree:
         head = git('rev-parse', 'HEAD').decode().strip()
         manifest['builds']['tetra'] = {'ref': 'working-tree', 'commit': head,

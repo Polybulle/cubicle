@@ -276,6 +276,19 @@ class BenchmarkTests(unittest.TestCase):
     def test_transaction_group_only_has_all_builds(self):
         self.assertEqual(bench.configurations({'group': 'transaction'}), ['tetra-all', 'old-all'])
 
+    def test_model_can_select_only_its_requested_configuration(self):
+        self.assertEqual(bench.configurations({'group': 'ordinary', 'configs': ['tetra-all']}),
+                         ['tetra-all'])
+        self.assertEqual(bench.configurations({'group': 'ordinary', 'configs': ['tetra-none']}),
+                         ['tetra-none'])
+
+    def test_configuration_subset_rejects_invalid_or_duplicate_entries(self):
+        for configs in ([], ['missing'], ['tetra-all', 'tetra-all']):
+            with self.subTest(configs=configs), self.assertRaises(ValueError):
+                bench.configurations({'group': 'ordinary', 'configs': configs})
+        with self.assertRaises(ValueError):
+            bench.configurations({'group': 'transaction', 'configs': ['baseline']})
+
     def test_unknown_model_is_rejected(self):
         with self.assertRaises(ValueError):
             bench.select({'models': []}, ['missing.cub'])
