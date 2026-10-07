@@ -11,6 +11,10 @@ module type Cfg = sig
   val it : cfg
 end
 
+let is_ordinary trans =
+  List.for_all (fun {tr_info = tr; _} ->
+      not tr.tr_is_triggered && tr.tr_may_yield && tr.tr_nexts = []) trans
+
 module CFG_of (S : System) : Cfg = struct
 
   let sys = S.it

@@ -383,5 +383,7 @@ let pre_image_normal sys s =
   TimePre.pause ();
   List.rev ls, List.rev post
 
-let pre_image =
-  if Options.tx_bwd then pre_image_tx else pre_image_normal
+let pre_image sys s =
+  if tx_bwd && (s.state <> Node.neutral_pos ||
+                not (Transaction.is_ordinary sys.t_trans)) then pre_image_tx sys s
+  else pre_image_normal sys s
