@@ -1,0 +1,13 @@
+array A[proc] : bool
+var Bad : bool
+
+init (z) { A[z] = False && Bad = False }
+unsafe (z) { A[z] = True && Bad = True }
+
+transition set (i)
+requires { A[i] = False }
+{ A[i] := True; }
+
+transition bad ()
+requires { Bad = False }
+{ Bad := True; }

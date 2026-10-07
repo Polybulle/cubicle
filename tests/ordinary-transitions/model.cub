@@ -1,0 +1,17 @@
+array A[proc] : bool
+var Bad : bool
+
+init (z) { A[z] = False && Bad = False }
+unsafe (z) { A[z] = True && Bad = True }
+
+transition set (i)
+requires { A[i] = False }
+{ A[i] := True; }
+
+transition copy (i j)
+requires { A[i] = True && forall_other k. A[k] = False }
+{ A[j] := True; }
+
+transition reset ()
+requires { Bad = False }
+{ A[j] := case | _ : False; }

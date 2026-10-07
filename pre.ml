@@ -235,7 +235,7 @@ let add_array_to_list n l =
     in
       n :: l
 
-let cube ?(origin : Node.t option) s tr cnp acc sigma =
+let cube ?(origin : Node.t option) ?(located=true) s tr cnp acc sigma =
   (* Format.printf "\ncube/tr = %a(%a)\ncube/sigma = %a\ncube/cnp = %a\n" *)
   (*   Hstring.print tr.tr_name Variable.print_vars tr.tr_args *)
   (*   Variable.print_subst sigma *)
@@ -268,9 +268,9 @@ let cube ?(origin : Node.t option) s tr cnp acc sigma =
 	          end
 	        else
               let new_cube = Cube.create nargs np in
-              let new_pos = Before {
+              let new_pos = if located then Before {
                   evt_trans = tr.tr_name;
-                  evt_args = tr_args} in
+                  evt_args = tr_args} else Node.neutral_pos in
               let new_s = Node.create ~pos:new_pos new_cube
                   ~from:(Some (tr, tr_args, s)) in
 	          match post_strategy with
@@ -293,7 +293,7 @@ let make_cubes (ls, post) rargs s tr cnp =
     if !size_proc = 0 then assert false else  (ls, post)
   else
     let d = Variable.permutations_missing tr.tr_args args in
-    List.fold_left (cube s tr cnp) (ls, post) d
+    List.fold_left (cube ~located:false s tr cnp) (ls, post) d
 
 
 (* The following version computes the pre-image once for each transition and
