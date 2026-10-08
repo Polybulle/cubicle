@@ -1,0 +1,201 @@
+(* PRESENTATION AND REPRODUCTION
+   This file is part of tx-challenges/2pc/; see ../REPORT.md for its assessment.
+   Read the introduction below, then the comments beside the model phases.
+   From the repository root: python3 tx-challenges/run.py
+   The runner checks the new models and completion probes sequentially; HIRR
+   is a reference-only artifact with a retained timeout, not a default test.
+   Fresh logs/results go to the runner's printed output directory.
+   Historical builder commands/log names below refer to this original directory:
+   /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-2pc
+   Their outcomes are development observations, not performance comparisons.
+*)
+
+(* TWO-PHASE COMMIT: local transactional handlers, not atomic network commit.
+   Source: Jim Gray and Leslie Lamport, Consensus on Transaction Commit,
+   ACM TODS 31(1), 2006, section 2 and appendix Two-Phase Commit specification.
+   https://s2.smu.edu/~mhd/8330f11/p133-gray.pdf
+   Inspired by RMPrepare, TMRcvPrepared, TMCommit, TMAbort and RM decision
+   reception. This is a fresh abstract encoding, not extracted TLA+ code.
+
+   Scope/assumptions: one transaction, one nonfaulty distinguished coordinator
+   represented by scalar state, and an arbitrary nonempty finite set of RMs
+   represented by all proc indices. Every RM participates; no registration or
+   changing membership. No fixed participant bound is encoded. No crashes,
+   recovery, Byzantine behavior, transaction IDs, concurrent transactions,
+   disk failures, values, locks or actual resource updates are modeled.
+   'Persist' means update the protocol record; absent failures it makes no
+   crash-durability theorem. No fairness, eventual delivery or liveness claim.
+
+   Network abstraction: one immutable vote slot per RM and one immutable
+   decision slot per recipient. These are authenticated logical messages;
+   arbitrary delay/reordering of different recipients is allowed. Receipts
+   do not consume slots, but guards permit only one relevant state update.
+   Physical duplicate queues, message loss and retransmission are not modeled.
+   Permanent non-delivery is possible simply by not scheduling a receive.
+
+   State: RM is Working/Prepared/Committed/Aborted; EverPrepared records
+   historical preparation. Vote is sender publication, Seen is coordinator
+   receipt. Decision is coordinator's chosen record; Published marks completion
+   of its local publish handler. Mail is separately disseminated per-recipient
+   decision. FirstDecision and FirstRM are immutable first-terminal ghosts.
+   All arrays start uniformly; init is not a safety assumption.
+
+   Boundary semantics: each triggers path is ONE nonblocking local handler.
+   Only local records and its outgoing logical message are changed. Cubicle
+   excludes even unrelated hosts inside that path: this is a local-action
+   SPECIFICATION, not a proved reduction of a fine-grained implementation.
+   Source local action atomicity motivates this specification. Protocol-level
+   atomic commit is agreement about outcomes, NOT path atomicity of the whole
+   network run. Voting, vote receive, decision, individual dissemination, and
+   participant decision receive are separate boundary actions. No path waits
+   for remote work or calls a remote handler. Intermediate bookkeeping is
+   hidden; low-level crash-observable safety is explicitly out of scope.
+
+   Safety checked at boundaries: no committed/aborted RM pair; coordinator
+   commit and completed publication require EVERY RM previously prepared;
+   RM commit requires own preparation; terminal coordinator and RM decisions
+   equal their first-terminal records. The ghosts record events, not asserted
+   invariants. They make stability a state property for this one-shot model.
+   Prepared is historical: RM may already have committed when another receives.
+   Abort is allowed before any vote, racing preparation/receipt/dissemination;
+   Working RM may also reject locally, but Prepared RM cannot abort unilaterally.
+   A timeout abort is allowed even when all yes votes exist but not yet chosen.
+   These races are modeled, not ruled out by the initial condition.
+
+   REACHABILITY command, external process-group timeout 30 seconds:
+   /Users/kes/cubicle/cubicle.opt -j 0 -nocolor -tx bwd -nodes 2000 /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-2pc/reach-two-rm-commit.cub
+   UNSAFE/exit 1 means TWO DISTINCT RMs Committed is reachable, not a bug.
+   Observed 120 nodes, 1142 solver calls, max process-variable support 2.
+   Original safety goals replaced below. Logs/JSON: *.log and results.jsonl.
+*)
+type rmstate = Working | Prepared | Committed | Aborted
+type vote = NoVote | YesVote | NoVoteReject
+type decision = Undecided | Commit | Abort
+var Decision : decision
+var Published : decision
+var FirstDecision : decision
+array RM[proc] : rmstate
+array EverPrepared[proc] : bool
+array Vote[proc] : vote
+array Seen[proc] : vote
+array Mail[proc] : decision
+array FirstRM[proc] : decision
+
+init (p) {
+  Decision = Undecided && Published = Undecided
+  && FirstDecision = Undecided && RM[p] = Working
+  && EverPrepared[p] = False && Vote[p] = NoVote
+  && Seen[p] = NoVote && Mail[p] = Undecided && FirstRM[p] = Undecided
+}
+
+(* REACHABILITY PROBE: replaces safety goals, not the protocol.
+   UNSAFE here is a witness of reachability, not a protocol error. *)
+unsafe (p q) { RM[p] = Committed && RM[q] = Committed }
+
+(* RM prepare: validation is the Working guard; choose successful local
+   resource preparation, persist record/history, then publish YesVote.
+   There is no remote vote receipt in this transaction. *)
+transition prepare (p)
+requires { RM[p] = Working && Vote[p] = NoVote } {
+  RM[p] := Prepared; EverPrepared[p] := True;
+}
+triggers publish_yes (p)
+triggered transition publish_yes (p)
+requires { RM[p] = Prepared && Vote[p] = NoVote } {
+  Vote[p] := YesVote;
+}
+
+(* Local rejection competes with prepare while still Working. Persistence
+   precedes publication of No. Terminal local abort is a first-terminal event. *)
+transition reject (p)
+requires { RM[p] = Working && Vote[p] = NoVote } {
+  RM[p] := Aborted; FirstRM[p] := Abort;
+}
+triggers publish_no (p)
+triggered transition publish_no (p)
+requires { RM[p] = Aborted && Vote[p] = NoVote } {
+  Vote[p] := NoVoteReject;
+}
+
+(* Coordinator receive handlers: authenticate the already-published sender
+   slot via guard, then persist its vote. No guessing prepared votes. Receipt
+   is separate from both sender preparation and global decision choice. *)
+transition receive_yes (p)
+requires { Decision = Undecided && Seen[p] = NoVote && Vote[p] = YesVote } {
+  Seen[p] := YesVote;
+}
+transition receive_no (p)
+requires { Decision = Undecided && Seen[p] = NoVote && Vote[p] = NoVoteReject } {
+  Seen[p] := NoVoteReject;
+}
+
+(* Coordinator commit: only its already-collected local vote vector is read.
+   p is an arbitrary witness for nonempty membership, not a privileged RM.
+   forall_other checks every RM except p; Seen[p] checks p explicitly.
+   Persist decision/first history, then publish permission to disseminate.
+   This is NOT dissemination and does not commit any participant. *)
+transition choose_commit (p)
+requires { Decision = Undecided && Seen[p] = YesVote
+           && forall_other q. Seen[q] = YesVote } {
+  Decision := Commit; FirstDecision := Commit;
+}
+triggers publish_commit ()
+triggered transition publish_commit ()
+requires { Decision = Commit && Published = Undecided } {
+  Published := Commit;
+}
+
+(* Coordinator timeout/cancel: always allowed before choosing a decision,
+   including after some/all yes votes; No receipt need not be awaited.
+   No transition may choose a second decision. *)
+transition choose_abort ()
+requires { Decision = Undecided } {
+  Decision := Abort; FirstDecision := Abort;
+}
+triggers publish_abort ()
+triggered transition publish_abort ()
+requires { Decision = Abort && Published = Undecided } {
+  Published := Abort;
+}
+
+(* Separate per-recipient send, after coordinator publish completes. This
+   explicitly leaves partial dissemination and arbitrary delivery order. *)
+transition send_commit (p)
+requires { Published = Commit && Mail[p] = Undecided } {
+  Mail[p] := Commit;
+}
+transition send_abort (p)
+requires { Published = Abort && Mail[p] = Undecided } {
+  Mail[p] := Abort;
+}
+
+(* Participant commit handler: validate trusted decision and locally prepared
+   state; update RM, then close its first-terminal record. No coordinator or
+   other RM is updated. No vote/decision journey is inside this path. *)
+transition receive_commit (p)
+requires { Mail[p] = Commit && RM[p] = Prepared && FirstRM[p] = Undecided } {
+  RM[p] := Committed;
+}
+triggers record_commit (p)
+triggered transition record_commit (p)
+requires { RM[p] = Committed && FirstRM[p] = Undecided } {
+  FirstRM[p] := Commit;
+}
+
+(* Abort can arrive before preparation or after it. Split guards avoid
+   disjunctively expanded duplicate transition names. Locally rejected RMs
+   already have their final state; repeated Abort requires no state change. *)
+transition receive_abort_working (p)
+requires { Mail[p] = Abort && RM[p] = Working && FirstRM[p] = Undecided } {
+  RM[p] := Aborted;
+}
+triggers record_abort (p)
+transition receive_abort_prepared (p)
+requires { Mail[p] = Abort && RM[p] = Prepared && FirstRM[p] = Undecided } {
+  RM[p] := Aborted;
+}
+triggers record_abort (p)
+triggered transition record_abort (p)
+requires { RM[p] = Aborted && FirstRM[p] = Undecided } {
+  FirstRM[p] := Abort;
+}

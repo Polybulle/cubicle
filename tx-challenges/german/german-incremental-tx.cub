@@ -1,0 +1,227 @@
+(* PRESENTATION AND REPRODUCTION
+   This file is part of tx-challenges/german/; see ../REPORT.md for its assessment.
+   Read the introduction below, then the comments beside the model phases.
+   From the repository root: python3 tx-challenges/run.py
+   The runner checks the new models and completion probes sequentially; HIRR
+   is a reference-only artifact with a retained timeout, not a default test.
+   Fresh logs/results go to the runner's printed output directory.
+   Historical builder commands/log names below refer to this original directory:
+   /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-german
+   Their outcomes are development observations, not performance comparisons.
+*)
+
+(*
+German-style directory snapshot family, new encoding derived from repository
+examples/german_pfs.cub (header SOURCE: pfs distribution) and recursive syntax
+in examples/german_looped.cub. Design context: experiments/transaction-benchmark-ideas.md,
+German incremental directory snapshot section. No MCMT archive text imported;
+no claim of original full PFS fidelity or inherited literature proof.
+
+Abstraction: arbitrary finite nonempty proc population, one cache line, finite
+Invalid/Shared/Exclusive permissions, one-slot request/invalidation/grant/ack
+channels per cache, one serialized directory command; no data, loss, duplication,
+eviction, failures or fairness. Init: all invalid, channels empty, directory sets
+false, no exclusive grant and no command; Done true. Safety: distinct caches,
+Exclusive at one implies Invalid at every other (NOT merely Exclusive exclusion).
+
+Correspondence: outside snapshot, t1/t2 grant, t7/t8 send invalidation, t9 consume
+ack, t10/t11 enqueue request, t12 invalidate/ack, t13/t14 receive grants preserve
+repository PFS actions/guards. Ordinary channel actions remain asynchronous AFTER
+snapshot; request->invalidate->ack->grant is deliberately NOT a transaction.
+Snapshot freezes ALL ordinary actions using Flag. Source Shrset cannot change.
+Incremental entry clears Invset, marks only source sharers Done=false. Every copy
+must set that participant's Invset from Shrset and Done=true. Finish requires ALL
+Done=true, so varying sharer count requires varying, nonredundant participant work.
+Nonsharers are already false; no bulk source copy at incremental entry.
+On finite completion Invset=entry Shrset, Done=all true, Flag=false, with exactly
+the bulk entry's command, channels, pointer and cache state. Copy order is arbitrary.
+Bulk and incremental boundary relation matches modulo stuttering and auxiliary
+Done; caches never change internally, so coherence all-state vs committed-state
+has the same predicate truth on these finite completions. This is a local argument,
+not a machine-checked refinement theorem or liveness/fairness/termination claim.
+Infinite populations are not asserted; incomplete infinite schedules may stutter.
+
+Phases: t3/t3bis accept shared/exclusive request and start snapshot; copy repeats
+for each pending sharer; finish publishes the snapshot. Flag freezes the source.
+Only this local snapshot can be transactional. All other transitions yield normally.
+COMMANDS and observed bounded functional outcomes: see appended run notes below
+and results.json plus logs in this directory. Concurrent development timings are
+not controlled performance evidence; no speedup or internal-covering necessity claim.
+*)
+(* Recursive snapshot transaction: t3/t3bis entry -> copy* -> finish yield; committed-state coherence under -tx bwd/all, ordinary all-state under -tx ignore. *)
+(* OBSERVED: /Users/kes/cubicle/cubicle.opt -j 0 -nocolor -tx all
+ -nodes 1500 -brab 2 german-incremental-tx.cub -> SAFE/0, 305 visited nodes,
+ 33943 solver calls (30s external process-group budget). -tx bwd and
+ -tx ignore with -brab 2 also SAFE/0; ignore checks ordinary all-state model.
+ Plain -tx bwd reached node limit/1. Initial malformed trigger placement
+ produced syntax error/2; fixed and rerun; original failure logs retained.
+ python3 replay.py independently executes both two-copy orders to committed
+ finish, then async invalidation/ack/grant with bulk final-state equality.
+ Full argv, executable/input hashes, wall time and output: results.json/logs.
+ *)
+type state = Invalid | Shared | Exclusive
+
+type msg1 = Empty1 | Reqs | Reqe 
+
+type msg2 = Empty2 | Inv | Gnts | Gnte
+
+type msg3 = Empty3 | Invack
+
+
+var Exgntd : bool
+var Curcmd : msg1
+var Flag : bool
+
+array Cache[proc] : state
+array Chan1[proc] : msg1
+array Chan2[proc] : msg2
+array Chan3[proc] : msg3
+array Curptr[proc] : bool
+array Shrset[proc] : bool
+array Invset[proc] : bool
+array Done[proc] : bool
+
+
+init (z) {
+     Cache[z] = Invalid &&
+     Chan1[z] = Empty1 && 
+     Chan2[z] = Empty2 &&
+     Chan3[z] = Empty3 && 
+     Curptr[z] = False && 
+     Shrset[z] = False && 
+     Invset[z] = False &&
+     Done[z] = True &&
+     Exgntd = False && 
+     Curcmd = Empty1 && 
+     Flag = False }
+
+
+
+
+unsafe (z1 z2) { Cache[z1] = Exclusive && Cache[z2] <> Invalid }
+
+
+
+transition t1(x)
+requires { Curcmd = Reqs && Exgntd = False && Chan2[x] = Empty2 &&
+	   Curptr[x] = True && Flag = False }
+{ Curcmd := Empty1 ;
+  Chan2[j] := case | j = x : Gnts | _ : Chan2[j] ;
+  Shrset[j] := case | j = x : True | _ : Shrset[j] ;
+}
+
+
+transition t2(x)
+requires { Shrset[x] = False && Curcmd = Reqe && Chan2[x] = Empty2 &&
+	   Curptr[x] = True && Flag = False &&
+           forall_other j. Shrset[j] = False}
+{ Curcmd := Empty1 ; Exgntd := True ;
+  Chan2[j] := case | j = x : Gnte | _ : Chan2[j] ;
+  Shrset[j] := case | j = x : True | _ : Shrset[j] ;
+}
+
+
+transition t3(x)
+requires { Curcmd = Empty1 && Chan1[x] = Reqs && Flag = False }
+{ 
+  Flag := True ; 
+  
+  Invset[j] := case | _ : False;
+  Done[j] := case | Shrset[j] = True : False | _ : True;
+  Curcmd := Reqs;
+  Chan1[j] := case | j = x : Empty1 | _ : Chan1[j] ;
+  Curptr[j] := case | j = x : True | _ : False 
+}
+triggers copy(_) or finish(_)
+
+transition t3bis(x)
+requires { Curcmd = Empty1 && Chan1[x] = Reqe && Flag = False }
+{ Flag := True ; 
+  
+  Invset[j] := case | _ : False;
+  Done[j] := case | Shrset[j] = True : False | _ : True;
+  Curcmd := Reqe;
+  Chan1[j] := case | j = x : Empty1 | _ : Chan1[j] ;
+  Curptr[j] := case | j = x : True | _ : False 
+}
+triggers copy(_) or finish(_)
+
+(* Pending source members are copied once; completed members cannot repeat. *)
+triggered
+transition copy(x)
+requires { Flag = True && Done[x] = False }
+{ Invset[j] := case | j = x : Shrset[j] | _ : Invset[j];
+  Done[j] := case | j = x : True | _ : Done[j] }
+triggers copy(_) or finish(_)
+
+(* Universal completion permits exit only after every marked member was copied. *)
+triggered
+transition finish(x)
+requires { Flag = True && Done[x] = True && forall_other j. Done[j] = True }
+{ Flag := False }
+
+transition t7(x)
+requires { Curcmd = Reqs && Exgntd = True && Invset[x] = True &&
+	   Chan2[x] = Empty2 && Flag = False }
+{
+  Chan2[j] := case | j = x : Inv | _ : Chan2[j] ;
+  Invset[j] := case | j = x : False | _ : Invset[j] ;
+}
+
+
+transition t8(x)
+requires { Curcmd = Reqe && Invset[x] = True && Chan2[x] = Empty2 && Flag = False }
+{ 
+  Chan2[j] := case | j = x : Inv | _ : Chan2[j] ;
+  Invset[j] := case | j = x : False | _ : Invset[j] ;
+}
+
+
+transition t9(x)
+requires { Curcmd <> Empty1 && Chan3[x] = Invack && Flag = False }
+{ Exgntd := False;
+  Chan3[j] := case | j = x : Empty3 | _ : Chan3[j] ;
+  Shrset[j] := case | j = x : False | _ : Shrset[j] 
+}
+
+
+
+transition t10(x)
+requires { Cache[x] = Invalid && Chan1[x] = Empty1 && Flag = False }
+{
+  Cache[j] := case | j = x : Invalid | _ : Cache[j] ;
+  Chan1[j] := case | j = x : Reqs | _ : Chan1[j] ;
+}
+
+
+transition t11(x)
+requires { Cache[x] <> Exclusive && Chan1[x] = Empty1 && Flag = False }
+{ Chan1[j] := case | j = x : Reqe | _ : Chan1[j] }
+
+
+
+transition t12(x)
+requires { Chan2[x] = Inv && Chan3[x] = Empty3 && Flag = False }
+{ 
+  Cache[j] := case | j = x : Invalid | _ : Cache[j] ;
+  Chan2[j] := case | j = x : Empty2 | _ : Chan2[j] ;
+  Chan3[j] := case | j = x : Invack | _ : Chan3[j] 
+}
+
+
+transition t13(x)
+requires { Chan2[x] = Gnts && Flag = False }
+{ 
+  Cache[j] := case | j = x : Shared | _ : Cache[j] ;
+  Chan2[j] := case | j = x : Empty2 | _ : Chan2[j] 
+}
+
+
+transition t14(x)
+requires { Chan2[x] = Gnte && Flag = False }
+{
+  Cache[j] := case | j = x : Exclusive | _ : Cache[j] ;
+  Chan2[j] := case | j = x : Empty2 | _ : Chan2[j] 
+}
+
+

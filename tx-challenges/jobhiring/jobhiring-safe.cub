@@ -1,0 +1,211 @@
+(* PRESENTATION AND REPRODUCTION
+   This file is part of tx-challenges/jobhiring/; see ../REPORT.md for its assessment.
+   Read the introduction below, then the comments beside the model phases.
+   From the repository root: python3 tx-challenges/run.py
+   The runner checks the new models and completion probes sequentially; HIRR
+   is a reference-only artifact with a retained timeout, not a default test.
+   Fresh logs/results go to the runner's printed output directory.
+   Historical builder commands/log names below refer to this original directory:
+   /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-jobhiring
+   Their outcomes are development observations, not performance comparisons.
+*)
+
+(*
+ORIGINAL JOBHIRING-INSPIRED TRANSACTION-LEVEL WORKFLOW (not an artifact port)
+
+Sources/relationship:
+  RAS: Verification of Data-Aware Processes via Array-Based Systems,
+  https://arxiv.org/pdf/1806.11459, Example 4.2 and Appendix G: protected
+  application insertion; notification implies a winner/loser outcome.
+  RAB: https://github.com/AlessandroGianola/RAB-verification,
+  RAB-benchmark/E+P17.txt: ReceiveApplication/RegisterApplication/Closing;
+  DetermineWinner is bulk; its null-winning-applicant property is distinct.
+  Read design notes: experiments/transaction-benchmark-ideas.md, JobHiring;
+  /Users/kes/.hermes/profiles/tetra/cache/scratch/txbench-mcmt.md, section 2.
+  Syntax checked against examples/german_looped.cub, german_pfs.cub and
+  tests/state-dispatch-scheduler/models/bindings-unsafe.cub.
+  This is newly written finite-status Cubicle code, NOT a copied MCMT input.
+  No RAS/RAB theorem, full database semantics, or foreign-key proof carries over.
+
+Declared simplifications and shared parameters:
+  One hiring workflow/vacancy; arbitrary applicant slots indexed by proc.
+  No fixed applicant count. Each slot is inserted at most once; intake may
+  insert multiple slots before selection. proc is the symbolic identity domain;
+  Applicant[i] := i identifies an applicant with its slot (injective identities,
+  not an independent UserId/database sort). Identified=False is the explicit
+  null/uninitialized abstraction: no distinguished proc null constant is used.
+  Eligibility is nondeterministic finite data; no CV, arithmetic score, external
+  database, separate employer, message delivery/retries, crash or rollback.
+  Selection may choose any eligible registered applicant. No eligible applicant
+  may mean no completion: SAFE does not imply liveness, fairness or deadlock freedom.
+
+State and init:
+  Workflow finite task statuses: Intake, Receiving, Registering, Classifying,
+  Finished. Each Row is Vacant, Received, Registered. Published is visibility;
+  Identified validates Applicant; Qualification is Unknown/Eligible/Ineligible;
+  Result is Pending/Won/Lost. Winner is meaningful iff HasWinner=True.
+  Initially Intake, no winner, no notification; every row vacant/unpublished,
+  unidentified, unknown qualification and pending result. Applicant[i]=i supplies
+  harmless default data; no identity is valid before Identified becomes True.
+  Winner is unconstrained initially, because HasWinner=False. Init is consistent.
+
+Transaction-level workflow contract (specification, not inferred isolation):
+  receive(i) -> register_eligible(i) OR register_ineligible(i) -> commit(i)
+  is a serialized database service operation. The SAME i is bound throughout.
+  No other workflow operation can run until return to the neutral boundary;
+  task guards also explicitly forbid another insertion/selection mid-insert.
+  Published is deliberately set early: transient rows are incompletely
+  initialized, so published consistency is a COMMITTED-state requirement.
+  This stronger whole-workflow serialization is a declared target contract;
+  RAS insertion protection alone does NOT justify excluding arbitrary actions.
+  select(w) -> classify_loser(i)* -> notify(w) is a second exclusive operation:
+  intake closes, winner w stays fixed, each pending nonwinner becomes Lost.
+  The recursive walk is genuine: select does NOT bulk-initialize loser outcomes.
+  notify's completion scan requires every other published row Lost. This guard
+  is the operational completion condition, not an assumed safety invariant.
+  For finite populations the walk can finish; each loop consumes one pending
+  published loser. A completed walk has the same outcomes as the declared bulk
+  assignment (winner Won, other published rows Lost). No source equivalence
+  theorem has been proved, and there is no claim about infinite executions.
+
+Boundary safety properties below (no supplied invariant assumptions):
+  Published implies Registered, Identified and known Qualification.
+  Every Won row is published/identified/eligible and matches the valid Winner.
+  HasWinner refers to a published, identified, eligible registered winner row.
+  At most one row Won; after Notified every published row is Won or Lost.
+  Notification also requires a winner and Finished workflow status.
+  Notification is nonvacuous: insert two eligible slots a,b; select(a);
+  classify_loser(b); notify(a). Both received rows remain published, a wins,
+  b loses. With one eligible row, select then notify can complete immediately.
+
+Exact executed commands (absolute paths; run_checks.py sets cwd to this directory):
+  python3 /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-jobhiring/run_checks.py
+  /Users/kes/cubicle/cubicle.opt -j 0 -nocolor -tx bwd -nodes 5000 /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-jobhiring/jobhiring-safe.cub
+  /Users/kes/cubicle/cubicle.opt -j 0 -nocolor -tx all -nodes 5000 /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-jobhiring/jobhiring-safe.cub
+  /Users/kes/cubicle/cubicle.opt -j 0 -nocolor -tx bwd -nodes 5000 /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-jobhiring/jobhiring-unsafe-notify.cub
+  /Users/kes/cubicle/cubicle.opt -j 0 -nocolor -tx all -nodes 5000 /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-jobhiring/jobhiring-unsafe-notify.cub
+  /Users/kes/cubicle/cubicle.opt -j 0 -nocolor -tx bwd -nodes 5000 /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-jobhiring/jobhiring-notification-reachability.cub
+  /Users/kes/cubicle/cubicle.opt -j 0 -nocolor -tx all -nodes 5000 /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-jobhiring/jobhiring-notification-reachability.cub
+Observed for BOTH modes:
+  Safe: SAFE, exit 0, 92 visited nodes, 849 solver calls, max support 3.
+  Faulty notification: UNSAFE, exit 1, 105 nodes, 1066 solver calls, support 2.
+    Init -> receive(2) -> register_eligible(2) -> commit(2) -> receive(1) ->
+    register_eligible(1) -> commit(1) -> select(2) -> notify(2) -> unsafe[16].
+    Decode: row 2 Won; row 1 remains Pending although Notified=True and Finished.
+  Reachability probe: expected UNSAFE, exit 1, 111 nodes, 2574 solver calls.
+    Same safe transition relation, diagnostic target with 3 published rows,
+    one Won and two Lost. Witness inserts 3,2,1; select(1); classify_loser(3);
+    classify_loser(2); notify(1). This witnesses both recursion and completion.
+  Every run bounded by 5000 nodes and Python Popen.wait(timeout=30), new session,
+  SIGKILL of the process group on timeout. No timeout occurred. Raw stdout/stderr
+  retained in six model-mode .log files; runs.json records exact argv, exit,
+  outcome, elapsed time, counters, and SHA-256 of binary/model. Initial pre-comment
+  records/logs are archived separately; no typecheck-only run or approximation.
+  Help inspected: cubicle.opt -help prints usage via an uncaught Arg.Help exception.
+  No build or repository edit; functional runs overlap other workers, so these
+  tiny correctness checks support NO performance or internal-covering-necessity claim.
+*)
+
+type workflow = Intake | Receiving | Registering | Classifying | Finished
+type row_state = Vacant | Received | Registered
+type qualification = Unknown | Eligible | Ineligible
+type outcome = Pending | Won | Lost
+
+var Workflow : workflow
+var Winner : proc
+var HasWinner : bool
+var Notified : bool
+array Row[proc] : row_state
+array Published[proc] : bool
+array Identified[proc] : bool
+array Applicant[proc] : proc
+array Qualification[proc] : qualification
+array Result[proc] : outcome
+
+init (i) {
+  Workflow = Intake && HasWinner = False && Notified = False &&
+  Row[i] = Vacant && Published[i] = False && Identified[i] = False &&
+  Applicant[i] = i && Qualification[i] = Unknown && Result[i] = Pending
+}
+
+unsafe (i) { Published[i] = True && Row[i] <> Registered }
+unsafe (i) { Published[i] = True && Identified[i] = False }
+unsafe (i) { Published[i] = True && Qualification[i] = Unknown }
+unsafe (i) { Published[i] = True && Applicant[i] <> i }
+unsafe (i) { Result[i] = Won && Published[i] = False }
+unsafe (i) { Result[i] = Won && Identified[i] = False }
+unsafe (i) { Result[i] = Won && Qualification[i] <> Eligible }
+unsafe (i) { Result[i] = Won && HasWinner = False }
+unsafe (i) { Result[i] = Won && Winner <> i }
+unsafe (i) { HasWinner = True && Winner = i && Published[i] = False }
+unsafe (i) { HasWinner = True && Winner = i && Row[i] <> Registered }
+unsafe (i) { HasWinner = True && Winner = i && Identified[i] = False }
+unsafe (i) { HasWinner = True && Winner = i && Qualification[i] <> Eligible }
+unsafe (i) { HasWinner = True && Winner = i && Result[i] <> Won }
+unsafe (i j) { Result[i] = Won && Result[j] = Won }
+unsafe (i) { Notified = True && Published[i] = True && Result[i] = Pending }
+unsafe { Notified = True && HasWinner = False }
+unsafe { Notified = True && Workflow <> Finished }
+
+(* Receive reserves and begins constructing a visible row; internal only. *)
+transition receive(i)
+requires { Workflow = Intake && Row[i] = Vacant } {
+  Workflow := Receiving;
+  Row[i] := Received;
+  Published[i] := True
+}
+triggers register_eligible(i) or register_ineligible(i)
+
+(* Abstract external eligibility data is chosen here; identity is initialized. *)
+triggered transition register_eligible(i)
+requires { Workflow = Receiving && Row[i] = Received } {
+  Applicant[i] := i;
+  Identified[i] := True;
+  Qualification[i] := Eligible;
+  Workflow := Registering
+}
+triggers commit(i)
+
+triggered transition register_ineligible(i)
+requires { Workflow = Receiving && Row[i] = Received } {
+  Applicant[i] := i;
+  Identified[i] := True;
+  Qualification[i] := Ineligible;
+  Workflow := Registering
+}
+triggers commit(i)
+
+(* Completed insertion restores the boundary; intake remains repeatable. *)
+triggered transition commit(i)
+requires { Workflow = Registering && Row[i] = Received && Identified[i] = True } {
+  Row[i] := Registered;
+  Workflow := Intake
+}
+
+(* Close intake and select a valid winner. Other rows stay Pending for the loop. *)
+transition select(w)
+requires { Workflow = Intake && Published[w] = True && Row[w] = Registered &&
+           Identified[w] = True && Qualification[w] = Eligible } {
+  Workflow := Classifying;
+  HasWinner := True;
+  Winner := w;
+  Result[w] := Won
+}
+triggers classify_loser(_) or notify(w)
+
+(* Arbitrary changing participant; no bulk update disguised as a recursive loop. *)
+triggered transition classify_loser(i)
+requires { Workflow = Classifying && Published[i] = True &&
+           Result[i] = Pending && i <> Winner } {
+  Result[i] := Lost
+}
+triggers classify_loser(_) or notify(_)
+
+(* Publish the real notification only after all published rows are classified. *)
+triggered transition notify(w)
+requires { Workflow = Classifying && HasWinner = True && Winner = w &&
+           Published[w] = True && Result[w] = Won &&
+           forall_other i. (Published[i] = False || Result[i] = Lost) } {
+  Notified := True;
+  Workflow := Finished
+}

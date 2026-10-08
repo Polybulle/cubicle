@@ -1,0 +1,177 @@
+(* PRESENTATION AND REPRODUCTION
+   This file is part of tx-challenges/ironkv/; see ../REPORT.md for its assessment.
+   Read the introduction below, then the comments beside the model phases.
+   From the repository root: python3 tx-challenges/run.py
+   The runner checks the new models and completion probes sequentially; HIRR
+   is a reference-only artifact with a retained timeout, not a default test.
+   Fresh logs/results go to the runner's printed output directory.
+   Historical builder commands/log names below refer to this original directory:
+   /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-ironkv
+   Their outcomes are development observations, not performance comparisons.
+*)
+
+(*
+   NONVACUITY REACHABILITY QUERY: an original IronKV-inspired abstract handler model.
+   This is NOT verified IronKV code or a translation of its implementation.
+   Motivation: IronFleet section 5.2.1, conservation of a key claimed by one
+   host or one logical in-flight packet:
+   https://www.microsoft.com/en-us/research/wp-content/uploads/2015/10/ironfleet.pdf
+   Design context read: experiments/transaction-benchmark-ideas.md and the
+   scratch txbench-distributed.md. Syntax follows examples/german_looped.cub.
+
+   Domain: arbitrarily many proc hosts, one fixed key, two symbolic data values.
+   Init places the key at a trusted provisioning authority (Bootstrap), with
+   arbitrary Expected value; all host permissions and transfer slots are empty.
+   provision(p) assigns it to any host in one local action. This is a real
+   reachable initialization stage, not an inconsistent or blocked init.
+   Neither initialization nor handler completion is intentionally blocked.
+
+   State fields:
+   Claim = Bootstrap, AtHost or InFlight is the logical conservation witness.
+   Bootstrap is the unique trusted provisioning authority before provision(p).
+   Owner is authoritative exactly when Claim=AtHost.
+   Held[h] is actual host authority; Data[h] is its local key value.
+   Expected is a ghost abstract value, changed only by an authorized local PUT.
+   Source and Destination identify the current logical in-flight handoff.
+   Used[s] permanently reserves transfer identity s: each host sends at most
+   one delegation in its lifetime. This prevents ID reuse without a bounded
+   wrapping epoch. There can be arbitrarily many handoffs through fresh hosts,
+   but not unrestricted repeated migration by the same source.
+   Packet[s], Target[s], Payload[s] are a persistent published packet slot.
+   Accepted[s] remembers receiver acceptance forever; old packet slots persist
+   and remain available for duplicate/reordered replay. Retransmitted physical
+   copies are quotiented to the same logical packet, not extra ownership claims.
+   Ack[s] is an available acknowledgment; Cleared[s] records sender cleanup.
+   Cleanup never forgets Accepted or destroys replay protection.
+
+   Bad predicates below jointly express conservation and unique authority:
+   two distinct Held hosts; any Held before provisioning; any Held outside
+   the authoritative owner; missing
+   owner's Held; any Held during flight; missing/consumed/misaddressed/corrupt
+   current flight; or authoritative data unequal to the abstract key value.
+   Unused/unowned local Data and inactive Source/Destination are irrelevant.
+
+   Local transaction A: send(s,d) relinquishes; package(s,d) constructs the
+   logical claim and payload; publish(s,d) enqueues the packet and returns.
+   Local transaction B: receive(s,d) validates a remotely available packet and
+   consumes its logical claim; install(s,d) installs authority and data;
+   acknowledge(s,d) publishes an ack and returns. It does not wait for the ack.
+   The source parameter s in B names the packet identity, not a remote host step.
+   Sender cleanup, retransmission, replay rejection and PUTs are boundary actions.
+   Network delivery is represented by independently choosing a receive action
+   from the persistent available-message slots; no transaction spans send and
+   remote receive or receiver acknowledgment and sender cleanup. Packet loss
+   delays reception but does not delete the durable logical claim.
+
+   This specifies nonblocking atomic local handlers: no crash, concurrent local
+   thread, or external observer inside one handler. Cubicle globally suppresses
+   interleavings inside the trigger path; commutation/refinement to a real
+   concurrent implementation is NOT proved. Safety is intended at neutral
+   transaction boundaries, so -tx bwd is essential: intermediate bookkeeping
+   can have no Held owner or a consumed claim not yet installed. These states
+   are not durable/crash-visible states in this abstraction. Forward candidate
+   filtering is not used. No liveness, reliable delivery, fairness, full map/range
+   operations, unrestricted transfer IDs, or linearizability is established.
+
+   This file is a REACHABILITY QUERY, not the safety-property file. The general
+   discussion of conservation predicates above describes ironkv-safe.cub; this
+   query replaces those predicates but preserves all initial and transition
+   semantics. A reachable bad query state means nonvacuous completion.
+   Exact successful command (30-second external process-group deadline):
+   /Users/kes/cubicle/cubicle.opt -j 0 -nocolor -tx bwd -nodes 3000 -v
+     /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-ironkv/ironkv-completion-witness.cub
+   Observed UNSAFE/exit 1, 87 nodes, 758 solver calls; completion-bwd.log/.json.
+   Trace: provision(2); complete send/package/publish and receiver
+   receive/install/acknowledge for 2-to-1; repeat for 1-to-2; deliver_ack(2);
+   deliver_ack(1). Both distinct sources have Cleared=True at the boundary.
+   Final comment-inclusive rerun is completion-final.log/.json.
+   This does not prove liveness, only existence of a completed finite execution.
+*)
+
+type claim = Bootstrap | AtHost | InFlight
+type value = Zero | One
+var Claim : claim
+var Owner : proc
+var Source : proc
+var Destination : proc
+var Expected : value
+array Held[proc] : bool
+array Data[proc] : value
+array Used[proc] : bool
+array Packet[proc] : bool
+array Target[proc] : proc
+array Payload[proc] : value
+array Accepted[proc] : bool
+array Ack[proc] : bool
+array Cleared[proc] : bool
+
+init (h) {
+  Claim = Bootstrap && Data[h] = Expected && Held[h] = False &&
+  Used[h] = False && Packet[h] = False && Accepted[h] = False &&
+  Ack[h] = False && Cleared[h] = False
+}
+
+(* Reachability query, NOT a protocol safety property: UNSAFE means two
+   distinct-source handoffs and their separate ack deliveries can complete. *)
+unsafe (p q) { p <> q && Cleared[p] = True && Cleared[q] = True }
+
+(* Trusted once-only local provisioning transfers the bootstrap claim to a
+   selected arbitrary host. It neither bypasses nor weakens handoff checks. *)
+transition provision(p)
+requires { Claim = Bootstrap }
+{ Claim := AtHost; Owner := p; Held[p] := True; Data[p] := Expected }
+
+transition put_zero(p)
+requires { Claim = AtHost && Owner = p && Held[p] = True }
+{ Data[p] := Zero; Expected := Zero }
+
+transition put_one(p)
+requires { Claim = AtHost && Owner = p && Held[p] = True }
+{ Data[p] := One; Expected := One }
+
+transition send(s d)
+requires { Claim = AtHost && Owner = s && Held[s] = True &&
+           Used[s] = False && s <> d }
+{ Held[s] := False; Source := s; Destination := d }
+triggers package(s d)
+
+triggered transition package(s d)
+requires { Source = s && Destination = d && Used[s] = False }
+{ Used[s] := True; Target[s] := d; Payload[s] := Data[s]; Claim := InFlight }
+triggers publish(s d)
+
+triggered transition publish(s d)
+requires { Source = s && Destination = d && Used[s] = True }
+{ Packet[s] := True }
+
+transition receive(s d)
+requires { Packet[s] = True && Accepted[s] = False && Target[s] = d &&
+           Claim = InFlight && Source = s && Destination = d }
+{ Accepted[s] := True }
+triggers install(s d)
+
+triggered transition install(s d)
+requires { Source = s && Destination = d && Accepted[s] = True }
+{ Held[d] := True; Data[d] := Payload[s]; Owner := d; Claim := AtHost }
+triggers acknowledge(s d)
+
+triggered transition acknowledge(s d)
+requires { Accepted[s] = True && Owner = d && Held[d] = True }
+{ Ack[s] := True }
+
+transition deliver_ack(s)
+requires { Ack[s] = True && Accepted[s] = True }
+{ Ack[s] := False; Cleared[s] := True }
+
+(* Stale packets are still deliverable after later handoffs. Their acceptance
+   bit selects this branch, which regenerates an ack, never authority.
+   Fresh-transfer identity and current-flight guards also prevent stale acceptance;
+   no claim is made that Accepted alone is necessary for replay safety. *)
+transition reject_replay(s d)
+requires { Packet[s] = True && Target[s] = d && Accepted[s] = True }
+{ Ack[s] := True }
+
+(* Physical loss/retransmission does not multiply or destroy logical claims. *)
+transition retransmit(s)
+requires { Packet[s] = True && Accepted[s] = False }
+{ Packet[s] := True }
