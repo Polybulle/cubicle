@@ -890,41 +890,85 @@ let forward_bfs _ _ env l =
 (* Forward enumerative search, states are insterted in the global hash- *)
 (* table explicit_states                                                *)
 (************************************************************************)
-let forward_transactions system procs env l =
-  let module HLocated = Hashtbl.Make (struct
-      type t = state * event
-      let equal = (=)
-      let hash (st, event) = Hashtbl.hash (hash_state st, event)
-    end) in
-  let h_visited = HLocated.create env.table_size in
+(* Number the events of the control-flow graph over [procs], starting from
+   neutral, and record each event's compiled transition and successors. *)
+let transaction_events system procs env =
+  let Before neutral = Node.neutral_pos in
   let trs = Hashtbl.create (List.length env.st_trs) in
   ListLabels.iter env.st_trs ~f:(fun st_tr ->
       Hashtbl.add trs {evt_trans = st_tr.st_name; evt_args = st_tr.st_args} st_tr);
+  let ids = Hashtbl.create 64 in
+  let events = ref [] in
+  let rec id e =
+    try Hashtbl.find ids e with Not_found ->
+      let i = Hashtbl.length ids in
+      Hashtbl.add ids e i;
+      let calls =
+        if Hstring.equal e.evt_trans neutral_name then system.cfg.initial_calls procs
+        else
+          let calls = system.cfg.child_calls_of procs e in
+          if system.cfg.is_final e then calls @ [neutral] else calls in
+      let tr = Hashtbl.find_opt trs e in
+      let succ = ref [] in
+      events := (i, tr, succ) :: !events;
+      succ := List.map id calls;
+      i in
+  ignore (id neutral);
+  let trans = Array.make (Hashtbl.length ids) None in
+  let succs = Array.make (Hashtbl.length ids) [] in
+  List.iter (fun (i, tr, succ) -> trans.(i) <- tr; succs.(i) <- !succ) !events;
+  trans, succs
+
+let forward_transactions system procs env l =
+  let trans, succs = transaction_events system procs env in
+  let neutral = 0 in
+  let module HLocated = Hashtbl.Make (struct
+      type t = state * int
+      let equal (st, i) (st', i') = i = i' && st = st'
+      let hash (st, i) = hash_state st * 65599 + i
+    end) in
+  let h_visited = HLocated.create env.table_size in
+  let register st =
+    if not (HST.mem env.explicit_states st) then begin
+      HST.add env.explicit_states st ();
+      env.states <- st :: env.states
+    end in
+  (* A configuration whose transition is disabled has no successor, so it is
+     not queued. Its state has already been registered by its producer. *)
+  let enabled st i =
+    i = neutral ||
+    match trans.(i) with
+    | None -> false
+    | Some tr ->
+       check_reqs env st tr.st_reqs &&
+       List.for_all (List.exists (check_reqs env st)) tr.st_udnfs in
   let to_do = Queue.create () in
-  let Before neutral = Node.neutral_pos in
+  let push depth st i = if enabled st i then Queue.add (depth, st, i) to_do in
   List.iter (fun (depth, st) -> Queue.add (depth, st, neutral) to_do) l;
   let cpt_f = ref 0 in
   while not (Queue.is_empty to_do) && (max_forward = -1 || !cpt_f < max_forward) do
-    let depth, st, event = Queue.take to_do in
-    let key = st, event in
+    let depth, st, i = Queue.take to_do in
+    let key = st, i in
     if not (HLocated.mem h_visited key) || depth < HLocated.find h_visited key then begin
       HLocated.replace h_visited key depth;
       incr cpt_f;
-      if not (HST.mem env.explicit_states st) then begin
-        HST.add env.explicit_states st ();
-        env.states <- st :: env.states
-      end;
-      if Hstring.equal event.evt_trans neutral_name then
-        List.iter (fun e -> Queue.add (depth, st, e) to_do)
-          (system.cfg.initial_calls procs)
+      register st;
+      if i = neutral then List.iter (push depth st) succs.(i)
       else if not limit_forward_depth || depth < forward_depth then begin
-        let successors = system.cfg.child_calls_of procs event in
-        let successors =
-          if system.cfg.is_final event then successors @ [neutral] else successors in
-        let sts = try (Hashtbl.find trs event).st_f st with Not_applicable -> [] in
+        let sts = match trans.(i) with
+          | None -> []
+          | Some tr -> try tr.st_f st with Not_applicable -> [] in
         ListLabels.iter sts ~f:(fun s ->
-            ListLabels.iter successors ~f:(fun e ->
-                Queue.add (depth + 1, s, e) to_do))
+            register s;
+            ListLabels.iter succs.(i) ~f:(fun j ->
+                if j = neutral && forward_sym then begin
+                  (* No process is bound at neutral: symmetry reduction is
+                     safe there. *)
+                  let s = Array.copy s in
+                  normalize_state env s;
+                  push (depth + 1) s j
+                end
+                else push (depth + 1) s j))
       end
     end
   done;

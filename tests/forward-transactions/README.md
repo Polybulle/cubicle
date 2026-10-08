@@ -15,11 +15,17 @@ to neutral, so unrelated entries cannot interleave with an unfinished transactio
 No transaction paths are pre-enumerated. A repeated full configuration is covered
 by its earlier visit, not merely by equal program data.
 
-Process identities remain fixed throughout the finite exploration. The symbolic
-post-image skips its formula-only renaming. The enumerative transaction branch
-does not apply data-only symmetry normalization, even if `forward_sym` is enabled.
-This avoids changing data identities without changing the control bindings.
+Process identities remain fixed inside a transaction. The symbolic post-image
+skips its formula-only renaming. The enumerative transaction branch applies
+symmetry normalization (when `forward_sym` is enabled) only to states entering
+neutral, where no control binding remains to be renamed consistently.
 Ordinary forward exploration, including `-tx bwd`, retains the existing algorithms.
+
+The enumerative branch numbers the finitely many events once, with their
+compiled transitions and successors, and queues a configuration only when its
+transition is enabled. A disabled configuration has no successor and its data
+state is registered by the step that produced it, so the reachable data states
+are unchanged up to symmetry; only the configuration count drops.
 
 The engines still collect intermediate data states for the candidate rejection
 heuristic. An internal violation can therefore reject a useful boundary invariant.
