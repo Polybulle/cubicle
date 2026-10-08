@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cubicle · Benchmark explorer</title>
+<style>
+:root{color-scheme:light;--ink:#172a34;--muted:#607078;--line:#dce3df;--paper:#f4f6f2;--green:#187567;--orange:#a85822}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,-apple-system,sans-serif}main{max-width:1500px;margin:auto;padding:36px 40px}header{display:flex;align-items:center;justify-content:space-between;gap:20px}.eyebrow{font:700 12px/1.4 ui-monospace,monospace;letter-spacing:.15em;text-transform:uppercase;color:var(--green)}h1{font-size:42px;letter-spacing:-1.8px;margin:10px 0}h2{font-size:21px;letter-spacing:-.4px;margin:0 0 6px}p{margin:8px 0;color:var(--muted)}a{color:var(--green)}.pill{border:1px solid var(--line);border-radius:30px;padding:8px 15px;background:#fff;white-space:nowrap}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:28px 0}.stat,.panel{background:#fff;border:1px solid var(--line);border-radius:14px}.stat{padding:18px 22px}.stat strong{display:block;font-size:32px;letter-spacing:-1px}.stat span{color:var(--muted);font-size:13px}.panel{padding:24px;margin:20px 0}.toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:14px;margin:18px 0}label{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:12px;font-weight:600}input,select,button{font:inherit}input,select{border:1px solid #bfcac5;background:#fff;border-radius:7px;padding:9px 12px;color:var(--ink)}input{min-width:245px}button{cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #4ea99c;outline-offset:3px}.button{background:var(--ink);color:white;padding:10px 15px;border:0;border-radius:7px}.quiet{background:transparent;border:0;color:var(--green);padding:0;text-align:left;font-weight:650}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-size:11px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}th,td{padding:13px 12px;border-bottom:1px solid #e8ece9}td:first-child,th:first-child{padding-left:0}td{font-variant-numeric:tabular-nums}tbody tr:hover{background:#f6faf8}.cell{border:0;background:transparent;text-align:left;color:inherit;padding:0;min-width:105px}.cell strong{font-size:15px}.sub{font-size:11px;display:block;color:var(--muted);margin-top:3px}.safe{color:var(--green)}.warn{color:var(--orange)}.muted{color:var(--muted)}.notice{padding:12px 16px;border-left:3px solid #cda56b;background:#faf5eb;font-size:13px;color:#73582d;margin-top:18px}.chart{display:grid;grid-template-columns:minmax(170px,240px) 1fr 90px;gap:9px 16px;align-items:center;margin-top:20px;font-size:12px}.track{height:14px;background:#eff3f0;border-radius:4px;overflow:hidden}.bar{height:100%;background:var(--green);border-radius:4px}.bar.slow{background:#b37747}.number{text-align:right;font-variant-numeric:tabular-nums}.chart-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}details{margin:12px 0}summary{cursor:pointer;font-weight:600}pre{background:#f3f6f3;padding:14px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:420px;overflow:auto}dialog{border:1px solid var(--line);border-radius:16px;max-width:1100px;width:94vw;max-height:90vh;padding:28px;color:var(--ink)}dialog::backdrop{background:#142d36aa;backdrop-filter:blur(3px)}.close{float:right}.empty{padding:30px;color:var(--muted)}footer{font-size:12px;color:var(--muted);padding:8px 0 25px}.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.build{padding:14px;background:var(--paper);border-radius:8px;overflow-wrap:anywhere}.build code{font-size:11px}.section-head{display:flex;justify-content:space-between;align-items:center;gap:15px}@media(max-width:760px){main{padding:24px 16px}h1{font-size:32px}.stats{grid-template-columns:repeat(2,1fr)}.panel{padding:16px}.meta{grid-template-columns:1fr}header{align-items:start}.chart{grid-template-columns:130px 1fr 65px;gap:9px}.pill{font-size:11px}}
+</style>
+</head>
+<body><main>
+<header><div><div class="eyebrow">Cubicle / experiments</div><h1>Benchmark explorer</h1><p>Measured performance, verification outcomes, and the evidence behind each run.</p></div><span class="pill" id="run-name"></span></header>
+<div class="stats" id="stats"></div>
+<section class="panel" id="overlay-panel" hidden><h2>Focused results</h2><div class="toolbar"><label>Results shown<select id="view"><option value="updated">Run-05 with run-06 fixes</option><option value="original">Original run-05</option></select></label><a id="controlled-comparison">Sequential comparison and diagnosis</a></div><p class="notice" id="overlay-warning"></p></section>
+<section class="panel">
+<div class="section-head"><div><h2>Results at a glance</h2><p>Median wall time in seconds. Select a cell to inspect repetitions, counters, and logs.</p></div><button class="button" id="export">Export view CSV</button></div>
+<div class="toolbar"><label>Find a model<input id="search" type="search" placeholder="Search bakery, flash, german…"></label><label>Corpus<select id="group"><option value="">All models</option><option value="ordinary">Ordinary</option><option value="transaction">Transaction</option></select></label><label>Outcome<select id="outcome"><option value="">All outcomes</option><option value="eligible">Has eligible timings</option><option value="issues">Has excluded configurations</option><option value="SAFE">Has SAFE verdict</option><option value="UNSAFE">Has UNSAFE verdict</option></select></label><label>Sort models<select id="sort"><option value="name">Name A–Z</option><option value="slow">Slowest eligible median first</option></select></label><button class="quiet" id="reset">Reset filters</button></div>
+<p id="count" aria-live="polite"></p><div class="scroll"><table><thead><tr id="head"><th>Model / corpus</th></tr></thead><tbody id="results"></tbody></table></div>
+<div class="notice">Pilot and type-check runs are excluded from medians. “Not scheduled” is not a failure: each model runs only its selected configurations. Input errors and timeouts are not successful timings.</div>
+</section>
+<section class="panel"><h2>Pairwise runtime comparison</h2><p>Same-model ratios on eligible results with matching verdicts. The current model filters apply here too.</p>
+<div class="toolbar"><label>Reference<select id="reference"></select></label><label>Compare with<select id="candidate"></select></label></div><p id="comparison-note"></p><div class="chart" id="chart"></div><p class="sub">Ratio = reference median ÷ comparison median. Above 1× means the comparison is faster. Bar length shows this ratio on a linear scale; no cross-model average is used.</p></section>
+<section class="panel"><h2>Provenance & interpretation</h2><p id="method"></p><div class="meta" id="builds"></div><div class="notice">These are descriptive measurements, not significance tests. Small runtimes include process startup overhead; related model variants are not independent protocols. Source expectations are audit annotations, not independently established ground truth.</div><details><summary>Environment and run policy</summary><pre id="environment"></pre></details><p id="archive-links"></p></section>
+<footer>Local, self-contained report. No external libraries, tracking, or network requests. Source benchmark files are unchanged.</footer>
+</main><dialog id="detail"><button class="button close" id="close">Close</button><div id="detail-body"></div></dialog>
+<script id="data" type="application/json">__BENCHMARK_DATA__</script>
+<script>
+'use strict';
+const D=JSON.parse(document.getElementById('data').textContent);
+const configs=[...new Set(['baseline','tetra-none','tetra-all','old-none','old-all',...D.summary.map(s=>s.config)])];
+const $=id=>document.getElementById(id);
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>n==null?'—':n.toFixed(n<1?4:3);
+let updated=!!D.overlay;
+const overlays=D.overlays||(D.overlay?[D.overlay]:[]);
+const sourceOf=s=>s.updated_from||D.name;
+const workersOf=s=>s.updated_from?overlays.find(o=>o.name===s.updated_from).environment.workers:D.environment.workers;
+const summaries=()=>updated?D.summary:(D.original?.summary||D.summary);
+const executions=()=>updated?D.runs:(D.original?.runs||D.runs);
+const entries=m=>summaries().filter(s=>s.model===m);
+const get=(m,c)=>summaries().find(s=>s.model===m&&s.config===c);
+const pretty=m=>m.replace(/^examples\//,'').replace(/\.cub$/,'');
+let visible=[];
+if(D.overlay){$('overlay-panel').hidden=false;$('view').options[0].textContent=D.name+' with focused reruns';$('view').options[1].textContent='Original '+D.name;$('controlled-comparison').href='./'+D.overlay.name+'-comparison.html';$('view').onchange=()=>{updated=$('view').value==='updated';render()}}
+$('head').innerHTML+=configs.map(c=>`<th>${esc(c)}<span class="sub">${c==='baseline'?'origin/master':'-tx '+esc(c.split('-').pop())}</span></th>`).join('');
+for(const id of ['reference','candidate']) $(id).innerHTML=configs.map(c=>`<option>${c}</option>`).join('');
+$('reference').value=D.overlay?'baseline':'old-all';$('candidate').value='tetra-all';
+function render(){
+ const summary=summaries(),eligible=summary.filter(s=>s.timing_eligible).length;
+ $('run-name').textContent=D.name+(D.overlay?(updated?' + focused reruns':' original'):'')+' · alt-ergo';
+ $('stats').innerHTML=[[D.models.length,'Models in the selected corpus'],[new Set(summary.map(s=>s.config)).size,'Scheduled configurations'],[executions().filter(r=>r.phase==='measured').length,'Measured executions in this view'],[`${eligible} / ${summary.length}`,'Eligible model–configuration pairs']].map(([n,t])=>`<div class="stat"><strong>${n}</strong><span>${t}</span></div>`).join('');
+ if(D.overlay)$('overlay-warning').textContent=updated?`${summary.filter(s=>s.updated_from).length} cells use focused reruns from ${overlays.map(o=>o.name+' ('+o.environment.workers+' job)').join(', ')}; all other cells remain ${D.name} (${D.environment.workers} jobs). This view mixes revisions and scheduling: ratios across different source runs are descriptive, not controlled speedup estimates. Bars show their source archives. The original archives and original view are unchanged.`:`Original ${D.name}: all cells use the original code and scheduling. Switch back to the updated view to graph the focused reruns.`;
+ renderProvenance();
+ const query=$('search').value.toLowerCase(), group=$('group').value, outcome=$('outcome').value;
+ visible=D.models.filter(m=>m.path.toLowerCase().includes(query)&&(!group||m.group===group)&&(!outcome||entries(m.path).some(s=>outcome==='eligible'?s.timing_eligible:outcome==='issues'?!s.timing_eligible:s.verdicts.includes(outcome))));
+ const max=m=>Math.max(0,...entries(m.path).filter(s=>s.timing_eligible).map(s=>s.median_seconds));
+ visible.sort((a,b)=>$('sort').value==='slow'?max(b)-max(a):a.path.localeCompare(b.path));
+ $('count').textContent=`${visible.length} of ${D.models.length} models · ${visible.reduce((n,m)=>n+entries(m.path).filter(s=>s.timing_eligible).length,0)} eligible pairs shown`;
+ $('results').innerHTML=visible.map(m=>`<tr><td><button class="quiet" data-model="${esc(m.path)}">${esc(pretty(m.path))}</button><span class="sub">${esc(m.group)}</span></td>${configs.map(c=>{const s=get(m.path,c);if(!s)return '<td class="muted">—<span class="sub">Not scheduled</span></td>';return `<td><button class="cell" data-model="${esc(m.path)}" data-config="${c}">${s.timing_eligible?`<strong>${fmt(s.median_seconds)} <small>s</small></strong><span class="sub ${s.verdicts.includes('UNSAFE')?'warn':'safe'}">${esc(s.verdicts.join(' / '))} · n=${s.measured_runs}</span>`:`<span class="warn">${esc(s.statuses.join(' / '))}</span><span class="sub">No eligible timing</span>`}${s.updated_from?`<span class="sub warn">${esc(s.updated_from)} · refreshed · ${esc(workersOf(s))} job</span>`:''}${s.expectation_mismatch||s.verdict_disagreement?'<span class="sub warn">Review verdict</span>':''}</button></td>`}).join('')}</tr>`).join('')||'<tr><td colspan="6" class="empty">No models match these filters.</td></tr>';
+ renderChart();
+}
+function renderChart(){
+ const ref=$('reference').value, candidate=$('candidate').value;
+ const pairs=visible.flatMap(m=>{const a=get(m.path,ref),b=get(m.path,candidate);return a?.timing_eligible&&b?.timing_eligible&&!a.verdict_disagreement&&!b.verdict_disagreement&&!a.expectation_mismatch&&!b.expectation_mismatch&&JSON.stringify(a.verdicts)===JSON.stringify(b.verdicts)?[{model:m.path,ratio:a.median_seconds/b.median_seconds,overlay:!!(a.updated_from||b.updated_from),sources:[...new Set([sourceOf(a),sourceOf(b)])].join(' / '),mixed:sourceOf(a)!==sourceOf(b)}]:[]}).sort((a,b)=>b.ratio-a.ratio);
+ $('comparison-note').textContent=`${candidate} compared with ${ref} · ${pairs.length} eligible matching-verdict pairs; ${visible.length-pairs.length} models excluded. Green ≥ 1×; brown < 1×.`;
+ const max=Math.max(1,...pairs.map(p=>p.ratio));
+ if(pairs.some(p=>p.mixed))$('comparison-note').textContent+=' Some bars compare different source archives; mixed scheduling/revisions apply.';
+ $('chart').innerHTML=pairs.map(p=>`<button class="quiet chart-name" data-model="${esc(p.model)}" title="${esc(p.model)}">${esc(pretty(p.model))}${p.overlay?'<span class="sub warn">'+esc(p.sources)+'</span>':''}</button><div class="track"><div class="bar ${p.ratio<1?'slow':''}" style="width:${Math.max(.3,p.ratio/max*100)}%"></div></div><span class="number">${p.ratio.toFixed(3)}×</span>`).join('')||'<p>No eligible pairs for this selection.</p>';
+}
+function showDetail(path,config){
+ const m=D.models.find(m=>m.path===path), runs=executions().filter(r=>r.model===path&&(!config||r.config===config));
+ $('detail-body').innerHTML=`<div class="eyebrow">${esc(m.group)} / ${esc(config||'all configurations')}</div><h2>${esc(pretty(path))}</h2><p>Source expectation: ${esc(m.expected||'not specified')} · ${esc(m.expected_basis||'')}</p><p><a href="${esc(D.name+'/inputs/'+path)}">Open model source</a> · Model options: <code>${esc(m.options.join(' ')||'(none)')}</code></p><details><summary>Model caveats and summary</summary><pre>${esc(JSON.stringify({caveats:m.caveats,summary:entries(path).filter(s=>!config||s.config===config)},null,2))}</pre></details><h3>${runs.length} execution records</h3><p>Measured, pilot, and type-check phases are explicitly separated below. Expand a record for its original command and available counters.</p>${runs.map(r=>`<details><summary>${esc(r.config)}${r.updated_from?' · '+esc(r.updated_from)+' refreshed':''}${r.reused_from?' · historical (reused)':''} · ${esc(r.phase)} ${r.repetition||''} · <span class="${r.status==='completed'?'safe':'warn'}">${esc(r.verdict||r.status)}</span> · ${fmt(r.wall_seconds)} s</summary><p>Exit code: ${esc(r.returncode??'none')} · Budget: ${esc(r.timeout_seconds)} s · ${r.log_url?`<a href="${esc(r.log_url)}" target="_blank" rel="noopener">Open full log ↗</a>`:'Log unavailable'}</p><pre>${esc(JSON.stringify({command:r.command,status:r.status,verdict:r.verdict,stats:r.stats},null,2))}</pre></details>`).join('')}`;
+ $('detail').showModal();
+}
+for(const id of ['search','group','outcome','sort']) $(id).addEventListener('input',render);
+for(const id of ['reference','candidate']) $(id).addEventListener('change',renderChart);
+$('reset').onclick=()=>{for(const id of ['search','group','outcome'])$(id).value='';$('sort').value='name';render()};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-model]');if(b)showDetail(b.dataset.model,b.dataset.config)});
+$('close').onclick=()=>$('detail').close();
+$('detail').addEventListener('click',e=>{if(e.target===$('detail'))$('detail').close()});
+function renderProvenance(){
+ $('method').textContent=D.environment.timing+' '+D.policy+(D.overlay&&updated?' Focused sources: '+overlays.map(o=>o.name+': '+o.environment.timing).join(' ')+' Mixed revisions and scheduling apply across source archives.':'');
+ const links=[['summary.json','Original summary'],['runs.jsonl','Original records (JSONL)'],['runs.csv','Original CSV'],['manifest.json','Corpus manifest'],...(D.builds.tetra.source?[['working-tree.json','Original snapshot hashes'],['working-tree.patch','Original tracked changes']]:[])].map(([file,label])=>`<a href="${esc(D.name+'/'+file)}">${label}</a>`);
+ if(D.overlay&&updated)for(const o of overlays)for(const [file,label] of [['summary.json','Summary'],['runs.jsonl','Records'],['working-tree.json','Snapshot hashes'],['working-tree.patch','Source diff']])links.push(`<a href="${esc('./'+o.name+'/'+file)}">${esc(o.name+' '+label)}</a>`);
+ $('archive-links').innerHTML=links.join(' · ');
+ if(D.repetitions_url)$('archive-links').innerHTML+=` · <a href="${esc(D.repetitions_url)}">Repetition spread and outlier review</a>`;
+ $('environment').textContent=JSON.stringify({base_environment:D.environment,base_policy:D.policy,base_binary_sha256:D.hashes,...(D.overlay&&updated?{overlays}:{})},null,2);
+ const builds=Object.entries(D.builds).map(([name,b])=>[name+' ('+D.name+')',b]);
+ if(D.overlay&&updated)for(const o of overlays)for(const name of Object.keys(o.hashes))builds.push([name+' ('+o.name+'; refreshed cells)',o.builds[name]]);
+ $('builds').innerHTML=builds.map(([name,b])=>`<div class="build"><strong>${esc(name)}</strong><p>${esc(b.ref)}</p>${b.source?'<p>Working-tree snapshot. Base commit:</p>':''}<code>${esc(b.commit)}</code></div>`).join('');
+}
+$('export').onclick=()=>{
+ const header=['model','group','config','median_seconds','measured_runs','statuses','verdicts','timing_eligible','source_run','workers'];
+ const rows=visible.flatMap(m=>configs.map(c=>{const s=get(m.path,c);return [m.path,m.group,c,s?.median_seconds??'',s?.measured_runs??0,s?.statuses.join('|')||'not-scheduled',s?.verdicts.join('|')||'',s?.timing_eligible??false,s?(s.updated_from||D.name):'',s?(workersOf(s)):'']}));
+ const csv=[header,...rows].map(row=>row.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+ const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='cubicle-results-filtered.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+render();
+</script></body></html>
