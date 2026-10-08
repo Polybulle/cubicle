@@ -926,14 +926,14 @@ Dir_State=L2CACHE_MT && Dir_HeadPtr<>src}
 UniMsg_Cmd[src]:=ACK_PUT;
 }
 
-transition L2_Handle_PUTO_in_old_PUTO_OTS (src)
+transition L2_Handle_PUTO_in_old_PUTO_OTS1 (src)
 requires { UniMsg_Cmd[src]=PUTO && 
 Dir_State=L2CACHE_OTS && Dir_HeadPtr<>src}
 {
 UniMsg_Cmd[src]:=ACK_PUT;
 }
 
-transition L2_Handle_PUTO_in_old_PUTO_OTS (src)
+transition L2_Handle_PUTO_in_old_PUTO_OTS2 (src)
 requires { UniMsg_Cmd[src]=PUTO && 
 Dir_State<>L2CACHE_OTS && Dir_State<>L2CACHE_MT &&
 Dir_State<>L2CACHE_SS_B && Dir_State<>L2CACHE_MT_MB &&
