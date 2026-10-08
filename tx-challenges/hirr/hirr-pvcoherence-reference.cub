@@ -1,0 +1,1230 @@
+(* PRESENTATION AND REPRODUCTION
+   This file is part of tx-challenges/hirr/; see ../REPORT.md for its assessment.
+   Read the introduction below, then the comments beside the model phases.
+   From the repository root: python3 tx-challenges/run.py
+   The runner checks the new models and completion probes sequentially; HIRR
+   is a reference-only artifact with a retained timeout, not a default test.
+   Fresh logs/results go to the runner's printed output directory.
+   Historical builder commands/log names below refer to this original directory:
+   /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-hirr
+   Their outcomes are development observations, not performance comparisons.
+*)
+
+(*
+HIRR PV COHERENCE -- REFERENCE CANDIDATE, NOT A NEW TRANSACTION MODEL
+
+Status: commentary-only audit. No trigger/call/yield annotation is introduced.
+All executable declarations, guards, updates, init constraints and eight unsafe
+predicates below are unchanged from examples/challenges/hirr_pvcoherence.cub.
+The full 81-transition model is retained, including existing incomplete-looking
+branches; this is not a repaired, reduced, or abstract-data protocol.
+
+Claim boundary: no defensible multi-transition grouping was established in this
+bounded audit. This is not a theorem that HIRR cannot be reduced. Existing local
+handlers already perform their branch updates atomically. Splitting those updates
+and regrouping them would create artificial novelty, not identify new isolation.
+
+Source map (line numbers refer to the original, not this commented copy):
+  6-96 types/state; 104-129 init; 138-163 eight bad-state predicates;
+  168-234 stores/request/eviction issue; 236-392 owner forwarding;
+  394-445 invalidation reception; 447-602 data/upgrade/put reply reception;
+  606-884 L2 memory/request/upgrade handling; 885-944 writeback reception;
+  946-989 unblock; 991-1036 memory reply/ack collection; 1047-1069 memory.
+
+The process domain is parameterized. Full-data values are also proc identifiers,
+with Sort=Data guards for store values and Sort=Proc for cache participants.
+Sort is not initialized here; do not silently add a partition or a fixed number
+of cache/data identifiers. BRAB 4 supplies a finite candidate-rejection model,
+not a proof restricted to four caches or four data values. Init leaves many data
+and pointer cells unconstrained, while CurrData=PrevData=MemData and caches are I.
+
+Representation contrast: hirr_pvcoherence_abstrdata.cub removes Sort guards,
+changes data-bearing cells to uninterpreted data, and writes through TempData
+with nondeterministic refresh. Its store_in_e still has an unused d process
+parameter. It is NOT an identical executable model or an independent protocol.
+The shared 81/8 declaration counts do not prove an abstraction/refinement theorem.
+
+Why not accepted-request -> UNBLOCK as one exclusive transaction?
+  Dir_State transient values exclude many further directory requests, but not
+  all ordinary actions. L1 issue/store guards do not consult Dir_State. Forwarded
+  handlers deliberately accept E/M/O and MI/OI/OM_A, and invalidation handlers
+  distinguish IS from IS_I and SM_A from IM_AD. Those are interference cases,
+  not evidence for suppressing them. Message slots alone are not a global lock.
+  transaction.ml:47-57,132-155 separates entries/exits and checks safety at
+  neutral. Calling only selected successors removes other interleavings; merely
+  naming a flow does not retain stores, evictions or unrelated requests inside it.
+  A matching SAFE result after restriction would not validate this reduction.
+
+Concrete source-level interference obligation (not an executed trace):
+  From init, let cache a issue GETS; L2_handle_GETS_in_I, memory GETS,
+  L2_Handle_data_reply_from_Memory_in_IS, exclusive reply at a, and matching
+  EXCLUSIVE_UNBLOCK give a:E and Dir_State:MT. Let b issue GETS and let L2
+  accept via L2_Handle_GETS_in_MT. Now Dir_State=MT_OB and a is still E.
+  store_in_e(a,d) is enabled before a handles FWD_GETS and changes L1_Data[a]
+  and CurrData. Eviction issue at a is also enabled and changes E to MI, selecting
+  the distinct forwarded-MI branch. Guards thus do not provide whole-flow
+  exclusion. This does NOT prove nonserializability: moving the store before
+  acceptance may commute, but the required mover/refinement argument is absent.
+
+Exact next investigation, NOT performed by the bounded check below:
+  1. Take accepted GETS-in-MT through owner reply, recipient reply and matching
+     UNBLOCK as a candidate, retaining owner a and requester b. Enumerate every
+     competing transition/binding; read/write disjointness is only a first filter.
+  2. For each reachable internal phase, test guard preservation and the diamond
+     for moving the competitor left/right across each flow step. Compare all data,
+     messages, permission and directory fields; include every intermediate bad
+     predicate, not just committed endpoints. Use the original init/Sort choices.
+  3. Independently enumerate the ordinary and proposed encodings for a bounded
+     domain of three cache identifiers plus two Data identifiers; retain traces
+     with stores before forwarding, MI/OI eviction branches, concurrent requests,
+     and reply/invalidation order changes. Equality there is evidence only;
+     quantify the mover/isolation proof for arbitrary finite domains separately.
+  4. Resolve completion and competing ack branches literally before adding any
+     recursive ack loop. For a justified proposal, mutate owner reply data to a
+     stale value and require an unsafe COMPLETED-flow witness; ensure transient
+     faults are not hidden by moving all eight properties to boundaries.
+No mutant is delivered now: executable behavior is unchanged and no annotation
+has been justified, so a mutant would not validate a new transaction model.
+
+Experiment presentation:
+  One real check was launched against this commentary-only reference with:
+    /Users/kes/cubicle/cubicle.opt -nocolor -j 0 -tx none -brab 4
+      -search bfsh -candheur 2 -forward-depth 31
+      /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-hirr/hirr-pvcoherence-reference.cub
+  CWD: /Users/kes/.hermes/profiles/tetra/cache/scratch/txmodels-hirr/
+  Observed outcome: TIMEOUT at the external 100-second bound. The process group
+  was killed with SIGKILL; raw subprocess status -9; elapsed including shutdown
+  100.079738791 seconds. Parsing/typing and search proceeded (log ends during
+  node 5120), but there is NO final SAFE or UNSAFE verdict. No recipe retries,
+  annotation speedup, full-model safety proof, or invariant certificate is claimed.
+  This is a functional attempt; concurrent builders prevent speed conclusions.
+  Evidence: check.log, result.json and executable harness check_reference.py in
+  the same directory. Result JSON retains exact argv, input/source/binary hashes
+  and the nested-comment-stripped executable projection hash. This observation
+  was inserted after execution, changing only comments and the full-file hash.
+  Source SHA256:
+    10a277e29163af1e2331167cf19811d493c63d7f890ceabdbd07f48abaf92c29
+  Executed binary SHA256:
+    55d4f45d494285993e01790efe84cbc6865d45bc2ac72fdac3e29e339217a2a8
+  The original historical timing comment below is provenance, NOT a fresh result.
+*)
+
+(*HIERARCHICAL PVCOHERENCE PROTOCOL*)
+
+(* time ./cubicle.opt examples/challenges/hirr_pvcoherence.cub -brab 4 -search bfsh -candheur 2 -forward-depth 31
+-> safe in 10m13s *)
+
+type l1_cache_state = L1CACHE_I | L1CACHE_S | L1CACHE_O | 
+L1CACHE_E | L1CACHE_M | L1CACHE_IS | L1CACHE_IS_I | 
+L1CACHE_IM_AD | L1CACHE_IM_A | L1CACHE_IM_D | L1CACHE_MI | 
+L1CACHE_OI | L1CACHE_II | L1CACHE_SM_A | L1CACHE_OM_A
+
+type l2_cache_state = L2CACHE_I| L2CACHE_SS| L2CACHE_OTS| 
+L2CACHE_M| L2CACHE_MT| L2CACHE_IS| L2CACHE_IM| L2CACHE_MI| 
+L2CACHE_SS_MB| L2CACHE_SS_B| L2CACHE_MT_MB| L2CACHE_MT_OB| 
+L2CACHE_OTS_MB| L2CACHE_OTS_MTB| L2CACHE_OTS_B
+
+type uni_cmd = UNI_NONE| GETS| GETM| UPGRADE | PUTM | PUTO | 
+ACK_PUT
+type fwd_req_cmd = FWDREQUEST_NONE | FWD_GETS | FWD_GETM 
+type reply_cmd = REPLY_NONE| DATA_REPLY| 
+DATA_EXCLUSIVE_REPLY| MEM_ACK| UPGRADE_REPLY
+
+type inv_cmd = INV_NONE | INV | ACK_INV
+
+type unblock_cmd = UNBLOCK_NONE| UNBLOCK| EXCLUSIVE_UNBLOCK
+type shwb_cmd =  SHWB_NONE| SHWB 
+
+
+type sort = Proc | Data
+
+
+(*------------------------------ Processes ------------------------------*)
+
+array L1_Data[proc] : proc
+array L1_State[proc] : l1_cache_state
+
+(*------------------------------ Directory ------------------------------*)
+
+var Dir_State: l2_cache_state
+var Dir_Data: proc
+var Dir_S_Flag: bool
+var Dir_O_Flag: bool
+var Dir_O_Pending: bool
+var Dir_HeadVld: bool
+var Dir_PreHeadPtr: proc
+var Dir_HeadPtr: proc
+array Dir_ShrSet[proc] : bool
+var Dir_GetS_ID: proc
+var Dir_GetM_ID: proc
+
+
+ 
+
+(*------------------------------- Memory --------------------------------*)
+
+var MemData : proc
+(*var init_data : proc*)
+
+(*------------------------------- Network -------------------------------*)
+
+array UniMsg_Cmd[proc] : uni_cmd
+array UniMsg_Proc[proc] : proc
+array UniMsg_Data[proc] : proc
+var Req_to_Mem_Cmd : uni_cmd
+var Req_to_Mem_Data : proc
+array InvMsg_Cmd[proc] : inv_cmd
+
+var Unblock_Cmd : unblock_cmd
+var Unblock_Src : proc
+var Shwb_Cmd : shwb_cmd
+
+var L1L1RpMsg_Cmd : reply_cmd
+var L1L1RpMsg_Data: proc
+var L1L1RpMsg_Src : proc
+var L1L1RpMsg_Dst : proc
+var L1L1RpMsg_AckNeeded: bool
+
+var DirL1RpMsg_Cmd : reply_cmd
+var DirL1RpMsg_Data: proc
+var DirL1RpMsg_Dst : proc
+
+var MemDirRpMsg_Cmd : reply_cmd
+var MemDirRpMsg_Data: proc
+var Fwd_Req_Cmd : fwd_req_cmd
+var Fwd_Req_Dst : proc
+var Fwd_Req_Aux : proc
+
+
+
+(*-------------------------- Auxiliary variables ------------------------*)
+
+var CurrData : proc 
+var PrevData : proc
+
+var Collecting : bool
+
+array Sort[proc] : sort
+
+(*-----------------------------------------------------------------------*)
+
+
+
+(*---------------------------- Initial states ---------------------------*)
+
+init (p) {
+
+     L1_State[p]=L1CACHE_I &&
+     UniMsg_Cmd[p] = UNI_NONE &&
+     Dir_State = L2CACHE_I &&
+     InvMsg_Cmd[p] = INV_NONE &&
+     Dir_ShrSet[p] = False &&
+     Dir_S_Flag = False &&
+     Dir_O_Flag = False &&
+     Dir_O_Pending = False &&
+     Dir_HeadVld = False &&
+     (*MemData = init_data &&*)
+
+     L1L1RpMsg_Cmd = REPLY_NONE &&
+     L1L1RpMsg_AckNeeded = False &&
+     DirL1RpMsg_Cmd = REPLY_NONE &&
+     Fwd_Req_Cmd = FWDREQUEST_NONE &&
+     Unblock_Cmd = UNBLOCK_NONE &&
+     Shwb_Cmd = SHWB_NONE &&
+     Req_to_Mem_Cmd = UNI_NONE &&
+     MemDirRpMsg_Cmd = REPLY_NONE &&
+     
+     CurrData = MemData &&
+     PrevData = MemData 
+
+     }
+
+(*-----------------------------------------------------------------------*)
+
+
+
+
+(* AUDIT: Five exclusions forbid distinct M/M, M/E, M/S, E/E and E/S
+   cache pairs. They do not forbid O/S sharing. Three further predicates check
+   readable M/E/S data against CurrData, not O or transient-state data directly.
+   Their bad states are retained at EVERY ordinary transition boundary; no new
+   committed-only interpretation is being substituted. This is safety, not
+   deadlock freedom, fairness, progress or eventual UNBLOCK. *)
+
+(*--------------------------Cache Control property ----------------------*)
+
+unsafe (i j) { L1_State[i] = L1CACHE_M  && 
+L1_State[j] = L1CACHE_M }
+
+unsafe (i j) { L1_State[i] = L1CACHE_M  && 
+L1_State[j] = L1CACHE_E }
+
+unsafe (i j) { L1_State[i] = L1CACHE_M  && 
+L1_State[j] = L1CACHE_S }
+
+unsafe (i j) { L1_State[i] = L1CACHE_E  && 
+L1_State[j] = L1CACHE_E }
+
+unsafe (i j) { L1_State[i] = L1CACHE_E  && 
+L1_State[j] = L1CACHE_S }
+
+
+(*--------------------------- Data properties ---------------------------*)
+
+unsafe (p) {L1_State[p] = L1CACHE_M  && 
+L1_Data[p] <> CurrData }
+
+unsafe (p) {L1_State[p] = L1CACHE_E  && 
+L1_Data[p] <> CurrData }
+
+unsafe (p) {L1_State[p] = L1CACHE_S  && 
+L1_Data[p] <> CurrData }
+
+
+(*-------------------------RULES----------------------------------------*)
+
+(* AUDIT: Each store atomically changes both cache data and CurrData.
+   Its guard has no directory-busy condition. These are already atomic handlers,
+   not a newly isolated multi-step transaction. *)
+
+transition store_in_m (src d)
+requires {Sort[d]=Data && Sort[src]=Proc && 
+L1_State[src]=L1CACHE_M}
+{
+L1_Data[src]:=d;
+CurrData:=d;
+}
+
+transition store_in_e (src d)
+requires {Sort[d]=Data && Sort[src]=Proc && 
+L1_State[src]=L1CACHE_E}
+{
+L1_Data[src]:=d;
+CurrData:=d;
+}
+
+transition L1Cache_issues_GETS (src)
+requires {Sort[src]=Proc && L1_State[src]=L1CACHE_I}
+{ 
+L1_State[src]:=L1CACHE_IS;
+UniMsg_Cmd[src]:=GETS;
+}
+
+transition L1Cache_issues_GETM (src)
+requires {Sort[src]=Proc && L1_State[src]=L1CACHE_I}
+{
+L1_State[src]:=L1CACHE_IM_AD;
+UniMsg_Cmd[src]:=GETM;
+}
+
+transition L1Cache_issues_UPGRADE_in_S (src)
+requires {Sort[src]=Proc && L1_State[src]=L1CACHE_S}
+{
+L1_State[src]:=L1CACHE_SM_A;
+UniMsg_Cmd[src]:=UPGRADE;
+}
+
+transition L1Cache_issues_UPGRADE_in_O (src)
+requires {Sort[src]=Proc && L1_State[src]=L1CACHE_O}
+{
+L1_State[src]:=L1CACHE_OM_A;
+UniMsg_Cmd[src]:=UPGRADE;
+}
+
+transition L1Cache_issues_PUTO (src)
+requires {Sort[src]=Proc && L1_State[src]=L1CACHE_O}
+{
+L1_State[src]:=L1CACHE_OI;
+UniMsg_Cmd[src]:=PUTO;
+UniMsg_Data[src]:=L1_Data[src];
+}
+
+transition L1Cache_issues_PUTM (src)
+requires {Sort[src]=Proc && L1_State[src]=L1CACHE_M}
+{
+L1_State[src]:=L1CACHE_MI;
+UniMsg_Cmd[src]:=PUTM;
+UniMsg_Data[src]:=L1_Data[src];
+}
+
+transition L1Cache_issues_PUTE (src)
+requires {Sort[src]=Proc && L1_State[src]=L1CACHE_E}
+{
+L1_State[src]:=L1CACHE_MI;
+UniMsg_Cmd[src]:=PUTM;
+UniMsg_Data[src]:=L1_Data[src];
+}
+
+(* AUDIT: Forwarding carries (owner dst, requester aux). GETS downgrades
+   E/M to O while sending data; GETM invalidates/transforms the owner and can
+   require an ack. MI/OI/OM_A alternatives retain eviction/upgrade races. A flow
+   annotation must account for those alternatives and the source/destination
+   bindings; do not replace them with one idealized owner-transfer action. *)
+
+transition L1_handle_forwarded_gets_in_E (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETS && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_E}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_O;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+}
+
+transition L1_handle_forwarded_gets_in_M (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETS && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_M}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_O;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+}
+
+transition L1_handle_forwarded_gets_in_O (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETS && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_O}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_O;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+}
+
+transition L1_handle_forwarded_gets_in_MI (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETS && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_MI}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_OI;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+}
+
+transition L1_handle_forwarded_gets_in_OI (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETS && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_OI}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_OI;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+}
+
+transition L1_handle_forwarded_gets_in_OM_A (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETS && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_OM_A}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+}
+
+transition L1_handle_forwarded_getm_in_M (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETM && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_M}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_I;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+}
+
+transition L1_handle_forwarded_getm_in_E (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETM && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_E}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_I;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+}
+
+transition L1_handle_forwarded_getm_in_O (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETM && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_O}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_I;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+L1L1RpMsg_AckNeeded:=True;
+}
+
+transition L1_handle_forwarded_getm_in_OM_A (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETM && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_OM_A}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_IM_AD;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+L1L1RpMsg_AckNeeded:=True;
+}
+
+transition L1_handle_forwarded_getm_in_MI (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETM && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_MI}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_I;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+}
+
+transition L1_handle_forwarded_getm_in_OI (dst aux)
+requires {Sort[dst]=Proc && Sort[aux]=Proc && 
+Fwd_Req_Cmd=FWD_GETM && Fwd_Req_Dst=dst && 
+Fwd_Req_Aux = aux && L1_State[dst]=L1CACHE_OI}
+{
+Fwd_Req_Cmd:=FWDREQUEST_NONE;
+L1_State[dst]:=L1CACHE_II;
+L1L1RpMsg_Cmd:=DATA_REPLY;
+L1L1RpMsg_Src:=dst;
+L1L1RpMsg_Dst:=Fwd_Req_Aux;
+L1L1RpMsg_Data:=L1_Data[dst];
+L1L1RpMsg_AckNeeded:=True;
+}
+
+(* AUDIT: Invalidation may race a pending read: IS -> IS_I. The later
+   data reply then finishes in I instead of S. The upgrade/data order likewise
+   distinguishes IM_AD -> IM_A (data first, ack needed) from IM_AD -> IM_D
+   (upgrade reply first). Both routes and the other transient guards remain. *)
+
+transition L1_handle_inv_request_in_IS (dst)
+requires {Sort[dst]=Proc && InvMsg_Cmd[dst]=INV && 
+L1_State[dst]=L1CACHE_IS}
+{
+InvMsg_Cmd[dst]:=ACK_INV;
+L1_State[dst]:=L1CACHE_IS_I;
+}
+
+transition L1_handle_inv_request_in_I (dst)
+requires {Sort[dst]=Proc && InvMsg_Cmd[dst]=INV && 
+L1_State[dst]=L1CACHE_I}
+{
+InvMsg_Cmd[dst]:=ACK_INV;
+}
+
+transition L1_handle_inv_request_in_IM (dst)
+requires {Sort[dst]=Proc && InvMsg_Cmd[dst]=INV && 
+L1_State[dst]=L1CACHE_IM_AD} 
+{
+InvMsg_Cmd[dst]:=ACK_INV;
+}
+
+transition L1_handle_inv_request_in_IS_I (dst)
+requires {Sort[dst]=Proc && InvMsg_Cmd[dst]=INV && 
+L1_State[dst]=L1CACHE_IS_I}
+{
+InvMsg_Cmd[dst]:=ACK_INV;
+}
+
+transition L1_handle_inv_request_in_SM_A (dst)
+requires {Sort[dst]=Proc && InvMsg_Cmd[dst]=INV && 
+L1_State[dst]=L1CACHE_SM_A}
+{
+InvMsg_Cmd[dst]:=ACK_INV;
+L1_State[dst]:=L1CACHE_IM_AD;
+}
+
+transition L1_handle_inv_request_in_OM_A (dst)
+requires {Sort[dst]=Proc && InvMsg_Cmd[dst]=INV && 
+L1_State[dst]=L1CACHE_OM_A}
+{
+InvMsg_Cmd[dst]:=ACK_INV;
+L1_State[dst]:=L1CACHE_IM_AD;
+}
+
+transition L1_handle_inv_request_in_OI (dst)
+requires {Sort[dst]=Proc && InvMsg_Cmd[dst]=INV && 
+L1_State[dst]=L1CACHE_OI}
+{
+InvMsg_Cmd[dst]:=ACK_INV;
+L1_State[dst]:=L1CACHE_II;
+}
+
+transition L1_handle_data_reply_from_L1_in_IS_I (dst src)
+requires {Sort[dst]=Proc && Sort[src]=Proc && 
+L1L1RpMsg_Cmd=DATA_REPLY && L1L1RpMsg_Dst=dst && 
+L1L1RpMsg_Src=src && L1_State[dst]=L1CACHE_IS_I}
+{
+L1L1RpMsg_Cmd:=REPLY_NONE;
+L1_State[dst]:=L1CACHE_I;
+L1_Data[dst]:=L1L1RpMsg_Data;
+}
+
+transition L1_handle_data_reply_from_L1_in_IM_AD_AckNdd (dst src)
+requires {Sort[dst]=Proc && Sort[src]=Proc && L1L1RpMsg_Cmd=DATA_REPLY && L1L1RpMsg_Dst=dst && L1L1RpMsg_Src=src && 
+L1_State[dst]=L1CACHE_IM_AD && L1L1RpMsg_AckNeeded=True}
+{
+L1L1RpMsg_Cmd:=REPLY_NONE;
+L1_Data[dst]:=L1L1RpMsg_Data;
+L1_State[dst]:=L1CACHE_IM_A;  
+L1L1RpMsg_AckNeeded:=False;
+}
+
+transition L1_handle_data_reply_from_L1_in_IM_AD_Ack_Not_Ndd (dst src)
+requires {Sort[dst]=Proc && Sort[src]=Proc && 
+L1L1RpMsg_Cmd=DATA_REPLY && L1L1RpMsg_Dst=dst && 
+L1L1RpMsg_Src=src && L1_State[dst]=L1CACHE_IM_AD && 
+L1L1RpMsg_AckNeeded<>True}
+{
+L1L1RpMsg_Cmd:=REPLY_NONE;
+L1_Data[dst]:=L1L1RpMsg_Data;
+L1_State[dst]:=L1CACHE_M;  
+Unblock_Cmd:=UNBLOCK;
+Unblock_Src:=dst;
+}
+
+transition L1_handle_data_reply_from_L1_in_IM_D (dst src)
+requires {Sort[dst]=Proc && Sort[src]=Proc && 
+L1L1RpMsg_Cmd=DATA_REPLY && L1L1RpMsg_Dst=dst && 
+L1L1RpMsg_Src=src && L1_State[dst]=L1CACHE_IM_D}
+{
+L1L1RpMsg_Cmd:=REPLY_NONE;
+L1_Data[dst]:=L1L1RpMsg_Data;
+L1_State[dst]:=L1CACHE_M;  
+Unblock_Cmd:=UNBLOCK;
+Unblock_Src:=dst;
+}
+
+transition L1_handle_data_reply_from_L1_in_IS (dst src)
+requires {Sort[dst]=Proc && Sort[src]=Proc && 
+L1L1RpMsg_Cmd=DATA_REPLY && L1L1RpMsg_Dst=dst && 
+L1L1RpMsg_Src=src && L1_State[dst]=L1CACHE_IS}
+{
+L1L1RpMsg_Cmd:=REPLY_NONE;
+L1_Data[dst]:=L1L1RpMsg_Data;
+L1_State[dst]:=L1CACHE_S;  
+Unblock_Cmd:=UNBLOCK;
+Unblock_Src:=dst;
+}
+
+transition L1_handle_data_reply_from_L2_in_IS (dst)
+requires {Sort[dst]=Proc && DirL1RpMsg_Cmd=DATA_REPLY && 
+DirL1RpMsg_Dst=dst && L1_State[dst]=L1CACHE_IS}
+{
+DirL1RpMsg_Cmd:=REPLY_NONE;
+L1_Data[dst]:=DirL1RpMsg_Data;
+L1_State[dst]:=L1CACHE_S;  
+}
+
+transition L1_handle_data_reply_from_L2_in_IS_I (dst)
+requires {Sort[dst]=Proc && DirL1RpMsg_Cmd=DATA_REPLY && DirL1RpMsg_Dst=dst && L1_State[dst]=L1CACHE_IS_I}
+{
+DirL1RpMsg_Cmd:=REPLY_NONE;
+L1_Data[dst]:=DirL1RpMsg_Data;
+L1_State[dst]:=L1CACHE_I;  
+}
+
+transition L1_handle_data_reply_from_L2_in_IM_AD (dst)
+requires {Sort[dst]=Proc && DirL1RpMsg_Cmd=DATA_REPLY && 
+DirL1RpMsg_Dst=dst && L1_State[dst]=L1CACHE_IM_AD}
+{
+DirL1RpMsg_Cmd:=REPLY_NONE;
+L1_Data[dst]:=DirL1RpMsg_Data;
+L1_State[dst]:=L1CACHE_M;
+Unblock_Cmd:=UNBLOCK;
+Unblock_Src:=dst;  
+}
+
+transition L1_handle_data_exclusive_reply_from_L2_in_IS (dst)
+requires {Sort[dst]=Proc && DirL1RpMsg_Cmd=DATA_EXCLUSIVE_REPLY && DirL1RpMsg_Dst=dst && L1_State[dst]=L1CACHE_IS}
+{
+DirL1RpMsg_Cmd:=REPLY_NONE;
+L1_Data[dst]:=DirL1RpMsg_Data;
+L1_State[dst]:=L1CACHE_E;
+Unblock_Cmd:=EXCLUSIVE_UNBLOCK;
+Unblock_Src:=dst;  
+}
+
+transition L1_handle_upgrade_reply_from_L2_in_SM_A (dst)
+requires {Sort[dst]=Proc && DirL1RpMsg_Cmd=UPGRADE_REPLY && 
+DirL1RpMsg_Dst=dst && L1_State[dst]=L1CACHE_SM_A}
+{
+DirL1RpMsg_Cmd:=REPLY_NONE;
+L1_State[dst]:=L1CACHE_M;
+Unblock_Cmd:=UNBLOCK;
+Unblock_Src:=dst;  
+}
+
+transition L1_handle_upgrade_reply_from_L2_in_OM_A (dst)
+requires {Sort[dst]=Proc && DirL1RpMsg_Cmd=UPGRADE_REPLY && 
+DirL1RpMsg_Dst=dst && L1_State[dst]=L1CACHE_OM_A}
+{
+DirL1RpMsg_Cmd:=REPLY_NONE;
+L1_State[dst]:=L1CACHE_M;
+Unblock_Cmd:=UNBLOCK;
+Unblock_Src:=dst;  
+}
+
+transition L1_handle_upgrade_reply_from_L2_in_IM_AD (dst)
+requires {Sort[dst]=Proc && DirL1RpMsg_Cmd=UPGRADE_REPLY && 
+DirL1RpMsg_Dst=dst && L1_State[dst]=L1CACHE_IM_AD}
+{
+DirL1RpMsg_Cmd:=REPLY_NONE;
+L1_State[dst]:=L1CACHE_IM_D;
+}
+
+transition L1_handle_upgrade_reply_from_L2_in_IM_A (dst)
+requires {Sort[dst]=Proc && DirL1RpMsg_Cmd=UPGRADE_REPLY&&
+DirL1RpMsg_Dst=dst && L1_State[dst]=L1CACHE_IM_A}
+{
+DirL1RpMsg_Cmd:=REPLY_NONE;
+L1_State[dst]:=L1CACHE_M;
+Unblock_Cmd:=UNBLOCK;
+Unblock_Src:=dst;  
+}
+
+transition L1_handle_ack_put_in_MI (dst)
+requires {Sort[dst]=Proc && UniMsg_Cmd[dst]=ACK_PUT && 
+L1_State[dst]=L1CACHE_MI}
+{
+UniMsg_Cmd[dst]:=UNI_NONE;
+L1_State[dst]:=L1CACHE_I;
+}
+
+transition L1_handle_ack_put_in_OI (dst)
+requires {Sort[dst]=Proc && UniMsg_Cmd[dst]=ACK_PUT && 
+L1_State[dst]=L1CACHE_OI}
+{
+UniMsg_Cmd[dst]:=UNI_NONE;
+L1_State[dst]:=L1CACHE_I;
+}
+
+transition L1_handle_ack_put_in_II (dst)
+requires {Sort[dst]=Proc && UniMsg_Cmd[dst]=ACK_PUT && 
+L1_State[dst]=L1CACHE_II}
+{
+UniMsg_Cmd[dst]:=UNI_NONE;
+L1_State[dst]:=L1CACHE_I;
+}
+
+(*------------------L2 MESSAGES---------------*)
+
+transition L2Cache_write_back_Data_to_Memory ()
+requires {Dir_State=L2CACHE_M}
+{
+Dir_State:=L2CACHE_MI;
+Req_to_Mem_Cmd:=PUTM;
+Req_to_Mem_Data:=Dir_Data;
+}
+
+transition L2_handle_GETS_in_I (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=GETS && 
+Dir_State=L2CACHE_I}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_State:=L2CACHE_IS;
+Dir_GetS_ID:=src; 
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+Req_to_Mem_Cmd:=GETS;
+}
+
+(* AUDIT: SS directory GETS emits a reply but leaves Dir_State=SS;
+   its guard does NOT test that DirL1RpMsg_Cmd is empty. A second accepted
+   request can write the same global reply slot before reception. This is a
+   code-level non-exclusion observation, not a proven reachable safety bug.
+   Atomically bundling each acceptance with delivery changes this ordering and
+   requires correspondence; there is no blanket busy exclusion for all GETS. *)
+
+transition L2_handle_GETS_in_SS (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=GETS && 
+Dir_State=L2CACHE_SS}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_State:=L2CACHE_SS;
+Dir_GetS_ID:=src; 
+Dir_ShrSet[src]:=True;
+DirL1RpMsg_Cmd:=DATA_REPLY;
+DirL1RpMsg_Dst:=src;
+DirL1RpMsg_Data:=Dir_Data
+}
+
+transition L2handle_GETS_in_M (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=GETS && 
+Dir_State=L2CACHE_M}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+Dir_GetS_ID:=src; 
+Dir_State:=L2CACHE_MT_MB;
+DirL1RpMsg_Cmd:=DATA_EXCLUSIVE_REPLY;
+DirL1RpMsg_Dst:=src;
+DirL1RpMsg_Data:=Dir_Data
+}
+
+transition L2_Handle_GETS_in_MT (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=GETS && 
+Dir_State=L2CACHE_MT && 
+Dir_HeadVld=True}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_State:=L2CACHE_MT_OB;
+Dir_GetS_ID:=src;
+Dir_ShrSet[src]:=True;
+Fwd_Req_Cmd:=FWD_GETS;
+Fwd_Req_Dst:=Dir_HeadPtr;
+Fwd_Req_Aux:=src;
+}
+
+transition L2_Handle_GETS_in_OTS (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=GETS && 
+Dir_State=L2CACHE_OTS && 
+Dir_HeadVld=True}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_State:=L2CACHE_OTS_B;
+Dir_GetS_ID:=src;
+Dir_ShrSet[src]:=True;
+Fwd_Req_Cmd:=FWD_GETS;
+Fwd_Req_Dst:=Dir_HeadPtr;
+Fwd_Req_Aux:=src;
+}
+
+transition L2_Handle_GETM_in_I (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=GETM && 
+Dir_State=L2CACHE_I}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_State:=L2CACHE_IM;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+Req_to_Mem_Cmd:=GETM;
+}
+
+(* AUDIT: GETM/UPGRADE publish invalidations by an existing atomic
+   case assignment over Dir_ShrSet. The bulk update is not a recursive local
+   scan to rediscover. Separate INV -> ACK_INV and directory ack handling are
+   real protocol steps and cannot simply be swallowed into an exclusive flow. *)
+
+transition L2_Handle_GETM_in_SS (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=GETM && 
+Dir_State=L2CACHE_SS}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_State:=L2CACHE_SS_MB;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+InvMsg_Cmd[p] := case
+	      	 | Dir_ShrSet[p]=True && p<>src : INV
+		 | _ : InvMsg_Cmd[p];
+Dir_ShrSet[src]:=False;
+}
+
+transition L2_Handle_GETM_in_OTS (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=GETM && 
+Dir_State=L2CACHE_OTS}
+{
+Dir_ShrSet[src]:=False;
+Fwd_Req_Cmd:=FWD_GETM;
+Fwd_Req_Aux:=src;
+Fwd_Req_Dst:=Dir_HeadPtr; 
+PrevData:=CurrData;
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_State:=L2CACHE_OTS_MB;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+InvMsg_Cmd[p] := case
+	      	 | Dir_ShrSet[p]=True && p<>src : INV
+		 | _ : InvMsg_Cmd[p];
+}
+
+transition L2_Handle_GETM_in_M (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=GETM && 
+Dir_State=L2CACHE_M}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_State:=L2CACHE_MT_MB;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+DirL1RpMsg_Cmd:=DATA_REPLY;
+DirL1RpMsg_Dst:=src;
+DirL1RpMsg_Data:=Dir_Data;
+}
+
+transition L2_Handle_GETM_in_MT (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=GETM &&
+Dir_State=L2CACHE_MT && Dir_HeadVld=True}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_State:=L2CACHE_MT_MB;
+Fwd_Req_Cmd:=FWD_GETM;
+Fwd_Req_Aux:=src;
+Fwd_Req_Dst:=Dir_HeadPtr;
+Dir_HeadPtr:=src;
+}
+
+transition L2_Handle_UPGRADE_in_SS_SharersAreSrc_Other (src o)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=UPGRADE && 
+Dir_State=L2CACHE_SS && Dir_ShrSet[src]=True && 
+Dir_ShrSet[o]=True && src<>o}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+Dir_ShrSet[src]:=False; (*1*)
+Dir_S_Flag:=True; (*3*)
+Dir_State:=L2CACHE_SS_MB; (*3*)
+InvMsg_Cmd[p] := case (*3*)
+	      	 | Dir_ShrSet[p]=True && p<>src : INV
+		 | _ : InvMsg_Cmd[p];
+}
+
+transition L2_Handle_UPGRADE_in_SS_SrcOnlySharer (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=UPGRADE && 
+Dir_State=L2CACHE_SS && Dir_ShrSet[src]=True &&
+forall_other p. Dir_ShrSet[p] = False}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+Dir_ShrSet[src]:=False; (*1*)
+DirL1RpMsg_Cmd:=UPGRADE_REPLY; (*2*)
+Dir_State:=L2CACHE_MT_MB; (*2*)
+DirL1RpMsg_Dst:=src; (*2*)
+}
+
+transition L2_Handle_UPGRADE_in_SS_SrcNOTSharer (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=UPGRADE && 
+Dir_State=L2CACHE_SS && Dir_ShrSet[src]<>True}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+
+Dir_S_Flag:=False; (*4*)
+Dir_State:=L2CACHE_SS_MB; (*4*)
+InvMsg_Cmd[p] := case (*4*)
+	      	 | Dir_ShrSet[p]=True && p<>src : INV
+		 | _ : InvMsg_Cmd[p];
+}
+
+transition L2_Handle_UPGRADE_in_OTS_ifHdPtrEqSrc (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=UPGRADE && 
+Dir_State=L2CACHE_OTS && Dir_HeadPtr=src}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+Dir_ShrSet[src]:=False;
+
+ 
+Dir_State:=L2CACHE_OTS_MB;
+(*1 starts*)
+Dir_O_Flag:=True; 
+(*1 ends*)
+InvMsg_Cmd[p] := case
+	      	 | Dir_ShrSet[p]=True && p<>src : INV
+		 | _ : InvMsg_Cmd[p];
+
+}
+
+transition L2_Handle_UPGRADE_in_OTS_elsifSrcNOTSharer (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=UPGRADE && 
+Dir_State=L2CACHE_OTS && Dir_HeadPtr<>src &&
+Dir_ShrSet[src]=True}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+Dir_ShrSet[src]:=False;
+
+ 
+Dir_State:=L2CACHE_OTS_MB;
+(*2 starts*)
+Dir_S_Flag:=True;
+Dir_O_Pending:=True; 
+Dir_PreHeadPtr:=Dir_HeadPtr; 
+(*2 ends*)
+InvMsg_Cmd[p] := case
+	      	 | p=Dir_HeadPtr: INV
+	      	 | Dir_ShrSet[p]=True && p<>src : INV
+		 | _ : InvMsg_Cmd[p];
+}
+
+transition L2_Handle_UPGRADE_in_OTS_else (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=UPGRADE && 
+Dir_State=L2CACHE_OTS && Dir_HeadPtr<>src &&
+Dir_ShrSet[src]<>True}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+Dir_ShrSet[src]:=False;
+
+ 
+Dir_State:=L2CACHE_OTS_MB;
+(*3 starts*)
+Fwd_Req_Cmd:=FWD_GETM;
+Fwd_Req_Aux:=src;
+Fwd_Req_Dst:=Dir_HeadPtr;
+(*3 ends*)
+InvMsg_Cmd[p] := case
+	      	 | Dir_ShrSet[p]=True && p<>src : INV
+		 | _ : InvMsg_Cmd[p];
+
+}
+
+transition L2_Handle_UPGRADE_in_M (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=UPGRADE && 
+Dir_State=L2CACHE_M}
+{
+UniMsg_Cmd[src]:=UNI_NONE;
+Dir_GetM_ID:=src;
+Dir_HeadPtr:=src;
+Dir_HeadVld:=True;
+Dir_State:=L2CACHE_MT_MB;
+DirL1RpMsg_Cmd:=DATA_REPLY;
+DirL1RpMsg_Dst:=src;
+DirL1RpMsg_Data:=Dir_Data
+}
+
+transition L2_Handle_PUTM_in_real_PUTM (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=PUTM && 
+Dir_State=L2CACHE_MT && Dir_HeadPtr=src}
+{
+Dir_HeadVld:=False;
+Dir_State:=L2CACHE_M;
+UniMsg_Cmd[src]:=ACK_PUT;
+Dir_Data:=UniMsg_Data[src];
+}
+
+transition L2_Handle_PUTM_in_old_PUTM (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=PUTM && 
+Dir_State=L2CACHE_MT && Dir_HeadPtr<>src}
+{
+UniMsg_Cmd[src]:=ACK_PUT;
+}
+
+transition L2_Handle_PUTM_in_other (src) (*I,IS,IM,SS,M,MI,SS_MB*)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=PUTM && 
+Dir_State<>L2CACHE_OTS && Dir_State<>L2CACHE_MT &&
+Dir_State<>L2CACHE_SS_B && Dir_State<>L2CACHE_MT_MB &&
+Dir_State<>L2CACHE_MT_OB && Dir_State<>L2CACHE_OTS_MB &&
+Dir_State<>L2CACHE_OTS_MTB && Dir_State<>L2CACHE_OTS_B}
+{
+UniMsg_Cmd[src]:=ACK_PUT;
+}
+
+transition L2_Handle_PUTO_in_real_PUTO (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=PUTO && 
+Dir_State=L2CACHE_OTS && Dir_HeadPtr=src}
+{
+Dir_State:=L2CACHE_SS;
+Dir_HeadVld:=False;
+Dir_Data:=UniMsg_Data[src];
+UniMsg_Cmd[src]:=ACK_PUT;
+}
+
+transition L2_Handle_PUTO_in_old_PUTO_MT (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=PUTO && 
+Dir_State=L2CACHE_MT && Dir_HeadPtr<>src}
+{
+UniMsg_Cmd[src]:=ACK_PUT;
+}
+
+transition L2_Handle_PUTO_in_old_PUTO_OTS1 (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=PUTO && 
+Dir_State=L2CACHE_OTS && Dir_HeadPtr<>src}
+{
+UniMsg_Cmd[src]:=ACK_PUT;
+}
+
+transition L2_Handle_PUTO_in_old_PUTO_OTS2 (src)
+requires {Sort[src]=Proc && UniMsg_Cmd[src]=PUTO && 
+Dir_State<>L2CACHE_OTS && Dir_State<>L2CACHE_MT &&
+Dir_State<>L2CACHE_SS_B && Dir_State<>L2CACHE_MT_MB &&
+Dir_State<>L2CACHE_MT_OB && Dir_State<>L2CACHE_OTS_MB &&
+Dir_State<>L2CACHE_OTS_MTB && Dir_State<>L2CACHE_OTS_B}
+{
+UniMsg_Cmd[src]:=ACK_PUT;
+}
+
+(* AUDIT: Matching Unblock_Src plus Dir_GetS_ID/Dir_GetM_ID and the
+   transient directory state identify different completions. Installing M/E/S
+   at L1 precedes this action, so stores or other L1 actions can be enabled in
+   the interval. UNBLOCK is a candidate protocol end marker, not an isolation
+   certificate for every step since request acceptance. *)
+
+transition L2_Handle_UNBLOCK_in_MT_OB (src)
+requires {Sort[src]=Proc && Unblock_Src=src &&
+Unblock_Cmd=UNBLOCK && Dir_State=L2CACHE_MT_OB && 
+Dir_GetS_ID=src}
+{
+Unblock_Cmd:=UNBLOCK_NONE;
+Dir_State:=L2CACHE_OTS;
+}
+
+transition L2_Handle_UNBLOCK_in_MT_MB (src)
+requires {Sort[src]=Proc && Unblock_Src=src &&
+Unblock_Cmd=UNBLOCK && Dir_State=L2CACHE_MT_MB && 
+Dir_GetM_ID=src}
+{
+Unblock_Cmd:=UNBLOCK_NONE;
+Dir_State:=L2CACHE_MT;
+}
+
+transition L2_Handle_UNBLOCK_in_OTS_MTB (src)
+requires {Sort[src]=Proc && Unblock_Src=src &&
+Unblock_Cmd=UNBLOCK && Dir_State=L2CACHE_OTS_MTB && 
+Dir_GetM_ID=src}
+{
+Unblock_Cmd:=UNBLOCK_NONE;
+Dir_State:=L2CACHE_MT;
+}
+
+transition L2_Handle_UNBLOCK_in_OTS_M (src)
+requires {Sort[src]=Proc && Unblock_Src=src &&
+Unblock_Cmd=UNBLOCK && Dir_State=L2CACHE_OTS_B && 
+Dir_GetS_ID=src}
+{
+Unblock_Cmd:=UNBLOCK_NONE;
+Dir_State:=L2CACHE_OTS;
+}
+
+transition L2_Handle_EXCLUSIVE_UNBLOCK (src)
+requires {Sort[src]=Proc && Unblock_Src=src &&
+Unblock_Cmd=EXCLUSIVE_UNBLOCK && Dir_State=L2CACHE_MT_MB && 
+Dir_GetS_ID=src}
+{
+Unblock_Cmd:=UNBLOCK_NONE;
+Dir_State:=L2CACHE_MT;
+}
+
+transition L2_Handle_data_reply_from_Memory_in_IS ()
+requires {MemDirRpMsg_Cmd=DATA_REPLY && Dir_State=L2CACHE_IS}
+{
+MemDirRpMsg_Cmd:=REPLY_NONE;
+Dir_State:=L2CACHE_MT_MB;
+Dir_Data:=MemDirRpMsg_Data;
+DirL1RpMsg_Cmd:=DATA_EXCLUSIVE_REPLY;
+DirL1RpMsg_Dst:=Dir_GetS_ID;
+DirL1RpMsg_Data:=MemDirRpMsg_Data;
+}
+
+transition L2_Handle_ack_reply_from_L1_finalAck_NOT_SFlag (src)
+requires {Sort[src]=Proc && InvMsg_Cmd[src]=ACK_INV && 
+Dir_State=L2CACHE_SS_MB && forall_other p. Dir_ShrSet[p]=False &&
+Dir_S_Flag=False}
+{
+InvMsg_Cmd[src]:=INV_NONE;
+Dir_ShrSet[src]:=False;
+Dir_State:=L2CACHE_MT_MB; (*1*)
+DirL1RpMsg_Cmd:=DATA_REPLY; (*2*)
+DirL1RpMsg_Data:=Dir_Data; (*2*)
+DirL1RpMsg_Dst:=Dir_GetM_ID;
+}
+
+transition L2_Handle_ack_reply_from_L1_finalAck_SFlag (src)
+requires {Sort[src]=Proc && InvMsg_Cmd[src]=ACK_INV && 
+Dir_State=L2CACHE_SS_MB && forall_other p. Dir_ShrSet[p]=False &&
+Dir_S_Flag<>False}
+{
+InvMsg_Cmd[src]:=INV_NONE;
+Dir_ShrSet[src]:=False;
+Dir_State:=L2CACHE_MT_MB; (*1*)
+DirL1RpMsg_Cmd:=UPGRADE_REPLY; (*3*)
+Dir_S_Flag:=False; (*3*)
+DirL1RpMsg_Dst:=Dir_GetM_ID;
+}
+
+(* AUDIT: Despite its name, NOTfinalAck has the same forall_other
+   no-other-sharer condition and Dir_S_Flag<>False test as finalAck_SFlag above.
+   Its action does NOT leave SS_MB or emit the upgrade command; it only clears
+   this ack/sharer and sets the reply destination. Do not silently replace this
+   with a presumed not-final condition or invented recursive collection loop.
+   The OTS_MB ack transition below is commented out in the original and remains
+   inactive. Literal guards/actions, not intended protocol prose, are authority. *)
+
+transition L2_Handle_ack_reply_from_L1_NOTfinalAck (src)
+requires {Sort[src]=Proc && InvMsg_Cmd[src]=ACK_INV && 
+Dir_State=L2CACHE_SS_MB && forall_other p. Dir_ShrSet[p]=False &&
+Dir_S_Flag<>False}
+{
+InvMsg_Cmd[src]:=INV_NONE;
+Dir_ShrSet[src]:=False;
+DirL1RpMsg_Dst:=Dir_GetM_ID; 
+}
+
+(*
+transition L2_Handle_ack_reply_from_L1_in_OTS_MB (src) (*return to this*)
+requires {Sort[src]=Proc && InvMsg_Cmd[src]=ACK_INV && 
+Dir_State=L2CACHE_OTS_MB}
+{
+InvMsg_Cmd[src]:=INV_NONE; (*base code*)
+}
+*)
+
+transition Memory_handle_get_requests_GETM () 
+requires {Req_to_Mem_Cmd=GETM}
+{
+Req_to_Mem_Cmd:=UNI_NONE;
+MemDirRpMsg_Cmd:=DATA_REPLY; 
+MemDirRpMsg_Data:=MemData;
+}
+
+transition Memory_handle_get_requests_GETS () 
+requires {Req_to_Mem_Cmd=GETS}
+{
+Req_to_Mem_Cmd:=UNI_NONE;
+MemDirRpMsg_Cmd:=DATA_REPLY; 
+MemDirRpMsg_Data:=MemData;
+}
+
+transition Memory_handle_putm_requests () 
+requires {Req_to_Mem_Cmd=PUTM}
+{
+Req_to_Mem_Cmd:=UNI_NONE;
+MemData:=Req_to_Mem_Data;
+MemDirRpMsg_Cmd:=MEM_ACK; 
+}
+
+
