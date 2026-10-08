@@ -30,6 +30,8 @@ CONFIGS = {
     'tetra-all': ('tetra', ['-tx', 'all']),
     'old-none': ('old', ['-tx', 'none']),
     'old-all': ('old', ['-tx', 'all']),
+    'tetra-fwd': ('tetra', ['-tx', 'fwd']),
+    'old-fwd': ('old', ['-tx', 'fwd']),
 }
 COMMON = ['-nocolor', '-solver', 'alt-ergo']
 
@@ -53,8 +55,10 @@ def git(*args):
 
 
 def configurations(model):
-    available = ['tetra-all', 'old-all'] if model['group'] == 'transaction' else list(CONFIGS)
-    selected = model.get('configs', available)
+    defaults = (['tetra-all', 'old-all'] if model['group'] == 'transaction' else
+                ['baseline', 'tetra-none', 'tetra-all', 'old-none', 'old-all'])
+    available = defaults + ['tetra-fwd', 'old-fwd']
+    selected = model.get('configs', defaults)
     if not selected or len(selected) != len(set(selected)) or any(c not in available for c in selected):
         raise ValueError('Invalid configuration subset: ' + repr(selected))
     return selected

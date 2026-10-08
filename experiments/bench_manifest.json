@@ -778,19 +778,18 @@
     {
       "path": "examples/flash_nodata_tx.cub",
       "group": "transaction",
+      "configs": ["tetra-fwd", "old-fwd"],
       "options": [
         "-brab",
-        "2",
-        "-forward-depth",
-        "5"
+        "2"
       ],
       "recipe_status": "documented",
       "option_evidence": [
         {
-          "path": "/Users/hsuzanne/cubicle/examples/flash_nodata_tx.cub",
+          "path": "examples/flash_nodata_tx.cub",
           "line_start": 4,
           "line_end": 4,
-          "text": "(* Run cubicle with options: -brab 2 -forward-depth 5                     *)"
+          "text": "(* Run cubicle with options: -tx fwd -brab 2                              *)"
         },
         {
           "path": "/Users/hsuzanne/cubicle/options.ml",
@@ -820,7 +819,7 @@
       "expected": null,
       "expected_basis": null,
       "budget_status": "Calibrated from cubicle-bench/run-01: smallest of 5/100/450s covering all successful runs; 450s for unresolved timeouts. Direct measured attempts; no separate typechecks or pilots; no timeout retries.",
-      "caveats": "Only transaction-annotated file in selected set; important tx none/all workload but neither same semantics as nodata nor supported SAFE verdict by inheritance. Unlinked triggered writeback/replacement rules and unannotated two-parameter GetX alternatives require boundary-semantics scrutiny.",
+      "caveats": "Forward-only recipe: -tx fwd -brab 2, with no forward-depth cutoff. Writeback/replacement trigger clauses restored. Historical runs used -tx all -brab 2 -forward-depth 5 with those clauses commented; their timeouts are not measurements of this recipe. The CFG engine counts individual transitions rather than whole transaction paths, making the old depth-5 cutoff too shallow. Six-process unrestricted enumeration also timed out. The two-process unrestricted recipe completed SAFE on both builds in flash-nodata-tx-brab2-no-depth. Unannotated two-parameter GetX alternatives still require boundary-semantics scrutiny for backward transaction modes.",
       "audit_suitability": "transaction-primary-with-caveats",
       "timeout_seconds": 450,
       "budget_evidence": {

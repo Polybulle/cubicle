@@ -7,6 +7,21 @@ import bench_compare as bench
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_flash_forward_recipe(self):
+        manifest = json.loads((bench.ROOT / 'experiments/bench_manifest.json').read_text())
+        model, = bench.select(manifest, ['flash_nodata_tx.cub'])
+        self.assertEqual(bench.configurations(model), ['tetra-fwd', 'old-fwd'])
+        self.assertEqual(model['options'], ['-brab', '2'])
+        for config in bench.configurations(model):
+            command = bench.command_for(model, config,
+                                        {'tetra': Path('/tetra'), 'old': Path('/old')},
+                                        {model['path']: {'path': '/input'}})
+            self.assertEqual(command.count('-tx'), 1)
+            self.assertEqual(command[command.index('-tx') + 1], 'fwd')
+        source = (bench.ROOT / model['path']).read_text()
+        self.assertIn('\ntriggers ni_Wb()\n', source)
+        self.assertIn('\ntriggers ni_Replace_shrvld(src) or ni_Replace(src)\n', source)
+
     def test_cli_accepts_six_workers(self):
         import subprocess
         import sys
@@ -138,7 +153,7 @@ class BenchmarkTests(unittest.TestCase):
                 rows = [json.loads(line) for line in (out / 'runs.jsonl').read_text().splitlines()]
                 self.assertEqual([r['phase'] for r in rows], ['measured'] * 11)
                 self.assertEqual([r['repetition'] for r in rows], [1] * 5 + [2] * 3 + [3] * 3)
-                self.assertEqual({r['config'] for r in rows[:5]}, set(bench.CONFIGS))
+                self.assertEqual({r['config'] for r in rows[:5]}, set(bench.configurations(model)))
                 self.assertEqual({r['config'] for r in rows[5:]}, {'baseline', 'tetra-none', 'old-none'})
                 self.assertEqual(len({r['log'] for r in rows}), len(rows))
                 self.assertFalse((out / 'pilot.json').exists())

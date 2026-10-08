@@ -16,16 +16,25 @@ these are the only worthwhile models.
 
 Ordinary inputs run on baseline Cubicle (`origin/master`) and on both transaction
 settings (`none`, `all`) of each fork (`fork-hector/tetra`, `fork-hector/master`).
-Transactional inputs run unchanged only on the two `all` configurations, as Kes
-approved. They need no unannotated counterpart. All inputs come from the pinned
-Tetra corpus commit, not from each build's branch-specific example directory.
+Transactional inputs default to the two `all` configurations. Flash explicitly
+selects `tetra-fwd` and `old-fwd`. They need no unannotated counterpart. All inputs
+come from the pinned Tetra corpus commit, not from each build's branch-specific
+example directory.
 
 Each model has one recipe rather than an automatic backward/BRAB-2 cross-product.
 The regression recipes take precedence for `flash_nodata.cub` and
 `flash_buggy.cub`: forward depth 6, while their headers suggest 5. Evidence and
-conflicts are retained in the manifest. The transaction Flash model uses its
-own header recipe, depth 5. `ticket_o.cub` uses BRAB-0 and numerical abstraction
-0..2. HIRR uses BRAB-4, `bfsh`, candidate heuristic 2, and forward depth 31.
+conflicts are retained in the manifest. The transaction Flash model uses
+`-tx fwd -brab 2`, without a forward-depth cutoff and with its
+writeback and replacement trigger clauses enabled. Historical runs used
+`-tx all -brab 2 -forward-depth 5` with those clauses commented. Use `--working-tree`
+to include the restored annotations until the corpus pin is updated.
+The old engine counted whole transaction paths toward the depth bound; the CFG
+engine counts individual transitions. Depth 5 is too shallow for the current
+candidate filter. Unrestricted two-process enumeration completes on both builds;
+unrestricted six-process enumeration timed out on both.
+`ticket_o.cub` uses BRAB-0 and numerical abstraction 0..2. HIRR uses BRAB-4, `bfsh`,
+candidate heuristic 2, and forward depth 31.
 The three German transaction inputs have no established model-specific flags;
 plain backward reachability is explicitly labeled a proposed pilot recipe.
 
@@ -58,6 +67,8 @@ For a focused rerun, a manifest model may specify a nonempty `configs` list,
 for example `["tetra-all"]` or `["tetra-none"]`. Only those configurations are
 scheduled for that model. Duplicate, unknown, or unsupported configurations are
 rejected; omitting the field preserves the original five-configuration matrix.
+Forward-only configurations `tetra-fwd` and `old-fwd` are available by explicit
+selection, without adding runs to other models' default matrix.
 Supply the focused manifest with `--manifest /path/to/manifest.json`.
 
     python3 experiments/bench_compare.py --phase plan

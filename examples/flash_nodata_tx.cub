@@ -1,7 +1,7 @@
 (**************************************************************************)
 (* FLASH protocol without data paths                                      *)
 (**************************************************************************)
-(* Run cubicle with options: -brab 2 -forward-depth 5                     *)
+(* Run cubicle with options: -tx fwd -brab 2                              *)
 (*                                                                        *)
 (* Translated from murphi models used in                                  *)
 (*                                                                        *)
@@ -389,7 +389,7 @@ requires { Home <> dst &&
   	WbMsg_Cmd := WB_Wb;
   	WbMsg_Proc := dst;
 }
-(* triggers ni_Wb() *)
+triggers ni_Wb()
 
 
 (*---------------------- Muphi rule PI_Local_PutX -----------------------*)
@@ -424,7 +424,7 @@ requires { Home <> src &&
   CacheState[src] := CACHE_I;
   RpMsg_Cmd[src] := RP_Replace;
 }
-(* triggers ni_Replace_shrvld(src) or ni_Replace(src) *)
+triggers ni_Replace_shrvld(src) or ni_Replace(src)
 
 
 (*--------------------- Muphi rule PI_Local_Replace ---------------------*)
