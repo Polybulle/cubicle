@@ -249,15 +249,18 @@ let is_proc env v = env.first_proc <= v && v < env.extra_proc
 
 
 
-let find_subst_for_norm env st =
+(* Renaming that sends processes, in order of first occurrence, to the lowest
+   free process ids. Processes in [fixed] are left where they are. *)
+let find_subst_for_norm ?(fixed=[]) env st =
   let met = ref [] in
-  let remaining = ref env.proc_ids in
+  let free = List.filter (fun r -> not (List.mem r fixed)) env.proc_ids in
+  let remaining = ref free in
   let sigma = HI.create env.model_cardinal in
   for i = 0 to Array.length st - 1 do
     let v = st.(i) in
     match !remaining with
     | r :: tail ->
-      if is_proc env v && v <> env.extra_proc && (* r <> env.extra_proc && *)
+      if is_proc env v && v <> env.extra_proc && not (List.mem v fixed) &&
          not (List.mem v !met) then begin
         met := v :: !met;
         remaining := tail;
@@ -265,14 +268,14 @@ let find_subst_for_norm env st =
       end
     | _ -> ()
   done;
-  let not_met = List.filter (fun v -> not (List.mem v !met)) env.proc_ids in
+  let not_met = List.filter (fun v -> not (List.mem v !met)) free in
   List.iter2 (fun v r -> if v <> r then HI.add sigma v r) not_met !remaining;
   sigma
 
 
-let normalize_state env st =
-  let sigma = find_subst_for_norm env st in
-  apply_subst_in_place env st sigma (* ; *)
+let normalize_state ?fixed env st =
+  let sigma = find_subst_for_norm ?fixed env st in
+  apply_subst_in_place env st sigma
 
 
 let global_envs = ref []
@@ -891,7 +894,8 @@ let forward_bfs _ _ env l =
 (* table explicit_states                                                *)
 (************************************************************************)
 (* Number the events of the control-flow graph over [procs], starting from
-   neutral, and record each event's compiled transition and successors. *)
+   neutral, and record each event's compiled transition, successors and bound
+   process ids. *)
 let transaction_events system procs env =
   let Before neutral = Node.neutral_pos in
   let trs = Hashtbl.create (List.length env.st_trs) in
@@ -917,10 +921,14 @@ let transaction_events system procs env =
   let trans = Array.make (Hashtbl.length ids) None in
   let succs = Array.make (Hashtbl.length ids) [] in
   List.iter (fun (i, tr, succ) -> trans.(i) <- tr; succs.(i) <- !succ) !events;
-  trans, succs
+  let bound = Array.make (Hashtbl.length ids) [] in
+  Hashtbl.iter (fun e i ->
+      bound.(i) <- List.map (fun p -> HT.find env.id_terms (Elem (p, Var)))
+                     e.evt_args) ids;
+  trans, succs, bound
 
 let forward_transactions system procs env l =
-  let trans, succs = transaction_events system procs env in
+  let trans, succs, bound = transaction_events system procs env in
   let neutral = 0 in
   let module HLocated = Hashtbl.Make (struct
       type t = state * int
@@ -942,6 +950,15 @@ let forward_transactions system procs env l =
     | Some tr ->
        check_reqs env st tr.st_reqs &&
        List.for_all (List.exists (check_reqs env st)) tr.st_udnfs in
+  (* Symmetry reduction keeps the processes bound by the event fixed, so that
+     the state stays consistent with its position in the transaction. *)
+  let normalized st i =
+    if not forward_sym then st
+    else begin
+      let st = Array.copy st in
+      normalize_state ~fixed:bound.(i) env st;
+      st
+    end in
   let to_do = Queue.create () in
   let push depth st i = if enabled st i then Queue.add (depth, st, i) to_do in
   List.iter (fun (depth, st) -> Queue.add (depth, st, neutral) to_do) l;
@@ -952,23 +969,21 @@ let forward_transactions system procs env l =
     if not (HLocated.mem h_visited key) || depth < HLocated.find h_visited key then begin
       HLocated.replace h_visited key depth;
       incr cpt_f;
-      register st;
-      if i = neutral then List.iter (push depth st) succs.(i)
+      if i = neutral then begin
+        register st;
+        List.iter (push depth st) succs.(i)
+      end
       else if not limit_forward_depth || depth < forward_depth then begin
         let sts = match trans.(i) with
           | None -> []
           | Some tr -> try tr.st_f st with Not_applicable -> [] in
         ListLabels.iter sts ~f:(fun s ->
-            register s;
+            (* One representative per orbit is registered; successors are
+               reduced with their own bound processes fixed. *)
+            let canonical = normalized s neutral in
+            register canonical;
             ListLabels.iter succs.(i) ~f:(fun j ->
-                if j = neutral && forward_sym then begin
-                  (* No process is bound at neutral: symmetry reduction is
-                     safe there. *)
-                  let s = Array.copy s in
-                  normalize_state env s;
-                  push (depth + 1) s j
-                end
-                else push (depth + 1) s j))
+                push (depth + 1) (if j = neutral then canonical else normalized s j) j))
       end
     end
   done;
