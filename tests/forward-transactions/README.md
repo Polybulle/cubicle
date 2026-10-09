@@ -15,10 +15,13 @@ to neutral, so unrelated entries cannot interleave with an unfinished transactio
 No transaction paths are pre-enumerated. A repeated full configuration is covered
 by its earlier visit, not merely by equal program data.
 
-Process identities remain fixed inside a transaction. The symbolic post-image
+Process identities bound by the current event stay fixed. The symbolic post-image
 skips its formula-only renaming. The enumerative transaction branch applies
-symmetry normalization (when `forward_sym` is enabled) only to states entering
-neutral, where no control binding remains to be renamed consistently.
+symmetry normalization (when `forward_sym` is enabled) after every step, but
+only over the processes the next event does not bind, so the state stays
+consistent with its control position. At neutral nothing is bound and the
+reduction is global. The registered state is the neutral-normalized copy, so
+the table holds one state per orbit.
 Ordinary forward exploration, including `-tx bwd`, retains the existing algorithms.
 
 The enumerative branch numbers the finitely many events once, with their
