@@ -1,0 +1,224 @@
+(* MUTANT M3: install completion retains the inbox claim.
+   OBSERVED: bwd+BRAB3 BFSh UNSAFE, 258 nodes, 1.741s, after completed
+   process_buffered/clear_inbox. Ordinary BFS recipes timed out. NOT safe.
+*)
+
+(* IRONKV-STYLE REPEATED SINGLE-KEY MIGRATION -- stage 1 research model.
+   Sources: IronFleet SOSP 2015, sections 3 and 5.2:
+   https://www.microsoft.com/en-us/research/wp-content/uploads/2015/10/ironfleet.pdf
+   Microsoft/Ironclad revision 2fe4dcdc323b92e93f759cc3e373521366b7f691:
+   Protocol/SHT/Host.i.dfy, SingleDelivery.i.dfy, RefinementProof/InvDefs.i.dfy
+   under ironfleet/src/Dafny/Distributed/. Contract: ../assessments/ironkv-assessment.md.
+
+   Initialization uses one trusted provision step because the attempted root-
+   conditional disjunctive init was reported initially UNSAFE by this checker;
+   that encoding obstacle is not diagnosed (retained logs). Initialized gates setup only; it never
+   gates migration. Provisioning is an explicit extra initial claim, not an
+   operational ownership oracle. Afterwards there are exactly the three kinds.
+
+   Fixed arbitrary host deployment; one key, Zero/One values, unbounded natural
+   sequence numbers and immutable packet records. proc indexes two independent
+   roles selected by immutable Host tags: deployment members and non-host
+   message records. Allocating a record does NOT create a host. All hosts already
+   exist; a host can send repeatedly without any Used bit. A fixed two-host
+   deployment supports arbitrarily many rounds when the separate non-host
+   record supply is unbounded. Finite instances can exhaust records; this is
+   not a fixed finite-memory implementation theorem.
+   Historical records remain deliverable even after ACK cleanup. Pending[m] is
+   sender-local retransmission accounting, not ownership or packet existence.
+   Pair Seq[s,d] grows on every send; Recv[d,s] accepts exactly the successor.
+   Receiver holds one Wire slot (physical network delivery) and one Inbox slot.
+   Network delivery/drop is outside handlers; receipt, ACK, and installation are
+   separate operations. Early ACK cleanup while Inbox remains occupied is legal.
+
+   Ghost Claim/Witness/ClaimPacket describe one conservation witness and are
+   NEVER read by guards. Expected changes only on locally authoritative SET.
+   Buffers/Installs are ghost per-envelope dispatch counters, never guards.
+   Bad cubes cover authority exclusion, all three claim contents, witness-backed
+   missing-claim conservation, exactly-once dispatch and unsound ACK deletion.
+   They do not prove full client request/reply refinement or crash recovery.
+
+   Host-step transaction boundaries: send = snapshot / relinquish / publish;
+   receive = successor validation / advance / buffer / emit ACK;
+   process = install / clear inbox; cleanup = authenticated ACK / truncate;
+   retransmit = re-emit a locally Pending envelope; physical copies are
+   quotiented to historical deliverability, so the modeled update stutters.
+   No handler waits for another host. Private intermediate no-claim / double-
+   claim states are intentionally forbidden only at committed boundaries.
+   No source-to-Cubicle reduction theorem is claimed. See NOTES.md for exact
+   execution results, unfinished obligations and resource limits. Reproduce:
+   python3 tx-challenges/ironkv-migration/run.py
+*)
+
+type phase = Idle | SendReady | SendGone | ReceiveReady | ReceiveBuffered | Installing
+type value = Zero | One
+type claim = Provisioning | AtHost | InFlight | Buffered
+var Initialized : bool
+var Expected : value
+var Claim : claim
+var Witness : proc
+var ClaimPacket : proc
+(* Host is an immutable deployment membership tag, unconstrained initially.
+   Non-host proc elements are independent message-record identities. *)
+array Host[proc] : bool
+array Held[proc] : bool
+array Data[proc] : value
+array Sends[proc] : int
+array Seq[proc,proc] : int
+array Recv[proc,proc] : int
+(* Immutable after publish; Free is a record allocator, not a host lifetime. *)
+array Free[proc] : bool
+array Packet[proc] : bool
+array Src[proc] : proc
+array Dst[proc] : proc
+array Number[proc] : int
+array Payload[proc] : value
+array Pending[proc] : bool
+array Ack[proc] : bool
+array Buffers[proc] : int
+array Installs[proc] : int
+array Wire[proc] : bool
+array WireRecord[proc] : proc
+array Inbox[proc] : bool
+array InboxRecord[proc] : proc
+array InboxValue[proc] : value
+array Snapshot[proc] : value
+(* Private handler staging also guards internal transitions in -tx ignore. *)
+array Phase[proc] : phase
+array HandlerRecord[proc] : proc
+array HandlerDest[proc] : proc
+
+init (h d) {
+  Initialized = False && Claim = Provisioning && Expected = Zero &&
+  Held[h] = False &&
+  Data[h] = Zero && Sends[h] = 0 && Seq[h,d] = 0 && Recv[h,d] = 0 &&
+  Free[h] = True && Packet[h] = False && Pending[h] = False &&
+  Ack[h] = False && Buffers[h] = 0 && Installs[h] = 0 &&
+  Wire[h] = False && Inbox[h] = False && Phase[h] = Idle
+}
+
+(* Concrete unique authority and data correctness. *)
+unsafe (p q) { Held[p] = True && Held[q] = True }
+unsafe (p) { Held[p] = True && Data[p] <> Expected }
+unsafe (d) { Inbox[d] = True && InboxValue[d] <> Expected }
+unsafe (s d m) { Packet[m] = True && Src[m] = s && Dst[m] = d &&
+  Number[m] > Recv[d,s] && Payload[m] <> Expected }
+(* Exclusion relative to the observational conservation witness. *)
+unsafe (p) { Held[p] = True && Claim <> AtHost }
+unsafe (p) { Held[p] = True && Claim = AtHost && p <> Witness }
+unsafe (d) { Inbox[d] = True && Claim <> Buffered }
+unsafe (d) { Inbox[d] = True && Claim = Buffered && d <> Witness }
+unsafe (d m) { Inbox[d] = True && Claim = Buffered && d = Witness &&
+  InboxRecord[d] <> ClaimPacket }
+unsafe (s d m) { Packet[m] = True && Src[m] = s && Dst[m] = d &&
+  Number[m] > Recv[d,s] && Claim <> InFlight }
+unsafe (s d m) { Packet[m] = True && Src[m] = s && Dst[m] = d &&
+  Number[m] > Recv[d,s] && Claim = InFlight && m <> ClaimPacket }
+(* No claimant missing: no existential negation, thanks to ghost witnesses. *)
+unsafe (p) { Claim = AtHost && p = Witness && Held[p] = False }
+unsafe (d) { Claim = Buffered && d = Witness && Inbox[d] = False }
+unsafe (m) { Claim = InFlight && m = ClaimPacket && Packet[m] = False }
+unsafe (s d m) { Claim = InFlight && m = ClaimPacket && Src[m] = s &&
+  Dst[m] = d && Number[m] <= Recv[d,s] }
+unsafe (m) { Buffers[m] > 1 }
+unsafe (m) { Installs[m] > 1 }
+unsafe (s d m) { Packet[m] = True && Src[m] = s && Dst[m] = d &&
+  Number[m] > Recv[d,s] && Pending[m] = False }
+
+(* One trusted initialization action; Initialized is a once-only setup gate,
+   not a current-owner oracle, and is never read during migration or clients. *)
+transition provision(h)
+requires { Initialized = False && Host[h] = True }
+{ Initialized := True; Held[h] := True; Data[h] := Zero;
+  Claim := AtHost; Witness := h }
+
+transition set_zero(h)
+requires { Held[h] = True && Phase[h] = Idle }
+{ Data[h] := Zero; Expected := Zero }
+transition set_one(h)
+requires { Held[h] = True && Phase[h] = Idle }
+{ Data[h] := One; Expected := One }
+(* GET linearizes locally. Its response is a value observation, not a retry API. *)
+transition get(h)
+requires { Held[h] = True && Phase[h] = Idle }
+{ Snapshot[h] := Data[h] }
+transition redirect(h)
+requires { Held[h] = False && Phase[h] = Idle }
+{ Snapshot[h] := Data[h] }
+
+transition send(s d m)
+requires { Held[s] = True && Free[m] = True && s <> d && Phase[s] = Idle &&
+  Host[s] = True && Host[d] = True && Host[m] = False }
+{ Free[m] := False; Snapshot[s] := Data[s]; Src[m] := s; Dst[m] := d;
+  Phase[s] := SendReady; HandlerRecord[s] := m; HandlerDest[s] := d }
+triggers relinquish(s d m)
+triggered transition relinquish(s d m)
+requires { Held[s] = True && Phase[s] = SendReady && HandlerRecord[s] = m &&
+  HandlerDest[s] = d }
+{ Held[s] := False; Phase[s] := SendGone; Seq[s,d] := Seq[s,d] + 1; Sends[s] := Sends[s] + 1;
+  Number[m] := Seq[s,d] + 1; Payload[m] := Snapshot[s];
+  Claim := InFlight; ClaimPacket := m }
+triggers publish(s d m)
+triggered transition publish(s d m)
+requires { Free[m] = False && Phase[s] = SendGone && HandlerRecord[s] = m &&
+  HandlerDest[s] = d }
+{ Packet[m] := True; Pending[m] := True; Phase[s] := Idle }
+
+(* Physical delivery reads only the immutable message and target wire slot. *)
+transition deliver(s d m)
+requires { Packet[m] = True && Src[m] = s && Dst[m] = d && Wire[d] = False }
+{ Wire[d] := True; WireRecord[d] := m }
+transition drop_wire(d)
+requires { Wire[d] = True }
+{ Wire[d] := False }
+
+transition receive_new(s d m)
+requires { Wire[d] = True && WireRecord[d] = m && Packet[m] = True &&
+  Src[m] = s && Dst[m] = d && Inbox[d] = False && Phase[d] = Idle &&
+  Number[m] = Recv[d,s] + 1 }
+{ Wire[d] := False; Recv[d,s] := Number[m]; Phase[d] := ReceiveReady;
+  HandlerRecord[d] := m }
+triggers buffer(s d m)
+triggered transition buffer(s d m)
+requires { Inbox[d] = False && Phase[d] = ReceiveReady && HandlerRecord[d] = m &&
+  Src[m] = s && Dst[m] = d }
+{ Inbox[d] := True; Phase[d] := ReceiveBuffered; InboxRecord[d] := m; InboxValue[d] := Payload[m];
+  Buffers[m] := Buffers[m] + 1; Claim := Buffered; Witness := d; ClaimPacket := m }
+triggers emit_ack(s d m)
+triggered transition emit_ack(s d m)
+requires { Packet[m] = True && Phase[d] = ReceiveBuffered && HandlerRecord[d] = m &&
+  Src[m] = s && Dst[m] = d }
+{ Ack[m] := True; Phase[d] := Idle }
+
+transition receive_duplicate(s d m)
+requires { Wire[d] = True && WireRecord[d] = m && Packet[m] = True &&
+  Src[m] = s && Dst[m] = d && Number[m] <= Recv[d,s] && Phase[d] = Idle }
+{ Wire[d] := False; Ack[m] := True }
+transition reject_gap(s d m)
+requires { Wire[d] = True && WireRecord[d] = m && Packet[m] = True &&
+  Src[m] = s && Dst[m] = d && Number[m] > Recv[d,s] + 1 && Phase[d] = Idle }
+{ Wire[d] := False }
+
+transition process_buffered(d m)
+requires { Inbox[d] = True && InboxRecord[d] = m && Phase[d] = Idle }
+{ Phase[d] := Installing; HandlerRecord[d] := m; Held[d] := True; Data[d] := InboxValue[d]; Installs[m] := Installs[m] + 1;
+  Claim := AtHost; Witness := d }
+triggers clear_inbox(d m)
+triggered transition clear_inbox(d m)
+requires { Inbox[d] = True && InboxRecord[d] = m && Phase[d] = Installing &&
+  HandlerRecord[d] = m }
+{ Phase[d] := Idle; Inbox[d] := True }
+
+(* ACKs remain historically replayable. Truncation is authenticated by the
+   immutable envelope's endpoints and sequence, never by current global owner. *)
+transition cleanup(s d m)
+requires { Ack[m] = True && Src[m] = s && Dst[m] = d && Number[m] <= Seq[s,d] &&
+  Phase[s] = Idle }
+{ Pending[q] := case
+    | Src[q] = s && Dst[q] = d && Number[q] <= Number[m] : False
+    | _ : Pending[q] }
+
+transition retransmit(s d m)
+requires { Pending[m] = True && Packet[m] = True && Src[m] = s && Dst[m] = d &&
+  Phase[s] = Idle }
+{ Pending[m] := True }

@@ -1,0 +1,339 @@
+(* FLASH-inspired full-data completed-acquisition specification, not a proved
+   reduction of examples/flash.cub. One line, distinguished Home represented by
+   the same physical cache arrays as remotes, arbitrary proc population, symbolic
+   proc-tag data. Single-slot reliable messages. No failure/liveness claim.
+   Run: python3 tx-challenges/flash-acquire/run.py
+   Transaction accepts Get/GetX, binds requester and old owner, branches to memory
+   or owner forwarding, recursively invalidates victims and consumes actual acks,
+   receives payload in either order, then grants/releases. Environment choices
+   are explicit internal successors; this is one globally exclusive CFG flow.
+   STRICT is DELAYED-style: grant only when actual ack obligations are empty.
+   Stores, PutX and Replace are ordinary boundary transitions as well as explicit
+   internal owner-store/writeback/replacement choices. No global freeze flag.
+   EAGER companion instead retains original flash.cub executable rules/properties.
+*)
+type permission = I | S | E
+type command = Empty | Get | GetX | Put | PutX | Nak
+type inv = NoInv | Inv | Ack
+type phase = Idle | Accepted | Working | Received
+var Home : proc
+var Phase : phase
+var Requester : proc
+var OldOwner : proc
+var FromOwner : bool
+var Owner : proc
+var Dirty : bool
+var Kind : command
+var MemData : proc
+var CurrData : proc
+var PrevData : proc
+var Payload : proc
+var Ready : bool
+var Collecting : bool
+var Completed : bool
+var NakcMsg : bool
+var WbValid : bool
+var WbOwner : proc
+var WbData : proc
+var ShWbValid : bool
+var ShWbData : proc
+array Cache[proc] : permission
+array Data[proc] : proc
+array Sharer[proc] : bool
+array Pending[proc] : bool
+array Required[proc] : bool
+array InvMsg[proc] : inv
+array UniMsg[proc] : command
+array UniData[proc] : proc
+array InvMarked[proc] : bool
+array Revoked[proc] : bool
+init (p) {
+Phase = Idle && FromOwner = False && Dirty = False && Kind = Empty && MemData = CurrData &&
+PrevData = CurrData && Ready = False && Collecting = False && Completed = False &&
+NakcMsg = False && WbValid = False && ShWbValid = False &&
+Cache[p] = I && Sharer[p] = False && Pending[p] = False && Required[p] = False &&
+InvMsg[p] = NoInv && UniMsg[p] = Empty && InvMarked[p] = False && Revoked[p] = False
+}
+(* Separate home/remote and remote/remote physical exclusion queries. *)
+unsafe (h p) { h = Home && Cache[h] = E && Cache[p] <> I }
+unsafe (h p) { h = Home && Cache[p] = E && Cache[h] <> I }
+unsafe (p q) { p <> Home && q <> Home && Cache[p] = E && Cache[q] <> I }
+unsafe (p) { Cache[p] <> I && Data[p] <> CurrData }
+unsafe () { Dirty = False && MemData <> CurrData }
+unsafe (p) { Completed = True && Pending[p] = True }
+unsafe (p) { Completed = True && Required[p] = True && Cache[p] <> I }
+(* PROPERTY END *)
+transition issue_Get (r)
+requires { UniMsg[r] = Empty && Cache[r] = I } {
+UniMsg[r] := Get
+}
+
+transition issue_GetX (r)
+requires { UniMsg[r] = Empty && Cache[r] <> E } {
+UniMsg[r] := GetX
+}
+
+transition store (p d)
+requires { Cache[p] = E } {
+Data[p] := d; CurrData := d
+}
+
+transition putx (p)
+requires { Cache[p] = E && WbValid = False } {
+Cache[p] := I; WbValid := True; WbOwner := p; WbData := Data[p]
+}
+
+transition writeback ()
+requires { WbValid = True } {
+MemData := WbData; Dirty := False; WbValid := False
+}
+
+transition replace (p)
+requires { Cache[p] = S && UniMsg[p] = Empty } {
+Cache[p] := I; Sharer[p] := False
+}
+
+transition delayed_put (p)
+requires { UniMsg[p] = Put } {
+Cache[j] := case | j = p && InvMarked[p] = False : S | _ : Cache[j]; Data[p] := UniData[p]; UniMsg[p] := Empty; InvMarked[p] := False
+}
+
+transition collision (p)
+requires { Phase <> Idle && UniMsg[p] = Get && p <> Requester } {
+UniMsg[p] := Nak
+}
+
+transition collision_x (p)
+requires { Phase <> Idle && UniMsg[p] = GetX && p <> Requester } {
+UniMsg[p] := Nak
+}
+
+transition nak_receive (p)
+requires { UniMsg[p] = Nak } {
+UniMsg[p] := Empty; InvMarked[p] := False
+}
+
+transition m_accept_Get_home (r)
+requires { Phase = Idle && WbValid = False && UniMsg[r] = Get && r = Home && Dirty = False } {
+Phase := Accepted; Requester := r; Kind := Get; Ready := False; Completed := False; PrevData := CurrData; Revoked[j] := case | _ : False; Required[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; Pending[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; InvMsg[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : Inv | _ : NoInv; FromOwner := False
+}
+triggers m_step(r)
+
+transition m_accept_Get_remote (r)
+requires { Phase = Idle && WbValid = False && UniMsg[r] = Get && r <> Home && Dirty = False } {
+Phase := Accepted; Requester := r; Kind := Get; Ready := False; Completed := False; PrevData := CurrData; Revoked[j] := case | _ : False; Required[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; Pending[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; InvMsg[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : Inv | _ : NoInv; FromOwner := False
+}
+triggers m_step(r)
+
+transition m_accept_GetX_home (r)
+requires { Phase = Idle && WbValid = False && UniMsg[r] = GetX && r = Home && Dirty = False } {
+Phase := Accepted; Requester := r; Kind := GetX; Ready := False; Completed := False; PrevData := CurrData; Revoked[j] := case | _ : False; Required[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; Pending[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; InvMsg[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : Inv | _ : NoInv; FromOwner := False
+}
+triggers m_step(r)
+
+transition m_accept_GetX_remote (r)
+requires { Phase = Idle && WbValid = False && UniMsg[r] = GetX && r <> Home && Dirty = False } {
+Phase := Accepted; Requester := r; Kind := GetX; Ready := False; Completed := False; PrevData := CurrData; Revoked[j] := case | _ : False; Required[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; Pending[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; InvMsg[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : Inv | _ : NoInv; FromOwner := False
+}
+triggers m_step(r)
+
+transition m_accept_upgrade_peer (r v)
+requires { Phase = Idle && WbValid = False && Dirty = False && UniMsg[r] = GetX && Sharer[r] = True && Sharer[v] = True } {
+Phase := Accepted; Requester := r; Kind := GetX; Ready := False; Completed := False; PrevData := CurrData; Revoked[j] := case | _ : False; Required[j] := case | j <> r && Sharer[j] = True : True | _ : False; Pending[j] := case | j <> r && Sharer[j] = True : True | _ : False; InvMsg[j] := case | j <> r && Sharer[j] = True : Inv | _ : NoInv; FromOwner := False
+}
+triggers m_step(r)
+
+triggered
+transition m_step (r)
+requires { FromOwner = False && Phase <> Idle && Requester = r } {
+Phase := Working
+}
+triggers m_reply(r) or m_receive(r) or m_inv(r _) or m_ack(r _) or m_finish_x(r) or m_finish_s(r) or m_replace(r _) or m_collision(r _) or m_collision_x(r _) or m_late_put(r _)
+
+triggered
+transition m_reply (r)
+requires { FromOwner = False && Phase = Working && Ready = False && Requester = r } {
+Payload := MemData; Ready := True
+}
+triggers m_step(r)
+
+triggered
+transition m_receive (r)
+requires { FromOwner = False && Phase = Working && Requester = r && Ready = True && UniMsg[r] <> PutX } {
+UniMsg[r] := PutX; UniData[r] := Payload
+}
+triggers m_step(r)
+
+triggered
+transition m_inv (r v)
+requires { FromOwner = False && Phase = Working && Requester = r && InvMsg[v] = Inv } {
+Cache[v] := I; Sharer[v] := False; InvMsg[v] := Ack; InvMarked[j] := case | j = v && UniMsg[v] = Put : True | _ : InvMarked[j]; Revoked[v] := True
+}
+triggers m_step(r)
+
+triggered
+transition m_ack (r v)
+requires { FromOwner = False && Phase = Working && Requester = r && InvMsg[v] = Ack && Pending[v] = True } {
+Pending[v] := False; InvMsg[v] := NoInv
+}
+triggers m_step(r)
+
+triggered
+transition m_replace (r v)
+requires { FromOwner = False && Phase = Working && Requester = r && Cache[v] = S && UniMsg[v] = Empty } {
+Cache[v] := I; Sharer[v] := False
+}
+triggers m_step(r)
+
+triggered
+transition m_collision (r v)
+requires { FromOwner = False && Phase = Working && Requester = r && UniMsg[v] = Get } {
+UniMsg[v] := Nak
+}
+triggers m_step(r)
+
+triggered
+transition m_collision_x (r v)
+requires { FromOwner = False && Phase = Working && Requester = r && UniMsg[v] = GetX } {
+UniMsg[v] := Nak
+}
+triggers m_step(r)
+
+triggered
+transition m_late_put (r v)
+requires { FromOwner = False && Phase = Working && Requester = r && UniMsg[v] = Put } {
+Cache[j] := case | j = v && InvMarked[v] = False : S | _ : Cache[j]; Data[v] := UniData[v]; UniMsg[v] := Empty; InvMarked[v] := False
+}
+triggers m_step(r)
+
+triggered
+transition m_finish_x (r)
+requires { FromOwner = False && Phase = Working && Requester = r && Kind = GetX && UniMsg[r] = PutX && Pending[r] = False && forall_other j. Pending[j] = False } {
+Cache[r] := E; Data[r] := UniData[r]; UniMsg[r] := Empty; Owner := r; Dirty := True; Phase := Idle; Completed := True; ShWbValid := False
+}
+
+triggered
+transition m_finish_s (r)
+requires { FromOwner = False && Phase = Working && Requester = r && Kind = Get && UniMsg[r] = PutX } {
+UniMsg[r] := Put; Sharer[r] := True; MemData := Payload; Dirty := False; Phase := Idle; ShWbValid := False
+}
+
+transition o_accept_Get_home (r o)
+requires { Phase = Idle && WbValid = False && UniMsg[r] = Get && r = Home && Dirty = True && Owner = o } {
+Phase := Accepted; Requester := r; Kind := Get; Ready := False; Completed := False; PrevData := CurrData; Revoked[j] := case | _ : False; Required[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; Pending[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; InvMsg[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : Inv | _ : NoInv; OldOwner := o; FromOwner := True
+}
+triggers o_step(r o)
+
+transition o_accept_Get_remote (r o)
+requires { Phase = Idle && WbValid = False && UniMsg[r] = Get && r <> Home && Dirty = True && Owner = o } {
+Phase := Accepted; Requester := r; Kind := Get; Ready := False; Completed := False; PrevData := CurrData; Revoked[j] := case | _ : False; Required[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; Pending[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; InvMsg[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : Inv | _ : NoInv; OldOwner := o; FromOwner := True
+}
+triggers o_step(r o)
+
+transition o_accept_GetX_home (r o)
+requires { Phase = Idle && WbValid = False && UniMsg[r] = GetX && r = Home && Dirty = True && Owner = o } {
+Phase := Accepted; Requester := r; Kind := GetX; Ready := False; Completed := False; PrevData := CurrData; Revoked[j] := case | _ : False; Required[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; Pending[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; InvMsg[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : Inv | _ : NoInv; OldOwner := o; FromOwner := True
+}
+triggers o_step(r o)
+
+transition o_accept_GetX_remote (r o)
+requires { Phase = Idle && WbValid = False && UniMsg[r] = GetX && r <> Home && Dirty = True && Owner = o } {
+Phase := Accepted; Requester := r; Kind := GetX; Ready := False; Completed := False; PrevData := CurrData; Revoked[j] := case | _ : False; Required[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; Pending[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : True | _ : False; InvMsg[j] := case | j <> r && Sharer[j] = True && UniMsg[r] = GetX : Inv | _ : NoInv; OldOwner := o; FromOwner := True
+}
+triggers o_step(r o)
+
+triggered
+transition o_step (r o)
+requires { FromOwner = True && OldOwner = o && Phase <> Idle && Requester = r } {
+Phase := Working
+}
+triggers o_reply(r o) or o_receive(r o) or o_inv(r o _) or o_ack(r o _) or o_finish_x(r o) or o_finish_s(r o) or o_replace(r o _) or o_collision(r o _) or o_collision_x(r o _) or o_late_put(r o _) or o_store(r o _) or o_evict(r o) or o_nak(r o)
+
+triggered
+transition o_reply (r o)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Ready = False && Requester = r && Cache[o] = E } {
+Payload := PrevData; Ready := True; Cache[j] := case | j = o && Kind = GetX : I | j = o && Kind = Get : S | _ : Cache[j]; Sharer[j] := case | j = o && Kind = Get : True | j = o && Kind = GetX : False | _ : Sharer[j]; ShWbValid := True; ShWbData := Data[o]; Pending[o] := False; InvMsg[o] := NoInv
+}
+triggers o_step(r o)
+
+triggered
+transition o_store (r o d)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Ready = False && Requester = r && Cache[o] = E } {
+Data[o] := d; CurrData := d
+}
+triggers o_step(r o)
+
+triggered
+transition o_evict (r o)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Ready = False && Requester = r && Cache[o] = E } {
+Cache[o] := I; WbValid := True; WbOwner := o; WbData := Data[o]
+}
+triggers o_step(r o)
+
+triggered
+transition o_nak (r o)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Ready = False && Requester = r && Cache[o] <> E } {
+UniMsg[r] := Nak; NakcMsg := True; Phase := Idle; Pending[j] := case | _ : False; Required[j] := case | _ : False; InvMsg[j] := case | _ : NoInv
+}
+
+triggered
+transition o_receive (r o)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Requester = r && Ready = True && UniMsg[r] <> PutX } {
+UniMsg[r] := PutX; UniData[r] := Payload
+}
+triggers o_step(r o)
+
+triggered
+transition o_inv (r o v)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Requester = r && InvMsg[v] = Inv } {
+Cache[v] := I; Sharer[v] := False; InvMsg[v] := Ack; InvMarked[j] := case | j = v && UniMsg[v] = Put : True | _ : InvMarked[j]; Revoked[v] := True
+}
+triggers o_step(r o)
+
+triggered
+transition o_ack (r o v)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Requester = r && InvMsg[v] = Ack && Pending[v] = True } {
+Pending[v] := False; InvMsg[v] := NoInv
+}
+triggers o_step(r o)
+
+triggered
+transition o_replace (r o v)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Requester = r && Cache[v] = S && UniMsg[v] = Empty } {
+Cache[v] := I; Sharer[v] := False
+}
+triggers o_step(r o)
+
+triggered
+transition o_collision (r o v)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Requester = r && UniMsg[v] = Get } {
+UniMsg[v] := Nak
+}
+triggers o_step(r o)
+
+triggered
+transition o_collision_x (r o v)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Requester = r && UniMsg[v] = GetX } {
+UniMsg[v] := Nak
+}
+triggers o_step(r o)
+
+triggered
+transition o_late_put (r o v)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Requester = r && UniMsg[v] = Put } {
+Cache[j] := case | j = v && InvMarked[v] = False : S | _ : Cache[j]; Data[v] := UniData[v]; UniMsg[v] := Empty; InvMarked[v] := False
+}
+triggers o_step(r o)
+
+triggered
+transition o_finish_x (r o)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Requester = r && Kind = GetX && UniMsg[r] = PutX && Pending[r] = False && Pending[o] = False && forall_other j. Pending[j] = False } {
+Cache[r] := E; Data[r] := UniData[r]; UniMsg[r] := Empty; Owner := r; Dirty := True; Phase := Idle; Completed := True; ShWbValid := False
+}
+
+triggered
+transition o_finish_s (r o)
+requires { FromOwner = True && OldOwner = o && Phase = Working && Requester = r && Kind = Get && UniMsg[r] = PutX } {
+UniMsg[r] := Put; Sharer[r] := True; MemData := Payload; Dirty := False; Phase := Idle; ShWbValid := False
+}
+
